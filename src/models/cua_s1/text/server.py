@@ -124,7 +124,10 @@ def build_app(
         try:
             mapped = map_request(parse_body(bytes(raw)), max_questions=max_questions)
             loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(pool, decide, mapped)
+            # Returned as a JSONResponse: FastAPI's default encoder would drop
+            # every key that starts with "_sa", and question names and option
+            # keys come from the request.
+            return JSONResponse(await loop.run_in_executor(pool, decide, mapped))
         except RequestError as exc:
             return error(exc.status, str(exc))
         except Exception:

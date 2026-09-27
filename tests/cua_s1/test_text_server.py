@@ -91,6 +91,22 @@ def test_choice_answer():
     assert body["usage"] == {"input_tokens": 100, "output_tokens": 0}
 
 
+def test_keys_come_back_as_sent():
+    body = json.loads(json.dumps(BODY))
+    body["questions"] = {
+        "_sample": {
+            "type": "choice",
+            "instructions": "Pick.",
+            "criteria": {"_save": "Save", "b": "B"},
+        }
+    }
+    response = client().post("/v1/systemone", json=body)
+    assert response.status_code == 200, response.text
+    answers = response.json()["answers"]
+    assert list(answers) == ["_sample"]
+    assert list(answers["_sample"]["probabilities"]) == ["_save", "b"]
+
+
 def test_chunked_upload():
     raw = json.dumps(BODY).encode()
     response = client().post(
