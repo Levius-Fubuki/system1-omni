@@ -44,15 +44,13 @@ Oversized requests get `413`: bodies over 4 MiB, more than 64 questions, or a qu
 
 ## Start the frontend
 
-The frontend is in [#2](https://github.com/ThinkFlowLab/system1-omni/pull/2), which is not merged yet. Build it from that pull request's branch:
+Build and start the frontend from the repository root, with stable Rust installed:
 
 ```sh
-git fetch origin pull/2/head:frontend-pr2
-git worktree add ../system1-omni-frontend frontend-pr2
-(cd ../system1-omni-frontend && cargo build --release --locked)
+cargo build --release --locked
 OMNI_JEV_BIND=127.0.0.1:8080 \
 OMNI_JEV_BACKEND_URL=http://127.0.0.1:8000 \
-  ../system1-omni-frontend/target/release/omni-jev
+  ./target/release/omni-jev
 ```
 
 ## Send a request
