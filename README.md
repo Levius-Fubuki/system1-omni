@@ -28,3 +28,10 @@ No models are implemented yet. LAYA is the first planned model:
 | LAYA | Planned |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
+
+## Stay Tuned with Us
+
+If you find system1-omni useful, [give us a star on GitHub](https://github.com/ThinkFlowLab/system1-omni)
+to support the project and help others discover it!
+
+[![GitHub repository screenshot demonstrating a click on Star, turning the star yellow and showing Starred](docs/assets/stay-tuned.gif)](https://github.com/ThinkFlowLab/system1-omni)
