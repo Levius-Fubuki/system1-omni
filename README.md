@@ -1,18 +1,12 @@
-# omni-jev
+# System1-Omni
 
-Community-maintained serving infrastructure for prefill-only Jev models.
+A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
-A small Rust frontend built with Axum, Tokio, and Reqwest. It forwards requests
-unchanged to a separately running model worker and returns the worker's response.
-The worker handles validation, media loading, tokenization, and inference.
+The Rust frontend forwards requests to a separately running model worker. In-repository model engines and GPU backends are not implemented yet.
 
-Text, image, audio, video, and mixed payloads are supported at the transport level.
-Actual inference support depends on the worker. Laya is used to verify text
-decisions; scheduling and inference optimization are outside this milestone.
+## Run the frontend
 
-## Run
-
-With stable Rust installed, build and start the frontend:
+From the repository root, with stable Rust installed:
 
 ```sh
 cargo build --release --locked
@@ -21,67 +15,53 @@ OMNI_JEV_BACKEND_URL=http://127.0.0.1:8000 \
   ./target/release/omni-jev
 ```
 
-Both variables are optional; the values above are their defaults. The bind address
-must be an IP address and port. The backend URL accepts an optional path prefix
-(e.g. `http://localhost:8000/worker`), but no credentials, query, or fragment.
-Backend connections bypass system HTTP proxies. Start the worker separately.
+Start the worker separately. See the [frontend documentation](src/frontend/README.md)
+for the HTTP interface and configuration, or the [Laya recipe](recipe/laya/README.md)
+for a CPU text worker and response checks.
 
-## Interface
+## Architecture
 
-- `POST /v1/systemone` forwards the `model`, `state`, and `questions` envelope
-  unchanged. Workers return `choice`, `score`, or `noul` decisions; see the
-  [Jev API reference](https://docs.typesafe.ai/api).
-- `GET /health` forwards the worker's health response, including unhealthy status codes.
-- Authorization and other end-to-end headers are forwarded. Backend status,
-  content type, and body are preserved; redirects are returned without following them.
-- A shared client reuses connections with a 60-second total timeout and no retries.
-  Transport failures return `502`; timeouts, including response-body timeouts, return `504`.
-- Uploads are streamed; responses are buffered before their status is sent.
-  Request size and concurrency limits should be set at the ingress or worker.
+Share serving infrastructure; let each model own its execution.
 
-## Try a Laya text worker
+![System1-Omni architecture: Rust frontend, model-owned execution, and CUDA and Metal backends](docs/assets/architecture.svg)
 
-In another terminal, install the optional worker in a Python 3.12 environment:
+| Layer | Responsibility |
+| --- | --- |
+| Rust frontend | API, request lifecycle, and response delivery through a small engine interface. |
+| System1-Omni models | Model-specific preprocessing and postprocessing, batching, state, execution, and kernel selection. |
+| CUDA backend | High-performance GPU operations for NVIDIA GPUs. |
+| Metal backend | High-performance GPU operations for Apple GPUs. |
 
-```sh
-python3.12 -m venv .venv
-.venv/bin/python -m pip install 'laya[serve]==0.3.20'
-LAYA_HOST=127.0.0.1 LAYA_PORT=8000 LAYA_DEVICE=cpu \
-LAYA_MODELS=english LAYA_PRELOAD=1 LAYA_THREADS=4 \
-  .venv/bin/laya-serve
-```
+Each model owns its complete request-to-result path. Shared utilities stay minimal and are extracted when implementations need the same functionality. Backends can optimize for their hardware without requiring identical internal implementations.
 
-First startup downloads the English checkpoint. Once the worker is ready, send
-a request through the frontend:
+## Repository layout
 
-```sh
-curl http://127.0.0.1:8080/health
-curl http://127.0.0.1:8080/v1/systemone \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"english","state":"Please refund the duplicate charge.","questions":{"refund":{"type":"noul","instructions":"Does the customer ask for a refund?"}}}'
-```
+Implementation code lives under `src/`; recipes and documentation stay at the repository root.
 
-## Check
+| Directory | Responsibility |
+| --- | --- |
+| [`src/frontend/`](src/frontend/) | Rust serving code and the small engine interface. |
+| [`src/models/laya/`](src/models/laya/) | LAYA preprocessing, batching, state, execution, and output processing. |
+| [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
+| [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
+| [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
+| [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The Rust tests use local mock workers and need no model weights or GPU. They cover
-multimodal byte preservation, authentication, connection reuse, large uploads,
-backend errors, timeouts, and a binary smoke test with SIGTERM shutdown on Unix.
-The GitHub Actions workflow runs these checks on Linux:
+The frontend is a Cargo workspace member. Model and backend directories currently document planned work; they do not prescribe process boundaries.
 
-```sh
-cargo fmt --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
-```
+## Supported models
 
-With Laya and the frontend running, compare health and all three decision types,
-separately and together (Python standard library only):
+LAYA can run as an external Python worker for text requests. Its in-repository model engine is still planned:
 
-```sh
-python3 scripts/compare_with_backend.py --model english \
-  --backend http://127.0.0.1:8000 --frontend http://127.0.0.1:8080
-```
+| Model | Status |
+| --- | --- |
+| LAYA | [External worker](recipe/laya/README.md); model engine planned |
 
-Each check requires status `200` and identical status, content type, and body bytes
-for direct and proxied requests. Set `OMNI_JEV_TEST_TOKEN` if the worker requires a
-bearer token. Use a deterministic worker response for this byte-level comparison.
+CUDA and Metal coverage will be documented per model as implementations are added and validated.
+
+## Stay Tuned with Us
+
+If you find system1-omni useful, [give us a star on GitHub](https://github.com/ThinkFlowLab/system1-omni)
+to support the project and help others discover it!
+
+[![GitHub repository screenshot demonstrating a click on Star, turning the star yellow and showing Starred](docs/assets/stay-tuned.gif)](https://github.com/ThinkFlowLab/system1-omni)
