@@ -2,7 +2,7 @@
 
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
-The project is in its initial design stage. The architecture below describes the intended implementation; model engines and GPU backends are not implemented yet.
+The project is in early development. A Cua-S1 multimodal worker has been validated on CUDA through Transformers and PEFT; the architecture below describes the intended native frontend and backend organization.
 
 ## Architecture
 
@@ -27,20 +27,22 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 | --- | --- |
 | [`src/frontend/`](src/frontend/) | Rust serving code and the small engine interface. |
 | [`src/models/laya/`](src/models/laya/) | LAYA preprocessing, batching, state, execution, and output processing. |
+| [`src/models/cua_s1/multimodal/`](src/models/cua_s1/multimodal/) | Cua-S1 screenshot preprocessing, multimodal LoRA execution, and choice probabilities. |
 | [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
 | [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-These directories currently document ownership; implementations will be added incrementally. They do not prescribe process boundaries. Shared utilities will be extracted when concrete implementations need them.
+These directories document ownership; implementations are being added incrementally. They do not prescribe process boundaries. Shared utilities will be extracted when concrete implementations need them.
 
 ## Supported models
 
-No models are implemented yet. LAYA is the first planned model:
+Validated coverage is listed by modality and execution path:
 
 | Model | Status |
 | --- | --- |
 | LAYA | Planned |
+| [Cua-S1 4B 0.2](recipe/cua_s1/README.md) | Multimodal screenshot choices via Transformers/PEFT on RTX 4090 CUDA; [parity and measurements](recipe/cua_s1/experiments/README.md). Text serving, native CUDA kernels and Metal deferred. |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
