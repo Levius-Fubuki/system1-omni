@@ -72,12 +72,16 @@ The request `model` is `cua-s1-4b-0.2`. Each question in a request is a separate
 - `probabilities` maps every option key to its probability.
 - `confidence` is `1 - H(p) / ln(n)` for `n` options, and 1 when `n` is 1, the same normalized entropy the LAYA worker reports. The Jev API only says that confidence is derived from `probabilities`. Upstream's chooser reports `p_max`, which can still be read from `probabilities`.
 
-The response `model` is `cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:text`, in upstream's identity format. `usage.input_tokens` is the total prompt length over all questions, and `usage.output_tokens` is 0.
+The response `model` is `cua-ai/cua-s1-4b-0.2@<adapter revision>:<modality>`, in upstream's identity format, for example `cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:text`. `usage.input_tokens` is the total prompt length over all questions, and `usage.output_tokens` is 0.
 
-A request is rejected as a whole with `422` and a message naming the problem when it has:
+An error rejects the whole request. Its body is `{"detail": "<message>"}`, as the LAYA worker returns, and the message names the problem.
+
+The status is `400` when the body is not a usable JSON object: invalid JSON or UTF-8, `NaN` or `Infinity`, a lone surrogate such as `\ud800`, nesting too deep to parse, or a key repeated in any object.
+
+The status is `422` when a well-formed request cannot be answered:
 
 - a `score` or `noul` question, since the adapters were trained only on closed-option choices;
-- a `choice` with no options, more than 26 options, or duplicate keys;
+- a question without an `instructions` field (`null` is allowed), or a `choice` with no options or more than 26 options;
 - a `criteria` value that is a number or a boolean;
 - an empty `state`;
 - a `model` other than `cua-s1-4b-0.2`.
