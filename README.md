@@ -1,6 +1,6 @@
 # System1-Omni
 
-A community-maintained inference engine for prefill-only JEV models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
+A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
 The project is in its initial design stage. The architecture below describes the intended implementation; model engines and GPU backends are not implemented yet.
 
