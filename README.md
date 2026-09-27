@@ -19,6 +19,21 @@ Share serving infrastructure; let each model own its execution.
 
 Each model owns its complete request-to-result path. Shared utilities stay minimal and are extracted when implementations need the same functionality. Backends can optimize for their hardware without requiring identical internal implementations.
 
+## Repository layout
+
+Implementation code lives under `src/`; recipes and documentation stay at the repository root.
+
+| Directory | Responsibility |
+| --- | --- |
+| [`src/frontend/`](src/frontend/) | Rust serving code and the small engine interface. |
+| [`src/models/laya/`](src/models/laya/) | LAYA preprocessing, batching, state, execution, and output processing. |
+| [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
+| [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
+| [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
+| [`docs/`](docs/) | Project documentation and architecture assets. |
+
+These directories currently document ownership; implementations will be added incrementally. They do not prescribe process boundaries. Shared utilities will be extracted when concrete implementations need them.
+
 ## Supported models
 
 No models are implemented yet. LAYA is the first planned model:
