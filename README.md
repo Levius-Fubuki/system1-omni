@@ -2,7 +2,22 @@
 
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
-The project is in its initial design stage. The architecture below describes the intended implementation; model engines and GPU backends are not implemented yet.
+The Rust frontend forwards requests to a separately running model worker. In-repository model engines and GPU backends are not implemented yet.
+
+## Run the frontend
+
+From the repository root, with stable Rust installed:
+
+```sh
+cargo build --release --locked
+OMNI_JEV_BIND=127.0.0.1:8080 \
+OMNI_JEV_BACKEND_URL=http://127.0.0.1:8000 \
+  ./target/release/omni-jev
+```
+
+Start the worker separately. See the [frontend documentation](src/frontend/README.md)
+for the HTTP interface and configuration, or the [Laya recipe](recipe/laya/README.md)
+for a CPU text worker and response checks.
 
 ## Architecture
 
@@ -32,15 +47,15 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-These directories currently document ownership; implementations will be added incrementally. They do not prescribe process boundaries. Shared utilities will be extracted when concrete implementations need them.
+The frontend is a Cargo workspace member. Model and backend directories currently document planned work; they do not prescribe process boundaries.
 
 ## Supported models
 
-No models are implemented yet. LAYA is the first planned model:
+LAYA can run as an external Python worker for text requests. Its in-repository model engine is still planned:
 
 | Model | Status |
 | --- | --- |
-| LAYA | Planned |
+| LAYA | [External worker](recipe/laya/README.md); model engine planned |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
