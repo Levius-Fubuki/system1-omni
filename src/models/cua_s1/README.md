@@ -2,7 +2,15 @@
 
 This directory owns Cua-S1 4B 0.2 ([#10](https://github.com/ThinkFlowLab/system1-omni/issues/10)): request mapping, prompt construction, adapter selection, execution, and the answer-letter readout. This page records the pinned upstream revisions, the inference contract an implementation must match, and how its outputs will be compared with the upstream reference.
 
-Status: planned; nothing is implemented or validated yet. The first target is the `text` adapter on CUDA, starting with a worker that loads the model directly through Hugging Face Transformers and PEFT. The `multimodal` adapter is deferred; see [Not covered yet](#not-covered-yet).
+Status: a reference worker for the `text` adapter is in [`text/`](text/). It loads the model directly through Hugging Face Transformers and PEFT and serves `/v1/systemone`; setup and checks are in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). A worker for the `multimodal` adapter is proposed in [#12](https://github.com/ThinkFlowLab/system1-omni/pull/12).
+
+| Path | Contents |
+| --- | --- |
+| `text/contract.py` | Request validation, the `/v1/systemone` mapping, prompt construction and answers. No torch imports. |
+| `text/engine.py` | Model and adapter loading and the answer-letter readout. |
+| `text/server.py` | The HTTP worker (`GET /health`, `POST /v1/systemone`). |
+| `text/adapter.py` | Finds and checks the local `text` adapter and its downloaded revision. |
+| `tests/cua_s1/test_text_*.py` (repository root) | Tests that need neither weights nor a GPU, and tokenizer checks. The fixed input set is `tests/cua_s1/data/text_inputs.json`. |
 
 ## Pinned revisions
 
@@ -76,19 +84,19 @@ The response `model` is `cua-ai/cua-s1-4b-0.2@<adapter revision>:<modality>`, in
 
 An error rejects the whole request. Its body is `{"detail": "<message>"}`, as the LAYA worker returns, and the message names the problem.
 
-The status is `400` when the body is not a usable JSON object: invalid JSON or UTF-8, `NaN` or `Infinity`, a lone surrogate such as `\ud800`, nesting too deep to parse, or a key repeated in any object.
+The status is `400` when the body is not a usable JSON object: invalid JSON or UTF-8, `NaN`, `Infinity` or a number out of range, a lone surrogate such as `\ud800`, nesting too deep to parse, or a key repeated in any object.
 
 The status is `422` when a well-formed request cannot be answered:
 
 - a `score` or `noul` question, since the adapters were trained only on closed-option choices;
 - a question without an `instructions` field (`null` is allowed), or a `choice` with no options or more than 26 options;
 - a `criteria` value that is a number or a boolean;
-- an empty `state`;
+- an empty `state` (`""`, `{}` or `[]`);
 - a `model` other than `cua-s1-4b-0.2`.
 
 ## Validation
 
-**Inputs.** The fixed input set is upstream's two checked-in fixtures, converted to `/v1/systemone` requests with the chooser's rendered regions as `state`, plus `/v1/systemone` choice requests that will be checked in with the worker. These cover 1 to 26 options, short and long states, string and structured `state`, `instructions` and `criteria`, `null` criteria, non-ASCII text, and text that spells a special token. Each input is scored once per configuration.
+**Inputs.** The fixed input set is upstream's two checked-in fixtures, converted to `/v1/systemone` requests with the chooser's rendered regions as `state`, plus `/v1/systemone` choice requests, in `tests/cua_s1/data/text_inputs.json`. These cover 1 to 26 options, short and long states, string and structured `state`, `instructions` and `criteria`, `null` criteria, non-ASCII text, and text that spells a special token. Each input is scored once per configuration.
 
 **Tolerances.** These are declared before any comparison is run:
 
