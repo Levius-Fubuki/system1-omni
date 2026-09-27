@@ -9,7 +9,7 @@ body:
     value: >
       #### Before submitting an issue, please make sure the issue hasn't been already addressed by searching through [the existing and past issues](https://github.com/ThinkFlowLab/system1-omni/issues?q=is%3Aissue+sort%3Acreated-desc+).
 
-      **LAYA** is the first planned in-repository model engine. Model engines and GPU backends are not implemented yet. See the [architecture](https://github.com/ThinkFlowLab/system1-omni#architecture) and [model status](https://github.com/ThinkFlowLab/system1-omni#supported-models).
+      #### System1-Omni is in the design stage, with **LAYA** as the first planned model and no models implemented yet. See the [architecture](https://github.com/ThinkFlowLab/system1-omni#architecture) and [model status](https://github.com/ThinkFlowLab/system1-omni#supported-models).
 - type: textarea
   attributes:
     label: The model to consider.

@@ -27,9 +27,9 @@ body:
   attributes:
     label: How you are installing System1-Omni
     description: |
-      Include your branch or commit and the full build or installation command.
-      If the error comes from a model worker, include its package version and
-      launch command.
+      System1-Omni is currently in the design stage and has no published installation
+      procedure. If you are working with an implementation branch, include its name
+      and paste the full command you are trying to execute.
     placeholder: |
       Branch or commit:
       Installation/build command:

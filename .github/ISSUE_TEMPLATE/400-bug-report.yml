@@ -47,7 +47,7 @@ body:
     description: |
       Please provide a description of which commit id or version of System1-Omni the code is.
       If you are using an implementation branch, include its name and any relevant
-      dependency versions, including the model worker if one is running.
+      dependency versions. The main branch is currently in the design stage.
     value: |
       <details>
       <summary>The commit id or version of System1-Omni</summary>
