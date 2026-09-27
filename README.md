@@ -21,12 +21,14 @@ Each model owns its complete request-to-result path. Shared utilities stay minim
 
 ## Repository layout
 
+Implementation code lives under `src/`; recipes and documentation stay at the repository root.
+
 | Directory | Responsibility |
 | --- | --- |
-| [`frontend/`](frontend/) | Rust serving code and the small engine interface. |
-| [`models/laya/`](models/laya/) | LAYA preprocessing, batching, state, execution, and output processing. |
-| [`backends/cuda/`](backends/cuda/) | NVIDIA GPU operations and kernel integration. |
-| [`backends/metal/`](backends/metal/) | Apple GPU operations and kernel integration. |
+| [`src/frontend/`](src/frontend/) | Rust serving code and the small engine interface. |
+| [`src/models/laya/`](src/models/laya/) | LAYA preprocessing, batching, state, execution, and output processing. |
+| [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
+| [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
