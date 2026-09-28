@@ -107,6 +107,10 @@ branches, including 50 vision projection modules (178 total adapted modules).
 
 ## Reproduce correctness and profiling
 
+For the staged image-size, text-length and same-image question-count experiment,
+see [multimodal profiling](profiling.md), including hardware requirements and
+separate unprofiled timing and instrumented traces.
+
 ```sh
 git clone https://github.com/trycua/cua.git /tmp/cua-reference
 git -C /tmp/cua-reference checkout 0e75660ce4c2edda519e0c795fa3ad98abf4e76f
