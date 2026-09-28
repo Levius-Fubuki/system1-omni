@@ -13,10 +13,10 @@
 // different ones with about the same speed.
 // It replaces the heuristic's first choice only when it is more than 3% faster, so
 // near ties rarely change between runs, and
-// cs1_gemm_export / cs1_gemm_import let a caller keep the choices across runs. A shape
-// that was not tuned uses the algorithm tuned for the nearest M with the same N, K
-// and ldy (the smallest tuned M above it, else the largest below), or the heuristic's
-// first choice. Split-K reductions that accumulate into the output in place are
+// cs1_gemm_export / cs1_gemm_import let a caller keep the choices across runs, for the
+// cuBLASLt version they were tuned with. A shape that was not tuned borrows the
+// algorithm tuned for a nearby M with the same N, K and ldy (see plan_for), or takes
+// the heuristic's first choice. Split-K reductions that accumulate into the output in place are
 // excluded, since their order, and so the rounding, is not fixed.
 #include <cublasLt.h>
 
@@ -142,12 +142,11 @@ T cap(const cublasLtMatmulAlgo_t& algo, cublasLtMatmulAlgoCapAttributes_t attr) 
 // algorithm id with each tile, stage count, custom option and swizzle it supports, and
 // split-K factors from `splits` (reduced in the compute or the output type, not in
 // place). Other attributes stay at their defaults.
-std::vector<cublasLtMatmulAlgo_t> every_config(Gemm& g, const Plan& p) {
+int every_config(Gemm& g, const Plan& p, std::vector<cublasLtMatmulAlgo_t>& out) {
     int ids[256], nids = 0;
-    std::vector<cublasLtMatmulAlgo_t> out;
-    if (cublasLtMatmulAlgoGetIds(g.handle, CUBLAS_COMPUTE_32F, CUDA_R_32F, CUDA_R_16BF, CUDA_R_16BF, CUDA_R_16BF,
-                                 CUDA_R_16BF, 256, ids, &nids) != CUBLAS_STATUS_SUCCESS)
-        return out;
+    const cublasStatus_t s = cublasLtMatmulAlgoGetIds(g.handle, CUBLAS_COMPUTE_32F, CUDA_R_32F, CUDA_R_16BF,
+                                                      CUDA_R_16BF, CUDA_R_16BF, CUDA_R_16BF, 256, ids, &nids);
+    if (s != CUBLAS_STATUS_SUCCESS) return status(s);
     const int splits[] = {1, 2, 3, 4, 5, 6, 8, 12, 16};
     const uint32_t schemes[] = {CUBLASLT_REDUCTION_SCHEME_NONE, CUBLASLT_REDUCTION_SCHEME_COMPUTE_TYPE,
                                 CUBLASLT_REDUCTION_SCHEME_OUTPUT_TYPE};
@@ -190,7 +189,7 @@ std::vector<cublasLtMatmulAlgo_t> every_config(Gemm& g, const Plan& p) {
                             }
                         }
     }
-    return out;
+    return 0;
 }
 
 // The plan for a shape, created on first use.
@@ -207,7 +206,9 @@ int plan_for(Gemm& g, int M, int N, int K, int ldy, Plan*& out) {
         destroy(p);
         return rc;
     }
-    // The algorithm tuned for the nearest M: the smallest above, else the largest below.
+    // Borrow a tuned algorithm: the one for the smallest tuned M above, if that M is at
+    // most twice this one; the one for the largest tuned M below, if no larger M was
+    // tuned; else take the heuristic's first choice.
     const Plan* above = nullptr;
     const Plan* below = nullptr;
     int above_m = 0, below_m = 0;
@@ -217,9 +218,9 @@ int plan_for(Gemm& g, int M, int N, int K, int ldy, Plan*& out) {
         if (m > M && (!above || m < above_m)) above = &kv.second, above_m = m;
         if (m < M && (!below || m > below_m)) below = &kv.second, below_m = m;
     }
-    if (above && usable(g, p, above->algo)) {
+    if (above && above_m <= 2 * M && usable(g, p, above->algo)) {
         p.algo = above->algo;
-    } else if (below && usable(g, p, below->algo)) {
+    } else if (!above && below && usable(g, p, below->algo)) {
         p.algo = below->algo;
     } else {
         std::vector<cublasLtMatmulHeuristicResult_t> cands;
@@ -304,7 +305,13 @@ extern "C" int cs1_gemm_tune(void* gemm, const void* x, const void* w, void* y, 
     std::vector<cublasLtMatmulAlgo_t> cands;
     for (auto& r : shortlist) cands.push_back(r.algo);
     if (exhaustive) {
-        for (auto& a : every_config(*g, p))
+        std::vector<cublasLtMatmulAlgo_t> all;
+        rc = every_config(*g, p, all);
+        if (rc != 0) {
+            destroy(p);
+            return rc;
+        }
+        for (auto& a : all)
             if (std::none_of(cands.begin(), cands.end(),
                              [&](const cublasLtMatmulAlgo_t& c) { return std::memcmp(&c, &a, sizeof a) == 0; }))
                 cands.push_back(a);
@@ -388,7 +395,7 @@ extern "C" size_t cs1_gemm_export(void* gemm, Cs1GemmPlan* out, size_t cap) {
         if (!kv.second.tuned) continue;
         if (n < cap) {
             const auto [m, nn, k, l] = kv.first;
-            out[n] = Cs1GemmPlan{m, nn, k, l, {}};
+            out[n] = Cs1GemmPlan{m, nn, k, l, (uint64_t)cublasLtGetVersion(), {}};
             static_assert(sizeof(cublasLtMatmulAlgo_t) == sizeof(out[n].algo), "algo layout");
             std::memcpy(out[n].algo, &kv.second.algo, sizeof(out[n].algo));
         }
@@ -407,6 +414,10 @@ extern "C" int cs1_gemm_import(void* gemm, const Cs1GemmPlan* plans, size_t n) {
         const Cs1GemmPlan& r = plans[i];
         if (r.m <= 0 || r.n <= 0 || r.k <= 0 || r.ldy < r.n) {
             rc = cudaErrorInvalidValue;
+            break;
+        }
+        if (r.cublaslt_version != (uint64_t)cublasLtGetVersion()) {
+            rc = status(CUBLAS_STATUS_NOT_SUPPORTED);
             break;
         }
         Plan p;

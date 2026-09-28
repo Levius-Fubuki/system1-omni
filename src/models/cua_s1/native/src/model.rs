@@ -9,7 +9,7 @@
 //! eager pass of that length, so both give bitwise identical results.
 //!
 //! GEMM algorithms are tuned at startup for the lengths in TUNE_ROWS; other lengths
-//! use the nearest tuned one (see gemm.cu). The choices can be saved to a file and
+//! borrow a nearby tuned one (see gemm.cu). The choices can be saved to a file and
 //! reused, so that restarts do not change them; the file records the GPU, the
 //! cuBLASLt version and the tuned lengths, and one that does not match is refused.
 //!
@@ -49,8 +49,10 @@ fn plan_setup(graph_max_tokens: usize) -> Result<Json> {
     }))
 }
 
-/// Prompt lengths the GEMM algorithms are tuned for. Past these, cuBLASLt's first
-/// choice for long prompts is an older, half-rate tensor-core kernel on sm_89.
+/// Prompt lengths the GEMM algorithms are tuned for, at most twice apart, so that a
+/// length up to the last one borrows a tuned algorithm for at most twice its length
+/// and longer ones borrow the last one's. Past these, cuBLASLt's first choice for long
+/// prompts is an older, half-rate tensor-core kernel on sm_89.
 pub const TUNE_ROWS: &[usize] = &[
     64, 96, 128, 160, 192, 224, 256, 320, 384, 448, 512, 640, 768, 1024, 1536, 2048, 4096, 8192,
     16384,
@@ -796,6 +798,8 @@ impl Model {
                     n: int(&p["n"])?,
                     k: int(&p["k"])?,
                     ldy: int(&p["ldy"])?,
+                    // the file's setup, checked above, records the version
+                    cublaslt_version: setup["cublaslt"].as_u64().context("no cuBLASLt version")?,
                     algo,
                 })
             })

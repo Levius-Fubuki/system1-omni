@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 use anyhow::{Context, Result, bail, ensure};
 
 /// `CS1_ABI_VERSION` in ops.h.
-const ABI_VERSION: u32 = 1;
+const ABI_VERSION: u32 = 2;
 pub const LIBRARY: &str = "libqwen3_5_cuda.so";
 
 /// A `cudaStream_t`.
@@ -29,6 +29,7 @@ pub struct GemmPlan {
     pub n: i32,
     pub k: i32,
     pub ldy: i32,
+    pub cublaslt_version: u64,
     pub algo: [u64; 8],
 }
 

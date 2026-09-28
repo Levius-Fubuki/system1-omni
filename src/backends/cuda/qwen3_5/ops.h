@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 // Bumped whenever a signature below changes.
-#define CS1_ABI_VERSION 1
+#define CS1_ABI_VERSION 2
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,9 +97,11 @@ int cs1_silu_mul(const void* gate_up, int ld, void* out, int T, int I, void* str
 // cs1_gemm_tune picks the algorithm for one shape by timing, among the heuristic's
 // shortlist or (exhaustive) a wider enumeration (see gemm.cu); it must not
 // run during stream capture. cs1_gemm_tune_done frees the buffers tuning used.
-// A tuned algorithm for one shape; `algo` holds a cublasLtMatmulAlgo_t.
+// A tuned algorithm for one shape: `algo` holds a cublasLtMatmulAlgo_t, valid for the
+// cuBLASLt version (cublasLtGetVersion) it was tuned with.
 typedef struct {
     int32_t m, n, k, ldy;
+    uint64_t cublaslt_version;
     uint64_t algo[8];
 } Cs1GemmPlan;
 
@@ -111,9 +113,9 @@ void cs1_gemm_tune_done(void* gemm);
 // Copy up to `cap` tuned plans to `out`; returns how many there are.
 size_t cs1_gemm_export(void* gemm, Cs1GemmPlan* out, size_t cap);
 // Use these plans (from cs1_gemm_export, possibly of an earlier run): all of them, or
-// none if one fails cuBLASLt's check on this device or reduces split-K in place.
-// The check does not tell whether a plan was tuned on this GPU and cuBLASLt version;
-// the caller keeps that with the plans.
+// none if one was tuned with another cuBLASLt version, fails cuBLASLt's check on this
+// device, or reduces split-K in place. Whether a plan was tuned on this GPU model is
+// not checked; the caller keeps that with the plans.
 int cs1_gemm_import(void* gemm, const Cs1GemmPlan* plans, size_t n);
 // cublasLtGetVersion().
 size_t cs1_gemm_version(void);

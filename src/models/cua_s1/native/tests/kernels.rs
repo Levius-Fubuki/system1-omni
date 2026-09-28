@@ -1,4 +1,5 @@
-//! GPU checks of the attention and Gated DeltaNet kernels on random inputs. They need
+//! GPU checks of the attention and Gated DeltaNet kernels on random inputs, and of the
+//! GEMM plan import. They need
 //! a GPU and CUA_S1_CUDA_LIB pointing at libqwen3_5_cuda.so, so they only run when
 //! asked for:
 //!
@@ -8,7 +9,7 @@
 use std::path::PathBuf;
 
 use half::bf16;
-use omni_cua_s1_native::cuda::{self, DeviceBuffer, Stream, api, check};
+use omni_cua_s1_native::cuda::{self, DeviceBuffer, GemmPlan, Stream, api, check};
 
 fn setup() -> Stream {
     let lib = std::env::var_os("CUA_S1_CUDA_LIB")
@@ -257,5 +258,48 @@ fn gated_delta_rule_matches_recurrent_reference() {
             "gated delta t = {t}: largest difference {worst:.2e}, largest |reference| {scale:.2}"
         );
         assert!(worst <= 2e-2 * scale, "t = {t}: {worst} vs scale {scale}");
+    }
+}
+
+/// A tuned GEMM plan moves to another cuBLASLt handle through export and import, and a
+/// plan that says it was tuned with another cuBLASLt version is refused without
+/// changing anything.
+#[test]
+#[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
+fn gemm_plans_import_only_for_their_cublaslt_version() {
+    let st = setup();
+    let (m, n, k) = (64i32, 256i32, 512i32);
+    let x = to_device(&random((m * k) as usize, 21, 1.0), st);
+    let w = to_device(&random((n * k) as usize, 22, 1.0), st);
+    let y = DeviceBuffer::new((m * n * 2) as usize).unwrap();
+    // SAFETY: the buffers hold m x k, n x k and m x n values; the handles are destroyed
+    // at the end and not used after.
+    unsafe {
+        let api = api();
+        let (a, b) = (
+            (api.cs1_gemm_create)(32 << 20),
+            (api.cs1_gemm_create)(32 << 20),
+        );
+        assert!(!a.is_null() && !b.is_null());
+        check(
+            (api.cs1_gemm_tune)(a, x.at(0), w.at(0), y.at(0), m, n, k, n, 0, st),
+            "tune",
+        )
+        .unwrap();
+        (api.cs1_gemm_tune_done)(a);
+        let count = (api.cs1_gemm_export)(a, std::ptr::null_mut(), 0);
+        assert_eq!(count, 1);
+        let mut plans = vec![GemmPlan::default(); count];
+        (api.cs1_gemm_export)(a, plans.as_mut_ptr(), count);
+        assert_eq!(plans[0].cublaslt_version, (api.cs1_gemm_version)() as u64);
+
+        let mut other = plans.clone();
+        other[0].cublaslt_version += 1;
+        assert_ne!((api.cs1_gemm_import)(b, other.as_ptr(), 1), 0);
+        assert_eq!((api.cs1_gemm_export)(b, std::ptr::null_mut(), 0), 0);
+        check((api.cs1_gemm_import)(b, plans.as_ptr(), 1), "import").unwrap();
+        assert_eq!((api.cs1_gemm_export)(b, std::ptr::null_mut(), 0), 1);
+        (api.cs1_gemm_destroy)(a);
+        (api.cs1_gemm_destroy)(b);
     }
 }
