@@ -97,17 +97,16 @@ LAYA_CONTRACT=1 .venv/bin/python -m pytest src/models/laya/tests    # plus contr
 
 ## Benchmark
 
-Stop the worker and frontend first; the benchmark starts its own. The suite and its measurement
-rules are described in [`benchmarks/laya/`](../../benchmarks/laya/README.md). A first pass that
-checks everything runs:
+Stop the worker and frontend first; the benchmark starts its own. The scripts are listed in
+[`bench/`](bench/README.md). A first pass that checks everything runs:
 
 ```sh
-.venv/bin/python benchmarks/laya/check_workloads.py
-.venv/bin/python benchmarks/laya/bench_inproc.py --device mps --config C2 --run feasibility
-.venv/bin/python benchmarks/laya/bench_http.py --config C3 --run feasibility --spawn .venv/bin/laya-serve
-.venv/bin/python benchmarks/laya/bench_http.py --config C4 --run feasibility \
+.venv/bin/python recipe/laya/bench/check_workloads.py
+.venv/bin/python recipe/laya/bench/bench_inproc.py --device mps --config C2 --run feasibility
+.venv/bin/python recipe/laya/bench/bench_http.py --config C3 --run feasibility --spawn .venv/bin/laya-serve
+.venv/bin/python recipe/laya/bench/bench_http.py --config C4 --run feasibility \
   --url http://127.0.0.1:8080 --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
-.venv/bin/python benchmarks/laya/report.py benchmarks/laya/results/*.jsonl
+.venv/bin/python recipe/laya/bench/report.py recipe/laya/bench/results/*.jsonl
 ```
 
 Runs labelled anything other than `feasibility` refuse to start on battery power or when the
@@ -115,7 +114,7 @@ Runs labelled anything other than `feasibility` refuse to start on battery power
 
 ## Troubleshooting
 
-- `device_mismatch: true`, or the worker exits with `asked for mps, model is on cpu`: MPS is not
+- `device_mismatch: true`, or the worker exits with `asked for mps, english is on cpu`: MPS is not
   available to this Python. Check the `torch.backends.mps.is_available()` line above; an x86_64
   Python running under Rosetta cannot use MPS.
 - The worker process uses about 4 GB (Activity Monitor's Memory column, which counts MPS

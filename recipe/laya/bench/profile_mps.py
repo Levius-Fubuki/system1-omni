@@ -12,7 +12,7 @@ Three measurements:
 3. ops: torch.profiler CPU trace of the forward: operator calls per request and the top operators by
    self CPU time, i.e. the host cost of issuing the forward.
 
-    python benchmarks/laya/profile_mps.py --run feasibility
+    python recipe/laya/bench/profile_mps.py --run feasibility
 """
 
 import argparse

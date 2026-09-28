@@ -274,7 +274,7 @@
 
 ## Throughput
 
-| config | workload | conc | run | n | errors | elapsed s | req/s |
+| config | workload | conc | run | n | errors | elapsed s | successful req/s |
 |---|---|---|---|---|---|---|---|
 | C3 | W1 | 1 | m1 | 300 | 0 | 14.154 | 21.2 |
 | C3 | W1 | 1 | m2 | 300 | 0 | 13.621 | 22.03 |

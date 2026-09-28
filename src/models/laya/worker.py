@@ -25,7 +25,7 @@ The warmup also compiles every shape class it sends through the compiled model: 
 M1 Pro the worker with `single` was ready after about 22 s instead of 8 s (`all` took over a minute).
 /health counts compiled graphs at readiness and now; `recompiled_after_ready` means a request hit a
 shape class the warmup did not cover. `single` exists because on MPS compiling cut one-question
-latency by about 29% while compiling everything made multi-question requests slower (benchmarks/laya).
+latency by about 29% while compiling everything made multi-question requests slower (recipe/laya/bench).
 """
 
 import logging

@@ -1,6 +1,6 @@
 """Compare every run's answers with a reference run, using the tolerances declared in advance.
 
-    python benchmarks/laya/parity.py benchmarks/laya/results/*.jsonl --ref C1
+    python recipe/laya/bench/parity.py recipe/laya/bench/results/*.jsonl --ref C1
 
 Per question: the decision must match (choice: chosen option; score: most likely level; noul: side of
 0.5) and the largest absolute probability difference must stay within tolerance: 1e-3 when the request

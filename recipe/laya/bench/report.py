@@ -1,6 +1,6 @@
 """Turn benchmark JSONL into markdown tables. The only place numbers are computed from raw data.
 
-    python benchmarks/laya/report.py benchmarks/laya/results/*.jsonl
+    python recipe/laya/bench/report.py recipe/laya/bench/results/*.jsonl
 
 Percentiles are nearest-rank. The run-to-run gate compares p50 across measured runs (every run whose
 label is not "feasibility") of the same config, workload and concurrency: (max - min) / min <= 10%.

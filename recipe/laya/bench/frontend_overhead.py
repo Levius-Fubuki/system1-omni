@@ -4,7 +4,7 @@ runs, so the per-request difference is the frontend's cost.
 
 Start a worker and the frontend first (recipe/laya/apple-silicon.md), then:
 
-    python benchmarks/laya/frontend_overhead.py --direct http://127.0.0.1:8000 --frontend http://127.0.0.1:8080
+    python recipe/laya/bench/frontend_overhead.py --direct http://127.0.0.1:8000 --frontend http://127.0.0.1:8080
 """
 
 import argparse

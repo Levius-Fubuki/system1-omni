@@ -3,7 +3,7 @@
 Phases are timed separately: import, load, warmup, then warm requests. Every request is one line of
 JSONL; report.py turns the file into tables. Run from the repository root or this directory:
 
-    python benchmarks/laya/bench_inproc.py --device mps --config C2 --run m1
+    python recipe/laya/bench/bench_inproc.py --device mps --config C2 --run m1
 """
 
 import argparse
