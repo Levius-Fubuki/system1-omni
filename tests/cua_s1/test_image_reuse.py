@@ -1,5 +1,7 @@
 """Request ownership tests, plus tensor integration tests when torch is installed."""
 
+import gc
+import weakref
 from types import SimpleNamespace
 
 import pytest
@@ -82,6 +84,67 @@ def test_image_cache_does_not_survive_requests_or_failed_preparation():
     prepared = engine.prepare_reused(images[2], QUESTIONS)
     assert engine.processor.image_processor.calls == images
     assert all(x["pixel_values"] is images[2] for x in prepared)
+
+
+@pytest.mark.parametrize("failure_stage", ["encode", "second_question"])
+def test_failed_inference_releases_request_state_before_different_image(failure_stage):
+    engine = engine_with_processor()
+    processor = engine.processor
+    image_processor = processor.image_processor
+    failed_image, next_image = object(), object()
+    encoded_images, feature_refs, scored = [], [], []
+
+    class Features:
+        def __init__(self, image):
+            self.image = image
+
+    def encode(inputs):
+        image = inputs["pixel_values"]
+        encoded_images.append(image)
+        features = Features(image)
+        feature_refs.append(weakref.ref(features))
+        if image is failed_image and failure_stage == "encode":
+            raise RuntimeError("encoder failure")
+        return features
+
+    def score(inputs, question, features):
+        image = inputs["pixel_values"]
+        assert features.image is image
+        assert features is feature_refs[-1]()
+        scored.append((image, question.name))
+        if image is failed_image and question is QUESTIONS[1]:
+            raise RuntimeError("later question failure")
+        return [1 / len(question.keys)] * len(question.keys)
+
+    engine.encode_image = encode
+    engine.score_reused = score
+    original_engine_state = dict(vars(engine))
+    message = (
+        "encoder failure" if failure_stage == "encode" else "later question failure"
+    )
+    with pytest.raises(RuntimeError, match=message):
+        engine.predict(Request(failed_image, QUESTIONS))
+    gc.collect()
+    assert all(ref() is None for ref in feature_refs)
+    assert vars(engine) == original_engine_state
+    assert engine.processor is processor
+    assert processor.image_processor is image_processor
+    assert image_processor.calls == [failed_image]
+    assert scored == (
+        [] if failure_stage == "encode" else [(failed_image, q.name) for q in QUESTIONS]
+    )
+
+    result = engine.predict(Request(next_image, QUESTIONS))
+    gc.collect()
+    assert encoded_images == [failed_image, next_image]
+    assert image_processor.calls == [failed_image, next_image]
+    assert scored[-2:] == [(next_image, q.name) for q in QUESTIONS]
+    assert list(result["answers"]) == [q.name for q in QUESTIONS]
+    assert len(feature_refs) == 2
+    assert all(ref() is None for ref in feature_refs)
+    assert vars(engine) == original_engine_state
+    assert engine.processor is processor
+    assert processor.image_processor is image_processor
 
 
 def test_all_lengths_checked_before_vision_or_language_execution():
