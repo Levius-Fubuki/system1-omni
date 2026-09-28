@@ -8,6 +8,8 @@ import hashlib
 import importlib.util
 import json
 import math
+import re
+import subprocess
 import sys
 from contextlib import nullcontext
 from dataclasses import asdict, replace
@@ -35,6 +37,31 @@ def summarize_events(events):
         samples = sorted(e[f"{variant}_ms"] for e in events)
         result[f"{variant}_p95_ms"] = samples[math.ceil(0.95 * len(samples)) - 1]
     return result
+
+
+def verify_legacy_source(path, revision, root):
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError(
+            "legacy revision must be a full 40-character lowercase Git SHA"
+        )
+    expected = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(root),
+            "show",
+            revision + ":src/models/cua_s1/multimodal/graph_runtime.py",
+        ]
+    )
+    if path.read_bytes() != expected:
+        raise ValueError("legacy runtime bytes do not match the declared Git revision")
+
+
+def configure_legacy_segment(module, current_segment, *, unpatched=False):
+    if unpatched:
+        return "none; unpatched historical runtime diagnostic"
+    module._GraphSegment = current_segment
+    return "current exclusive-stream _GraphSegment; historical admission policy only"
 
 
 def load_legacy(path):
@@ -70,10 +97,17 @@ def parse_args(argv=None):
     parser.add_argument("--weights", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--legacy-runtime", type=Path, required=True)
-    parser.add_argument("--legacy-revision")
+    parser.add_argument("--legacy-revision", required=True)
+    parser.add_argument(
+        "--unpatched-legacy",
+        action="store_true",
+        help="diagnostic only: use historical unsafe capture streams",
+    )
     parser.add_argument("--runs", type=int, default=2)
     parser.add_argument("--case", choices=list(schedules()), action="append")
     args = parser.parse_args(argv)
+    if not re.fullmatch(r"[0-9a-f]{40}", args.legacy_revision):
+        parser.error("--legacy-revision must be a full 40-character lowercase Git SHA")
     if args.runs <= 0:
         parser.error("--runs must be positive")
     if (args.output / "report.json").exists():
@@ -97,14 +131,26 @@ def main(argv=None):
         write_json,
     )
 
-    from models.cua_s1.multimodal.graph_runtime import GraphConfig, GraphRuntime
+    from models.cua_s1.multimodal.graph_runtime import (
+        GraphConfig,
+        GraphRuntime,
+        _GraphSegment,
+    )
     from models.cua_s1.multimodal.model import MultimodalEngine
     from models.cua_s1.multimodal.protocol import parse_request
 
     source = repository_state(Path(__file__).resolve().parents[2])
     if source["dirty"] is not False or not source["revision"]:
         raise ValueError("benchmark requires clean committed source")
+    root = Path(__file__).resolve().parents[2]
+    verify_legacy_source(args.legacy_runtime, args.legacy_revision, root)
     legacy, digest = load_legacy(args.legacy_runtime)
+    override = configure_legacy_segment(
+        legacy, _GraphSegment, unpatched=args.unpatched_legacy
+    )
+    current_runtime_sha256 = hashlib.sha256(
+        (root / "src/models/cua_s1/multimodal/graph_runtime.py").read_bytes()
+    ).hexdigest()
     selected = {k: v for k, v in schedules().items() if not args.case or k in args.case}
     args.output.mkdir(parents=True, exist_ok=True)
     report_path = args.output / "report.json"
@@ -113,7 +159,16 @@ def main(argv=None):
         "status": "running",
         "repository": source,
         "environment": environment(),
-        "legacy": {"sha256": digest, "revision": args.legacy_revision},
+        "legacy": {
+            "sha256": digest,
+            "revision": args.legacy_revision,
+            "source_bytes_verified_against_git": True,
+            "runtime_segment_override": override,
+            "current_graph_runtime_sha256": current_runtime_sha256,
+        },
+        "comparison_kind": "unpatched-legacy-diagnostic"
+        if args.unpatched_legacy
+        else "legacy-policy-with-stream-fix",
         "config": {
             "runs": args.runs,
             "cases": list(selected),

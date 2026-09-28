@@ -130,7 +130,14 @@ def valid_report():
         "schema_version": 1,
         "status": "complete",
         "repository": {"dirty": False, "revision": "a" * 40},
-        "legacy": {"sha256": "b" * 64},
+        "legacy": {
+            "sha256": "b" * 64,
+            "revision": "c" * 40,
+            "source_bytes_verified_against_git": True,
+            "current_graph_runtime_sha256": "d" * 64,
+            "runtime_segment_override": "current exclusive-stream _GraphSegment; historical admission policy only",
+        },
+        "comparison_kind": "legacy-policy-with-stream-fix",
         "environment": {"python": "test"},
         "fixture": {},
         "fixture_sha256": hashlib.sha256(
@@ -285,3 +292,49 @@ def test_policy_window_expires_at_request_distance_32():
     events += [policy_event() for _ in range(31)]
     events += [policy_event(capture_attempts=1, captures=1, capture_attempt_ms=1)]
     verifier.verify_policy(events, "hot_four", valid_report()["config"]["admission"])
+
+
+def test_legacy_source_provenance_checks_git_bytes(tmp_path):
+    import subprocess
+
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "6e0a432"], cwd=ROOT, text=True
+    ).strip()
+    source = subprocess.check_output(
+        ["git", "show", revision + ":src/models/cua_s1/multimodal/graph_runtime.py"],
+        cwd=ROOT,
+    )
+    path = tmp_path / "legacy.py"
+    path.write_bytes(source)
+    benchmark().verify_legacy_source(path, revision, ROOT)
+    path.write_bytes(source + b"\n# changed\n")
+    with pytest.raises(ValueError, match="bytes"):
+        benchmark().verify_legacy_source(path, revision, ROOT)
+    with pytest.raises(ValueError, match="40"):
+        benchmark().verify_legacy_source(path, "6e0a432", ROOT)
+
+
+def test_legacy_segment_override_and_diagnostic():
+    from types import SimpleNamespace
+
+    original, current = object(), object()
+    module = SimpleNamespace(_GraphSegment=original)
+    marker = benchmark().configure_legacy_segment(module, current)
+    assert module._GraphSegment is current
+    assert (
+        marker
+        == "current exclusive-stream _GraphSegment; historical admission policy only"
+    )
+    module = SimpleNamespace(_GraphSegment=original)
+    marker = benchmark().configure_legacy_segment(module, current, unpatched=True)
+    assert module._GraphSegment is original
+    assert marker == "none; unpatched historical runtime diagnostic"
+
+
+def test_verifier_requires_explicit_segment_provenance():
+    import verify_graph_admission as verifier
+
+    report = valid_report()
+    report["legacy"]["runtime_segment_override"] = "unknown"
+    with pytest.raises(ValueError, match="segment override"):
+        verifier.verify_report(report)

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import statistics
 from pathlib import Path
 
@@ -115,7 +116,31 @@ def verify_report(report):
         "clean source SHA required",
     )
     require(report["schema_version"] == 1, "unknown schema")
-    require(len(report["legacy"]["sha256"]) == 64, "legacy hash required")
+    legacy = report["legacy"]
+    require(
+        re.fullmatch(r"[0-9a-f]{64}", legacy.get("sha256", "")), "legacy hash required"
+    )
+    require(
+        re.fullmatch(r"[0-9a-f]{40}", legacy.get("revision", "")),
+        "full legacy revision required",
+    )
+    require(
+        legacy.get("source_bytes_verified_against_git") is True,
+        "legacy Git byte verification required",
+    )
+    require(
+        re.fullmatch(r"[0-9a-f]{64}", legacy.get("current_graph_runtime_sha256", "")),
+        "current runtime hash required",
+    )
+    overrides = {
+        "legacy-policy-with-stream-fix": "current exclusive-stream _GraphSegment; historical admission policy only",
+        "unpatched-legacy-diagnostic": "none; unpatched historical runtime diagnostic",
+    }
+    kind = report.get("comparison_kind")
+    require(
+        kind in overrides and legacy.get("runtime_segment_override") == overrides[kind],
+        "explicit runtime segment override required",
+    )
     require(report["environment"], "environment missing")
     fixture = report["fixture"]
     require(
