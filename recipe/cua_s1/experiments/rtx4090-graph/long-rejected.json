@@ -1,0 +1,61 @@
+{
+  "status": "failed",
+  "repository": {
+    "revision": "809cacc70979b1b4e3a55b8b89be4691d09b0ce4",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.13",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "config": {
+    "warmup": 1,
+    "runs": 1,
+    "iterations": 2,
+    "cases": [
+      "640x480-long-q8"
+    ],
+    "scope": "synchronized engine.predict; Graph captures model forward after vision, text embeddings and 3D positions; both variants use_cache=False"
+  },
+  "cases": [
+    {
+      "id": "640x480-long-q8",
+      "status": "rejected_graph",
+      "runs": [],
+      "max_graph_probability_difference": 0.001276806928217411,
+      "exact_eager_response_parity": true,
+      "changed_image_max_probability_difference": 0.001630336046218872,
+      "changed_image_replay_checked": true,
+      "changed_text_verb": "Open",
+      "changed_text_max_probability_difference": 0.05190175771713257
+    }
+  ],
+  "error": {
+    "type": "ValueError",
+    "message": "640x480-long-q8: changed-text graph response differs"
+  }
+}

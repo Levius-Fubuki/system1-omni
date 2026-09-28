@@ -1,5 +1,9 @@
 # RTX 4090 multimodal validation — 2026-09-27
 
+For the later bounded CUDA Graph experiment after image reuse and last-token
+projection, see the [Graph feasibility report](rtx4090-graph/README.md). It
+includes both successful fixed-shape cases and correctness-gated rejections.
+
 For the subsequent 16-case stage profiling experiment, refreshed upstream parity,
 and profiler annotation-counting recovery, see the
 [2026-09-28 report](rtx4090-profile/README.md). The measurements below remain the
