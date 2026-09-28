@@ -1,7 +1,9 @@
 # Recipes
 
-Top-level home for model setup instructions, launch commands, configuration examples, and example requests. Start with LAYA as its implementation becomes available.
+- [Laya text worker](laya/README.md): start the external Python worker, connect the
+  Rust frontend and compare direct and proxied responses.
+- [Cua-S1 4B 0.2 text worker](cua_s1/text.md): download the pinned weights, start
+  the worker, connect the Rust frontend and check the worker against upstream.
 
-Recipes use the frontend, model engines, and GPU backends. Reusable implementation code belongs in those components rather than in recipes.
-
-Status: [`cua_s1/text.md`](cua_s1/text.md) runs the Cua-S1 4B 0.2 text worker. Add commands and supported configurations once they can be validated against an implementation.
+Recipes contain setup, launch commands and examples. Reusable implementation code
+belongs under `src/`.

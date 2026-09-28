@@ -26,3 +26,6 @@ __pycache__/
 .ruff_cache/
 .venv/
 weights/
+
+# macOS metadata
+.DS_Store
