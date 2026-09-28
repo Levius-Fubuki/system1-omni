@@ -41,7 +41,7 @@ with the Rust frontend and an ingress responsible for public serving.
 To enable the optional CUDA Graph runtime for multi-question requests, add
 `--graph` to the worker command. It captures each run of Gated DeltaNet layers
 at its actual token length and keeps full-attention layers eager. The first
-request at a layout runs eagerly; the second captures and checks all output
+use of a layout runs eagerly; the second use captures and checks all output
 logits against eager before the layout enters the cache. The defaults retain at
 most eight layouts and 1 GiB of graph buffers; `--graph-max-shapes`,
 `--graph-max-memory-mib`, `--graph-min-uses`, and `--graph-max-tokens` adjust
@@ -55,7 +55,9 @@ Whole-model capture changed BF16 attention results on the measured RTX 4090;
 the earlier [Graph feasibility report](experiments/rtx4090-graph/README.md)
 records those failures. The segmented runtime preserves eager attention
 behavior. See [the runtime experiment](experiments/rtx4090-graph-runtime/README.md)
-for the measured correctness and latency scope.
+for fixed-layout correctness and latency, and the
+[mixed-length experiment](experiments/rtx4090-graph-mixed-shapes/README.md) for
+capture and eviction costs under changing lengths.
 
 To use the Rust frontend included in this repository:
 
