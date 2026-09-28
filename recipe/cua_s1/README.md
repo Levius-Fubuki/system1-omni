@@ -97,8 +97,10 @@ Each answer has `type`, `choice`, `probabilities` and `confidence`. The readout
 uses the last position's candidate-letter logits, casts to fp32 and applies
 softmax over those letters only. There is no decode. Ties select the earliest
 option; confidence is `1 - H(p)/ln(n)`, or 1 for one option. Each question has a
-separate forward pass over the same screenshot. Usage sums processed input tokens
-and reports zero output tokens.
+separate language forward pass. Multi-question requests reuse the image
+preprocessing and adapted vision features within the request; see the
+[reuse contract and experiment](image-reuse.md). Usage sums processed input
+tokens and reports zero output tokens.
 
 Response identity:
 `cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal`.
