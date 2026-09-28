@@ -165,6 +165,31 @@ fn tensor_shape_names_and_dtype_are_checked() {
 }
 
 #[test]
+fn inventory_mismatch_names_the_tensors_that_differ() {
+    let (_dir, weights) = tensor("F32", &[2], &[0; 8]);
+    // The checkpoint holds exactly "w". expected = what the caller asked for,
+    // actual = what the file has, so each direction has its own side.
+    let message = weights
+        .validate_names(["w", "absent"])
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("missing [absent]"), "{message}");
+    assert!(message.contains("unexpected []"), "{message}");
+    // Asking for nothing leaves the file's tensor unaccounted for.
+    let message = weights.validate_names([]).unwrap_err().to_string();
+    assert!(message.contains("missing []"), "{message}");
+    assert!(message.contains("unexpected [w]"), "{message}");
+    let message = weights
+        .validate_names(["w", "absent", "also_absent"])
+        .unwrap_err()
+        .to_string();
+    assert!(
+        message.contains("missing [absent, also_absent]"),
+        "{message}"
+    );
+}
+
+#[test]
 fn inventory_includes_gated_projection_and_legacy_buffer() {
     let tensors = omni_laya::weights::checkpoint_tensors();
     let names: std::collections::HashSet<_> = tensors.iter().map(|t| &t.name).collect();

@@ -17,10 +17,16 @@ impl Weights {
         }
         let names = tensors.names();
         let actual: std::collections::BTreeSet<_> = names.into_iter().collect();
-        ensure!(
-            expected == actual,
-            "tensor inventory does not match checkpoint"
-        );
+        if expected != actual {
+            let joined = |set: std::collections::BTreeSet<&str>| {
+                set.into_iter().collect::<Vec<_>>().join(", ")
+            };
+            let missing = joined(expected.difference(&actual).copied().collect());
+            let extra = joined(actual.difference(&expected).copied().collect());
+            anyhow::bail!(
+                "tensor inventory does not match checkpoint: missing [{missing}], unexpected [{extra}]"
+            );
+        }
         Ok(())
     }
     /// The checkpoint must remain immutable while the mapping exists.
