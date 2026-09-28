@@ -7,12 +7,13 @@ Gated DeltaNet runs, whose replay matches the original forward bit for bit.
 
 from __future__ import annotations
 
+import ctypes
 import gc
 import math
 import threading
 import time
 from collections import OrderedDict
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 
 from .graph_admission import AdmissionPolicy
@@ -108,6 +109,11 @@ class _GraphSegment:
     def __init__(self, layers, start, end, hidden, mask):
         import torch
 
+        self._torch = torch
+        self._device = hidden.device
+        self._stream_ptr = None
+        self.graph = None
+        self.capture_stream = None
         self.layers = layers
         self.start = start
         self.end = end
@@ -124,10 +130,59 @@ class _GraphSegment:
                 self._forward()
         torch.cuda.current_stream(hidden.device).wait_stream(stream)
 
-        self.graph = torch.cuda.CUDAGraph()
-        with torch.cuda.graph(self.graph), torch.no_grad():
-            self.static_output = self._forward()
+        try:
+            # The pinned PyTorch build clears cuBLAS workspaces by capture
+            # stream when a graph is destroyed. Each live graph therefore needs
+            # an exclusive stream; torch.cuda.Stream cycles through a small pool.
+            with torch.cuda.device(self._device):
+                pointer = ctypes.c_void_p()
+                torch.cuda.check_error(
+                    torch.cuda.cudart().cudaStreamCreate(ctypes.addressof(pointer))
+                )
+                self._stream_ptr = pointer.value
+                self.capture_stream = torch.cuda.ExternalStream(
+                    self._stream_ptr, device=self._device
+                )
+                self.graph = torch.cuda.CUDAGraph()
+                with (
+                    torch.cuda.graph(self.graph, stream=self.capture_stream),
+                    torch.no_grad(),
+                ):
+                    self.static_output = self._forward()
+        except BaseException:
+            # Preserve the actual capture failure if a poisoned CUDA context
+            # also prevents cleanup. The destructor makes a best-effort retry.
+            with suppress(Exception):
+                self.close()
+            raise
         self.bytes = max(0, torch.cuda.memory_allocated(hidden.device) - before)
+
+    def close(self):
+        """Release a graph before its exclusively owned capture stream."""
+        if getattr(self, "_stream_ptr", None) is None:
+            return
+        torch = self._torch
+        with torch.cuda.device(self._device):
+            # Replays run on the caller's stream, not the capture stream.
+            torch.cuda.synchronize(self._device)
+            if self.graph is not None:
+                self.graph.reset()
+                self.graph = None
+            self.static_output = None
+            self.static_hidden = None
+            self.static_mask = None
+            torch.cuda.check_error(
+                torch.cuda.cudart().cudaStreamDestroy(self._stream_ptr)
+            )
+            self._stream_ptr = None
+            self.capture_stream = None
+
+    def __del__(self):
+        # Interpreter teardown and failed CUDA contexts cannot safely raise.
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001, S110 -- best-effort destructor cleanup
+            pass
 
     def _forward(self):
         hidden = self.static_hidden
