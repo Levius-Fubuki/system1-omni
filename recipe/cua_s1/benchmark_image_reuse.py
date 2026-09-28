@@ -208,6 +208,9 @@ def correctness_cases(folder):
     result = [(name, value) for name, _, value in cases(folder)]
     distinct = distinct_fixture(folder / "distinct")
     result.append(("distinct-eight", distinct))
+    jpeg = copy.deepcopy(distinct)
+    jpeg["state"] = dict(result)["jpeg"]["state"]
+    result.append(("distinct-jpeg", jpeg))
     reverse = copy.deepcopy(distinct)
     reverse["questions"] = dict(reversed(list(reverse["questions"].items())))
     result.append(("distinct-reversed", reverse))

@@ -115,3 +115,15 @@ def test_failure_report_is_preserved(reuse_benchmark, monkeypatch, tmp_path):
     assert report["error"]["type"] == "InvalidRequest"
     with pytest.raises(ValueError, match="already exists"):
         reuse_benchmark.main(["--weights", str(tmp_path), "--output", str(tmp_path)])
+
+
+def test_jpeg_fixture_exercises_multiple_questions(reuse_benchmark, tmp_path):
+    from models.cua_s1.multimodal.protocol import parse_request
+
+    cases = dict(reuse_benchmark.correctness_cases(tmp_path))
+    assert "distinct-jpeg" in cases
+    request = parse_request(cases["distinct-jpeg"])
+    assert len(request.questions) == 8
+    assert cases["distinct-jpeg"]["state"]["image"].startswith(
+        "data:image/jpeg;base64,"
+    )
