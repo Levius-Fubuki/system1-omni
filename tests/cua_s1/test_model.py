@@ -108,5 +108,5 @@ def test_all_question_lengths_are_checked_before_inference():
     engine.prepare = prepare
     engine.score = lambda inputs, q: forwarded.append(q)
     with pytest.raises(InvalidRequest, match="4096"):
-        engine.predict(Request(None, (first, second)))
+        engine.predict_reference(Request(None, (first, second)))
     assert forwarded == []
