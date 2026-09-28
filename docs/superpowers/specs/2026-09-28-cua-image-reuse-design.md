@@ -1,0 +1,9 @@
+# Request-local Cua-S1 image reuse
+
+Approved scope: implement the proposed single-request preprocessing and vision reuse, verify exact correctness and paired RTX 4090 performance, publish a PR, back up results and shut down the experiment server.
+
+Reuse the single image within a parsed Request. Preserve each question's full processor tokenization, candidate readout, token accounting and three-dimensional positions. Validate every processed length before any vision or language execution. Keep the unmodified single-question path and an explicit baseline path for experiments. The shared visual encoder includes all active PEFT adapters. Never cache text embeddings, positions or outputs across questions or images. Do not introduce a cross-request cache, batching, adapter merging or approximate arithmetic.
+
+Preprocessing should reuse the pinned processor's image result through a request-local processor copy, without changing global modules. Vision reuse should compute the image features once, build question-specific embeddings and explicit positions through the pinned model helpers, then invoke the existing PEFT model with inputs_embeds. Record the concrete tensor interface and ownership in the recipe documentation.
+
+Acceptance: exact prepared tensor and candidate probability parity across distinct questions, varying candidate counts/order, image sizes/formats and consecutive different-image requests; one preprocessing and one vision execution per multi-question request; failure cleanup; no single-question regression outside measurement noise. Measure the existing 16-case matrix using paired alternating baseline/candidate calls, plus a distinct-question workload. Save raw samples, environment, source revisions, memory peaks and commands. Counts and optional trace verification run outside latency measurements. Publish without claiming native backend or kernel optimization.
