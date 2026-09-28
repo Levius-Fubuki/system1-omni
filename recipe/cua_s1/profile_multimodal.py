@@ -387,6 +387,9 @@ def main(argv=None):
                 str(args.weights / "cua-s1-4b-0.2/multimodal"),
             )
         )
+        # Preserve this recipe as the unoptimized stage baseline from PR #15.
+        if hasattr(engine, "predict_reference"):
+            engine.predict = engine.predict_reference
         report["adapter_modules"] = engine.adapter_modules
         for case in selected:
             current = {**case, "status": "running"}

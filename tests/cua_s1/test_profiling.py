@@ -467,3 +467,43 @@ def test_trace_only_never_benchmarks_and_writes_fresh_report(
     assert report["status"] == ("failed" if profile_fails else "complete")
     saved = json.loads((tmp_path / f"{case}.json").read_text())
     assert saved["status"] == ("failed" if profile_fails else "complete")
+
+
+def test_profile_recipe_selects_unoptimized_reference(profiling, monkeypatch, tmp_path):
+    import evaluate_multimodal
+
+    from models.cua_s1.multimodal import model
+
+    def reference(request):
+        return "baseline"
+
+    engine = SimpleNamespace(
+        adapter_modules=178,
+        predict_reference=reference,
+        predict=lambda request: "optimized",
+    )
+    monkeypatch.setattr(model, "MultimodalEngine", lambda *args: engine)
+    monkeypatch.setattr(evaluate_multimodal, "environment", lambda: {})
+    monkeypatch.setattr(evaluate_multimodal, "measure", lambda call: (call(), 0.0))
+    monkeypatch.setattr(
+        profiling, "input_metadata", lambda *args: [{"input_tokens": 1}]
+    )
+
+    def benchmark(selected_engine, *args, **kwargs):
+        assert selected_engine.predict(None) == "baseline"
+        return {"runs": []}
+
+    monkeypatch.setattr(profiling, "benchmark", benchmark)
+    assert (
+        profiling.main(
+            [
+                "--weights",
+                str(tmp_path),
+                "--output",
+                str(tmp_path),
+                "--case",
+                "320x240-short-q1",
+            ]
+        )
+        == 0
+    )
