@@ -182,6 +182,28 @@ def response_difference(expected, actual):
     return worst
 
 
+def changed_text_request(engine, request):
+    """Find different words that retain every prepared question's tensor shape."""
+    import torch
+
+    before = engine.prepare_reused(request.image, request.questions)
+    for verb in ("Open", "Close", "View", "Read", "Edit", "Keep"):
+        questions = tuple(
+            replace(question, goal=question.goal.replace("Save", verb))
+            for question in request.questions
+        )
+        if questions == request.questions:
+            continue
+        after = engine.prepare_reused(request.image, questions)
+        if all(
+            old["input_ids"].shape == new["input_ids"].shape
+            and not torch.equal(old["input_ids"], new["input_ids"])
+            for old, new in zip(before, after)
+        ):
+            return replace(request, questions=questions), verb
+    raise ValueError("no same-shape changed-text fixture available")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--weights", required=True, type=Path)
@@ -298,6 +320,32 @@ def main(argv=None):
                     f"{case['id']}: changed image did not change eager response"
                 )
             item["changed_image_replay_checked"] = True
+            changed_text, verb = changed_text_request(engine, request)
+            text_eager = run_variant(engine, eager, changed_text)
+            graphs_before = len(graph.runners)
+            text_graph = run_variant(engine, graph, changed_text)
+            original_again = run_variant(engine, graph, request)
+            if len(graph.runners) != graphs_before:
+                raise ValueError(
+                    f"{case['id']}: text change unexpectedly changed graph shapes"
+                )
+            item["changed_text_verb"] = verb
+            item["changed_text_max_probability_difference"] = response_difference(
+                text_eager, text_graph
+            )
+            if item["changed_text_max_probability_difference"] > 0.002:
+                item["status"] = "rejected_graph"
+                write_json(report_path, report)
+                raise ValueError(f"{case['id']}: changed-text graph response differs")
+            if response_difference(baseline, original_again) > 0.002:
+                raise ValueError(
+                    f"{case['id']}: original input was not restored after text change"
+                )
+            if text_eager == baseline:
+                raise ValueError(
+                    f"{case['id']}: changed text did not change eager response"
+                )
+            item["changed_text_replay_checked"] = True
             item["fixture_sha256"] = hashlib.sha256(
                 json.dumps(value, sort_keys=True).encode()
             ).hexdigest()
