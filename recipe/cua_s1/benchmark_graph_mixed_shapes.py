@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import json
 import statistics
-from dataclasses import replace
+from dataclasses import asdict, replace
 from itertools import chain
 from pathlib import Path
 
@@ -29,13 +29,30 @@ def summarize_events(events):
         graph_so_far += item["graph_ms"]
         if break_even is None and graph_so_far <= eager_so_far:
             break_even = index
+    cumulative = 0.0
+    balances = []
+    first_capture = None
+    for index, item in enumerate(events, 1):
+        cumulative += item["eager_ms"] - item["graph_ms"]
+        balances.append(cumulative)
+        if first_capture is None and item.get("graph_stats_delta", {}).get(
+            "captures", 0
+        ):
+            first_capture = index
+    sustained = None
+    suffix_nonnegative = True
+    for index in range(len(balances), 0, -1):
+        suffix_nonnegative = suffix_nonnegative and balances[index - 1] >= 0
+        if first_capture is not None and index >= first_capture and suffix_nonnegative:
+            sustained = index
     return {
         "eager_total_ms": eager_total,
         "graph_total_ms": graph_total,
         "total_reduction_percent": 100 * (1 - graph_total / eager_total),
         "eager_p50_ms": statistics.median(x["eager_ms"] for x in events),
         "graph_p50_ms": statistics.median(x["graph_ms"] for x in events),
-        "first_break_even_request": break_even,
+        "first_cumulative_crossing_request": break_even,
+        "post_capture_sustained_break_even_request": sustained,
     }
 
 
@@ -79,12 +96,8 @@ def main(argv=None):
         "environment": environment(),
         "config": {
             "runs": args.runs,
-            "graph": {
-                "max_shapes": 8,
-                "max_bytes": 1024**3,
-                "min_uses": args.graph_min_uses,
-                "max_tokens": 2048,
-            },
+            "graph": asdict(GraphConfig(min_uses=args.graph_min_uses)),
+            "min_uses_semantics": "distinct request contexts",
             "timing": "synchronized engine.predict, including first use and capture",
             "scope": "two questions per request, one 320x240 synthetic image, serial, no HTTP",
         },
@@ -168,7 +181,7 @@ def main(argv=None):
                             allocated = torch.cuda.memory_allocated()
                             reserved = torch.cuda.memory_reserved()
                     difference = response_difference(results["eager"], results["graph"])
-                    if difference != 0:
+                    if difference != 0 or results["eager"] != results["graph"]:
                         raise ValueError(
                             f"{workload_name} run {run_index + 1} request {index + 1}: response changed"
                         )

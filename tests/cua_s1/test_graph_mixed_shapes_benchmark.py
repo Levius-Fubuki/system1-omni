@@ -37,8 +37,8 @@ def test_summary_includes_capture_cost_and_reports_first_break_even():
     result = summarize(events)
     assert result["eager_total_ms"] == 50.0
     assert result["graph_total_ms"] == 50.0
-    assert result["first_break_even_request"] == 5
-    assert summarize(events[:4])["first_break_even_request"] is None
+    assert result["first_cumulative_crossing_request"] == 5
+    assert summarize(events[:4])["first_cumulative_crossing_request"] is None
 
 
 def test_capture_threshold_must_be_positive(tmp_path):
@@ -53,3 +53,20 @@ def test_capture_threshold_must_be_positive(tmp_path):
                 "0",
             ]
         )
+
+
+def test_sustained_break_even_excludes_precapture_and_temporary_crossings():
+    summarize = load_benchmark().summarize_events
+    events = [
+        {"eager_ms": 10, "graph_ms": 5},
+        {"eager_ms": 10, "graph_ms": 30, "graph_stats_delta": {"captures": 1}},
+        {"eager_ms": 10, "graph_ms": 1},
+        {"eager_ms": 10, "graph_ms": 1},
+        {"eager_ms": 10, "graph_ms": 20},
+        {"eager_ms": 10, "graph_ms": 1},
+    ]
+    result = summarize(events)
+    assert result["first_cumulative_crossing_request"] == 1
+    assert result["post_capture_sustained_break_even_request"] == 6
+    assert summarize(events[:1])["post_capture_sustained_break_even_request"] is None
+    assert summarize(events[:3])["post_capture_sustained_break_even_request"] is None

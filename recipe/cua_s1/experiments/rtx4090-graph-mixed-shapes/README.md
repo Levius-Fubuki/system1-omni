@@ -81,12 +81,19 @@ capture time, cache occupancy, and memory observation. The independent
 [`verify_results.py`](verify_results.py) recomputes the totals and medians,
 checks schedule coverage and cache limits, and requires exact response parity.
 It verified all three reports and 360 paired requests. On the GPU host, all
-118 Cua-S1 tests passed; Ruff lint and format checks passed for the new
+118 Cua-S1 tests were reported as passing. The later source `6e0a432`
+adds `test_capture_threshold_must_be_positive` relative to `1019581`,
+accounting for the PR summary’s 119-test count; the original execution log
+is not retained here, so this is a source-count explanation rather than a
+new claim that all 119 ran on the GPU host. Ruff lint and format checks passed for the new
 benchmark. SHA-256 hashes are in [`SHA256SUMS`](SHA256SUMS).
 
-With this PR's source, pinned weights, and the GPU environment described above:
+To reproduce the historical runtime behavior, check out the measured source
+`6e0a432` in a separate checkout, with pinned weights and the GPU environment
+described above. Current source changes admission and metric semantics.
 
 ```sh
+git checkout 6e0a432
 for threshold in 2 4 8; do
   PYTHONPATH=src:recipe/cua_s1 python recipe/cua_s1/benchmark_graph_mixed_shapes.py \
     --weights /path/to/weights --output "/path/to/fresh-output-$threshold" \
