@@ -146,7 +146,7 @@ def runtime_fixture(monkeypatch, **config):
             dtype="bf16",
             device="cuda:0",
         )
-        return dict(inputs_embeds=tensor, position_ids=tensor, attention_mask=tensor)
+        return {"inputs_embeds": tensor, "position_ids": tensor, "attention_mask": tensor}
 
     return r, values
 
@@ -199,15 +199,13 @@ def test_runtime_failed_capture_spends_budget(monkeypatch):
 
 def test_request_error_restores_scope_and_invalidation_resets_policy(monkeypatch):
     r, values = runtime_fixture(monkeypatch)
-    with pytest.raises(ValueError):
-        with r.request():
-            r.forward(values(1))
-            raise ValueError("request failed")
+    with pytest.raises(ValueError), r.request():
+        r.forward(values(1))
+        raise ValueError("request failed")
     assert not r._in_request
     with r.request():
-        with pytest.raises(RuntimeError, match="nested"):
-            with r.request():
-                pass
+        with pytest.raises(RuntimeError, match="nested"), r.request():
+            pass
         with pytest.raises(RuntimeError, match="invalidate"):
             r.invalidate()
     r.invalidate()
