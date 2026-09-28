@@ -2,7 +2,23 @@
 
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
-The project is in early development. A Cua-S1 multimodal worker has been validated on CUDA through Transformers and PEFT; the architecture below describes the intended native frontend and backend organization.
+The Rust frontend forwards requests to a separately running model worker. The Cua-S1 multimodal worker has been validated on CUDA through Transformers and PEFT; native GPU backends remain planned.
+
+## Run the frontend
+
+From the repository root, with stable Rust installed:
+
+```sh
+cargo build --release --locked
+OMNI_JEV_BIND=127.0.0.1:8080 \
+OMNI_JEV_BACKEND_URL=http://127.0.0.1:8000 \
+  ./target/release/omni-jev
+```
+
+Start the worker separately. See the [frontend documentation](src/frontend/README.md)
+for the HTTP interface and configuration, or the [Laya recipe](recipe/laya/README.md)
+for a CPU text worker and response checks. The [Cua-S1 recipe](recipe/cua_s1/README.md)
+provides a CUDA worker for screenshot-conditioned choices.
 
 ## Architecture
 
@@ -33,7 +49,7 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-These directories document ownership; implementations are being added incrementally. They do not prescribe process boundaries. Shared utilities will be extracted when concrete implementations need them.
+The frontend is a Cargo workspace member. Model and backend directories document ownership, with implementations added incrementally; they do not prescribe process boundaries.
 
 ## Supported models
 
@@ -41,7 +57,7 @@ Validated coverage is listed by modality and execution path:
 
 | Model | Status |
 | --- | --- |
-| LAYA | Planned |
+| LAYA | [External worker](recipe/laya/README.md); model engine planned |
 | [Cua-S1 4B 0.2](recipe/cua_s1/README.md) | Multimodal screenshot choices via Transformers/PEFT on RTX 4090 CUDA; [parity and measurements](recipe/cua_s1/experiments/README.md). Text serving, native CUDA kernels and Metal deferred. |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.

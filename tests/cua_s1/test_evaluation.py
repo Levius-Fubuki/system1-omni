@@ -46,3 +46,20 @@ def test_environment_survives_json_roundtrip(monkeypatch):
     monkeypatch.setattr(module.subprocess, "check_output", lambda *a, **kw: "driver\n")
     environment = module.environment()
     assert json.loads(json.dumps(environment)) == environment
+
+
+def test_generated_fixtures_satisfy_required_instructions(tmp_path, monkeypatch):
+    from models.cua_s1.multimodal.protocol import parse_request
+
+    recipe = Path(__file__).resolve().parents[2] / "recipe/cua_s1"
+    monkeypatch.syspath_prepend(str(recipe))
+    spec = importlib.util.spec_from_file_location(
+        "evaluation", recipe / "evaluate_multimodal.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    fixtures = module.cases(tmp_path)
+    requests = [parse_request(value) for _, _, value in fixtures]
+    assert len(requests) == 8
+    assert sum(len(value.questions) for value in requests) == 9
+    assert requests[-1].questions[1].goal == ""

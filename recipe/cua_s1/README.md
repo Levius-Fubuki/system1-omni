@@ -38,8 +38,7 @@ The worker binds to `127.0.0.1:8000` only after loading and a successful warmup.
 runs at a time; concurrent requests return `503`. This is a loopback model worker,
 with the Rust frontend and an ingress responsible for public serving.
 
-To use the Rust frontend when [PR #2](https://github.com/ThinkFlowLab/system1-omni/pull/2)
-is available in your checkout:
+To use the Rust frontend included in this repository:
 
 ```sh
 cargo build --release --locked
@@ -81,16 +80,18 @@ The request shape is:
   letters A–Z. Labels are strings, objects, arrays or `null` (which uses the key).
   Structured values use Python `json.dumps(..., ensure_ascii=False)` followed by
   the upstream chooser's label escaping. Instructions accept strings, objects
-  or arrays; an omitted/empty instruction omits the goal block.
+  or arrays and must be present; an empty string or `null` omits the goal block.
 - Limits: 8 MiB body, 4 MiB decoded image, 2048 pixels per side, 1,048,576 pixels
   total, 16,384 characters per question and 4096 processed tokens per question.
   Every question is validated/preprocessed before any forward pass begins.
 - `<|image_pad|>`, `<|video_pad|>`, `<|vision_start|>` and `<|vision_end|>` are
   rejected in user text because the processor interprets them as media controls.
   Other special-token spellings retain upstream tokenization behavior.
-- Empty/invalid inputs, duplicate JSON keys, unsupported models and `score`/`noul`
-  questions return `422`. Oversized bodies return `413`; chunked uploads return
-  `411`. Send `Content-Length` and `Content-Type: application/json`.
+- Malformed JSON (including duplicate keys, non-finite numbers, invalid UTF-8,
+  lone surrogates and non-object bodies) returns `400`. Well-formed unsupported
+  inputs, missing `instructions`, unsupported models and `score`/`noul` questions
+  return `422`. Error bodies use `{"detail": "<message>"}`. Oversized bodies
+  return `413`; chunked uploads return `411`. Send `Content-Length` and `Content-Type: application/json`.
 
 Each answer has `type`, `choice`, `probabilities` and `confidence`. The readout
 uses the last position's candidate-letter logits, casts to fp32 and applies

@@ -154,3 +154,12 @@ def test_media_control_tokens_are_rejected(token, field):
     )
     with pytest.raises(InvalidRequest, match="control token"):
         parse_request(value)
+
+
+@pytest.mark.parametrize("instructions", ["", None])
+def test_explicit_empty_or_null_instructions_omits_goal(instructions):
+    value = request()
+    value["questions"]["next"]["instructions"] = instructions
+    question = parse_request(value).questions[0]
+    assert question.goal == ""
+    assert "Goal:" not in build_messages(question)[1]["content"][1]["text"]

@@ -4,6 +4,22 @@ This is a Transformers/PEFT CUDA baseline, with the adapter unmerged and full
 logits, for the screenshot worker in [the recipe](../README.md). It does not
 implement a native CUDA backend or claim a speedup over upstream.
 
+The checked-in GPU/HTTP results were measured at commit `74c95e5`. A subsequent
+protocol-only revision aligned errors with the text-worker contract: `detail`
+replaces `error`, malformed JSON/duplicate keys return 400, and `instructions` is
+required (explicit `null` or an empty string omits the goal). The original
+`frontend.json` therefore retains the **historical** duplicate-key status and
+error-body hashes; it is not evidence for the revised error contract. Regression
+tests cover the revised behavior without restarting the GPU instance. The
+protocol revision passed 62 Python tests, 13 Rust tests, and 12 direct-versus-
+frontend comparisons using the real worker HTTP handler with a CPU stub engine.
+Those 12 checks validate transport and rejection behavior, not model inference.
+
+The generator now supplies `instructions: ""` for the second question of the
+two-question fixture. This preserves its previous empty goal and prompt. Model
+loading, image processing, prompt construction and scoring are unchanged; GPU
+parity and performance have not been remeasured for the protocol revision.
+
 ## Environment and artifacts
 
 - One NVIDIA GeForce RTX 4090, 24,564 MiB, compute capability 8.9.

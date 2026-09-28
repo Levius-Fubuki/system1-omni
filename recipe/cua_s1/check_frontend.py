@@ -29,22 +29,35 @@ def main():
     parser.add_argument("--fixtures", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    fixtures = sorted(args.fixtures.glob("*.json"))
+    if not fixtures:
+        raise ValueError("at least one valid fixture is required")
     checks = [("health", "/health", None)]
-    checks += [
-        (p.stem, "/v1/systemone", p.read_bytes())
-        for p in sorted(args.fixtures.glob("*.json"))
-    ]
+    checks += [(p.stem, "/v1/systemone", p.read_bytes()) for p in fixtures]
     checks += [
         ("invalid", "/v1/systemone", b"{}"),
         ("duplicate", "/v1/systemone", b'{"model":1,"model":2}'),
     ]
+    missing = json.loads(fixtures[0].read_bytes())
+    next(iter(missing["questions"].values())).pop("instructions")
+    checks.append(
+        ("missing-instructions", "/v1/systemone", json.dumps(missing).encode())
+    )
     report = []
     for name, route, body in checks:
         direct = exchange(args.worker, route, body)
         proxied = exchange(args.frontend, route, body)
         assert direct == proxied, f"frontend changed response: {name}"
-        expected_status = 422 if name in {"invalid", "duplicate"} else 200
+        expected_status = {
+            "invalid": 422,
+            "duplicate": 400,
+            "missing-instructions": 422,
+        }.get(name, 200)
         assert direct[0] == expected_status, f"unexpected status: {name}: {direct[0]}"
+        if expected_status >= 400:
+            assert set(json.loads(direct[2])) == {"detail"}, (
+                f"wrong error envelope: {name}"
+            )
         report.append(
             {
                 "name": name,

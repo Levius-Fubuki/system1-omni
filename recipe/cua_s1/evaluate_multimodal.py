@@ -74,6 +74,7 @@ def cases(folder):
     value = copy.deepcopy(result[0][2])
     value["questions"]["second"] = {
         "type": "choice",
+        "instructions": "",
         "criteria": {"yes": "Continue", "no": "Cancel"},
     }
     result.append(("two-questions", result[0][1], value))

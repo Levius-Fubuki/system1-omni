@@ -34,6 +34,10 @@ class InvalidRequest(ValueError):
     """Input cannot be evaluated under the supported contract."""
 
 
+class MalformedJSON(InvalidRequest):
+    """The body is not a usable UTF-8 JSON object (HTTP 400)."""
+
+
 @dataclass(frozen=True)
 class Question:
     name: str
@@ -52,24 +56,33 @@ def _object(pairs):
     result = {}
     for key, value in pairs:
         if key in result:
-            raise InvalidRequest("duplicate JSON keys are not supported")
+            raise MalformedJSON("duplicate JSON keys are not supported")
         result[key] = value
     return result
 
 
 def _nonfinite(value):
-    raise InvalidRequest("non-finite JSON numbers are not supported")
+    raise MalformedJSON("non-finite JSON numbers are not supported")
 
 
 def decode_request(raw: bytes) -> dict:
     if len(raw) > MAX_BODY:
         raise InvalidRequest("request body exceeds 8 MiB")
     try:
-        value = json.loads(raw, object_pairs_hook=_object, parse_constant=_nonfinite)
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_object, parse_constant=_nonfinite
+        )
+        # The decoder accepts lone surrogate escapes and overflowing floats.
+        # Reject both before any text can reach the tokenizer or a response.
+        json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except MalformedJSON:
+        raise
     except (ValueError, UnicodeError, RecursionError) as exc:
-        raise InvalidRequest("invalid JSON or duplicate keys") from exc
+        raise MalformedJSON(
+            "request body must contain valid JSON and UTF-8 text"
+        ) from exc
     if not isinstance(value, dict):
-        raise InvalidRequest("request must be a JSON object")
+        raise MalformedJSON("request must be a JSON object")
     return value
 
 
@@ -157,6 +170,8 @@ def parse_request(value: dict) -> Request:
             raise InvalidRequest("only choice questions are supported")
         if set(q) - {"type", "instructions", "criteria"}:
             raise InvalidRequest("unsupported question fields")
+        if "instructions" not in q:
+            raise InvalidRequest("instructions is required for every question")
         criteria = q.get("criteria")
         if not isinstance(criteria, dict) or not 1 <= len(criteria) <= 26:
             raise InvalidRequest("choice requires 1 to 26 options")
@@ -166,7 +181,11 @@ def parse_request(value: dict) -> Request:
                 raise InvalidRequest("option keys must contain 1 to 256 characters")
             text = _text(key if label is None else label, "criteria")
             labels.append(json.dumps(text, ensure_ascii=False)[1:-1])
-        goal = _text(q.get("instructions", ""), "instructions")
+        goal = (
+            ""
+            if q["instructions"] is None
+            else _text(q["instructions"], "instructions")
+        )
         if len(goal) + sum(map(len, labels)) > MAX_TEXT:
             raise InvalidRequest("combined question text exceeds 16384 characters")
         parsed.append(Question(name, tuple(criteria), tuple(labels), goal))

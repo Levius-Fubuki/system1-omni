@@ -9,7 +9,13 @@ import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .protocol import MAX_BODY, InvalidRequest, decode_request, parse_request
+from .protocol import (
+    MAX_BODY,
+    InvalidRequest,
+    MalformedJSON,
+    decode_request,
+    parse_request,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -47,53 +53,55 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self.send_json(200, {"status": "ready", "modality": "multimodal"})
         else:
-            self.send_json(404, {"error": "unknown route"})
+            self.send_json(404, {"detail": "unknown route"})
 
     def do_POST(self):
         if self.path != "/v1/systemone":
-            self.send_json(404, {"error": "unknown route"})
+            self.send_json(404, {"detail": "unknown route"})
             return
         if self.headers.get("Transfer-Encoding"):
             self.send_json(
                 411,
                 {
-                    "error": "Content-Length is required; chunked requests are unsupported"
+                    "detail": "Content-Length is required; chunked requests are unsupported"
                 },
             )
             return
         lengths = self.headers.get_all("Content-Length", [])
         if len(lengths) != 1:
-            self.send_json(411, {"error": "one Content-Length is required"})
+            self.send_json(411, {"detail": "one Content-Length is required"})
             return
         try:
             length = int(lengths[0])
         except ValueError:
-            self.send_json(400, {"error": "invalid Content-Length"})
+            self.send_json(400, {"detail": "invalid Content-Length"})
             return
         if length < 0 or length > MAX_BODY:
-            self.send_json(413, {"error": "request exceeds body limit"})
+            self.send_json(413, {"detail": "request exceeds body limit"})
             return
         if self.headers.get_content_type() != "application/json":
-            self.send_json(415, {"error": "Content-Type must be application/json"})
+            self.send_json(415, {"detail": "Content-Type must be application/json"})
             return
         if not self.server.inference_lock.acquire(blocking=False):
-            self.send_json(503, {"error": "worker busy"})
+            self.send_json(503, {"detail": "worker busy"})
             return
         try:
             raw = self.rfile.read(length)
             if len(raw) != length:
-                self.send_json(400, {"error": "incomplete body"})
+                self.send_json(400, {"detail": "incomplete body"})
                 return
             parsed = parse_request(decode_request(raw))
             result = self.server.engine.predict(parsed)
             self.send_json(200, result)
+        except MalformedJSON as exc:
+            self.send_json(400, {"detail": str(exc)})
         except InvalidRequest as exc:
-            self.send_json(422, {"error": str(exc)})
+            self.send_json(422, {"detail": str(exc)})
         except (TimeoutError, socket.timeout):
-            self.send_json(408, {"error": "request body timed out"})
+            self.send_json(408, {"detail": "request body timed out"})
         except Exception as exc:
             LOG.error("inference failed: %s", type(exc).__name__)
-            self.send_json(500, {"error": "inference failed"})
+            self.send_json(500, {"detail": "inference failed"})
         finally:
             self.server.inference_lock.release()
 
