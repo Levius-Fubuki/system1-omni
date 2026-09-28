@@ -232,6 +232,7 @@ def test_reused_tensor_path_preserves_scatter_positions_and_peft_forward():
             assert not torch.is_grad_enabled()
             assert "input_ids" not in kwargs and "pixel_values" not in kwargs
             assert "image_grid_thw" not in kwargs
+            assert kwargs["logits_to_keep"] == 1
             assert torch.equal(kwargs["position_ids"], positions)
             assert torch.equal(
                 kwargs["inputs_embeds"],
