@@ -10,11 +10,11 @@
 
 ---
 
-- [ ] Profile the unchanged reuse path with 1 and 8 questions; retain raw kernel groups, module invocation counts, traces, and source revision.
-- [ ] Run a temporary paired exploration of full projection versus `logits_to_keep=1`, checking complete responses before timing. Select the candidate only if its effect is credible.
-- [ ] Add a failing tensor integration test in `tests/cua_s1/test_image_reuse.py` proving the reused path passes `logits_to_keep=1`; run it on the GPU host or a torch-equipped environment.
-- [ ] Modify only `score_reused` in `src/models/cua_s1/multimodal/model.py`; rerun the focused test and the full Cua-S1 suite.
-- [ ] Add a paired benchmark recipe with explicit baseline selection, alternating order, raw samples, response parity, source and environment metadata, and peak allocated memory.
-- [ ] Commit a clean source revision, transfer it to the GPU host, and run correctness and timed measurements. Review raw samples, variability, kernel changes, and single-question behavior.
+- [x] Profile the unchanged reuse path with 1 and 8 questions; retain raw kernel groups, module invocation counts, traces, and source revision.
+- [x] Run a temporary paired exploration of full projection versus `logits_to_keep=1`, checking complete responses before timing. Select the candidate only if its effect is credible.
+- [x] Add a failing tensor integration test in `tests/cua_s1/test_image_reuse.py` proving the reused path passes `logits_to_keep=1`; run it on the GPU host or a torch-equipped environment.
+- [x] Modify `score_reused` in `src/models/cua_s1/multimodal/model.py` and clean up a nearby Ruff guard; rerun the focused test and the full Cua-S1 suite.
+- [x] Add a paired benchmark recipe with explicit baseline selection, alternating order, raw samples, response parity, source and environment metadata, and peak allocated memory.
+- [x] Commit a clean source revision, transfer it to the GPU host, and run correctness and timed measurements. Review raw samples, variability, kernel changes, and single-question behavior.
 - [ ] Publish result data and reproduction commands, run verification, push the branch, create and attach the PR.
 - [ ] Archive and checksum complete GPU evidence locally, ensure no experiment is running, shut down the server, and verify it no longer accepts SSH.

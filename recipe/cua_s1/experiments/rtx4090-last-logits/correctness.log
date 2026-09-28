@@ -1,0 +1,17 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<01:59,  6.05it/s]Loading weights:   4%|▍         | 28/723 [00:00<00:05, 127.32it/s]Loading weights:   7%|▋         | 53/723 [00:00<00:03, 172.43it/s]Loading weights:  11%|█         | 81/723 [00:00<00:03, 206.13it/s]Loading weights:  16%|█▌        | 113/723 [00:00<00:02, 234.57it/s]Loading weights:  20%|██        | 146/723 [00:00<00:02, 257.37it/s]Loading weights:  24%|██▍       | 173/723 [00:00<00:02, 252.65it/s]Loading weights:  28%|██▊       | 202/723 [00:00<00:01, 263.56it/s]Loading weights:  33%|███▎      | 235/723 [00:01<00:01, 280.72it/s]Loading weights:  37%|███▋      | 264/723 [00:01<00:01, 266.57it/s]Loading weights:  40%|████      | 292/723 [00:01<00:01, 267.47it/s]Loading weights:  45%|████▌     | 326/723 [00:01<00:01, 284.67it/s]Loading weights:  50%|████▉     | 358/723 [00:01<00:01, 287.62it/s]Loading weights:  54%|█████▎    | 387/723 [00:01<00:01, 272.00it/s]Loading weights:  57%|█████▋    | 415/723 [00:01<00:01, 273.34it/s]Loading weights:  75%|███████▍  | 542/723 [00:01<00:00, 554.99it/s]Loading weights: 100%|██████████| 723/723 [00:01<00:00, 387.27it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+correctness small: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness medium: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness jpeg: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness single: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness 26-options: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness structured: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness special-token: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
+correctness two-questions: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 2, 'image_preprocess': 1}
+correctness distinct-eight: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
+correctness distinct-jpeg: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
+correctness distinct-reversed: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
+correctness distinct-small-image: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
+correctness distinct-original-again: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
