@@ -40,16 +40,37 @@ with the Rust frontend and an ingress responsible for public serving.
 
 To enable the optional CUDA Graph runtime for multi-question requests, add
 `--graph` to the worker command. It captures each run of Gated DeltaNet layers
-at its actual token length and keeps full-attention layers eager. The first
-use of a layout runs eagerly; the second use captures and checks all output
-logits against eager before the layout enters the cache. The defaults retain at
-most eight layouts and 1 GiB of graph buffers; `--graph-max-shapes`,
-`--graph-max-memory-mib`, `--graph-min-uses`, and `--graph-max-tokens` adjust
-these limits. Inputs above 2,048 tokens, rejected layouts, or layouts that
-exceed the graph memory budget use eager inference. Cache entries own their
-static buffers and are evicted together. The loaded model must remain immutable;
-call `graph_runtime.invalidate()` before changing its weights or adapters.
-Single-question requests continue through the reference path.
+at its actual token length and keeps full-attention layers eager. A layout must
+appear in two distinct `predict` requests, at most eight requests apart, before
+capture. Repeated questions inside one request count once. The captured logits
+must exactly match eager before the layout enters the cache. The defaults retain
+at most eight layouts and 1 GiB of measured live Graph allocations.
+
+`--graph-min-uses` now counts **requests**, not question forwards. Use
+`--graph-admission-window` to change the maximum gap between observations.
+Evicted layouts lose their heat and wait `--graph-cooldown-requests` (default 32)
+before accumulating new observations. History and cooldown tables retain at
+most 128 layouts each. Every prediction, including the single-question reference
+path, advances the request clock while Graph is enabled.
+
+Capture is limited to `--graph-max-captures` (default 4) attempts per sliding
+`--graph-capture-window` (default 32 requests). `--graph-capture-budget-ms`
+(default 2000) also limits the accumulated elapsed attempt work, including the
+eager correctness gate, failures and cleanup. A synchronous capture cannot be
+interrupted; one attempt may overshoot this time budget and later attempts then
+fall back to eager until budget expires. This is a request-count window, not a
+wall-clock rate limit. Cached layouts can still replay when capture is paused.
+
+`--graph-max-shapes`, `--graph-max-memory-mib` and `--graph-max-tokens` adjust
+cache and token limits. Inputs above 2,048 tokens, rejected layouts, insufficient
+reuse and exhausted budgets use eager inference. The memory budget covers
+retained live allocations, not capture-time peaks or allocator reservations.
+Cache entries own their static buffers and are evicted together. The loaded model
+must remain immutable; call `graph_runtime.invalidate()` before changing its
+weights or adapters. Invalidation clears admission and cache state, while lifetime
+statistics remain cumulative. `predict` opens a serialized Graph request context;
+standalone runtime `forward` calls without that context use eager. Single-question
+requests continue through the reference path.
 
 Whole-model capture changed BF16 attention results on the measured RTX 4090;
 the earlier [Graph feasibility report](experiments/rtx4090-graph/README.md)
