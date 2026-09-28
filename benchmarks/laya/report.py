@@ -132,7 +132,7 @@ def throughput(records):
         for r in records
         if r["type"] == "throughput"
     ]
-    return table(["config", "workload", "conc", "run", "n", "errors", "elapsed s", "req/s"], sorted(rows))
+    return table(["config", "workload", "conc", "run", "n", "errors", "elapsed s", "successful req/s"], sorted(rows))
 
 
 def memory(phases, ends):

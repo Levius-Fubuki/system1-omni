@@ -4,14 +4,17 @@ laya-serve (laya 0.3.20) answers /health as soon as it binds, before any forward
 LAYA_DEVICE as configured rather than where the model ended up. This worker reuses laya's app and
 request handling unchanged and fixes both:
 
-- It binds only after a warmup that covers short, long and multi-question requests (the last one
-  crosses laya's fp16 autocast threshold on MPS), so a reachable worker is a warm one.
-- /health reports the device, weight and autocast dtypes of the loaded agent, the checkpoint and
-  revision it serves, and whether the device differs from the one requested.
+- It binds only after a warmup of every loaded model that covers short, long and multi-question
+  requests (the last one crosses laya's fp16 autocast threshold on MPS), so a reachable worker is a
+  warm one whichever model a request is routed to.
+- /health reports, per loaded model, the device, weight and autocast dtypes, the checkpoint and the
+  revision its weights were downloaded from, and whether the device differs from the one requested.
 
 Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, LAYA_API_KEY, ...) plus:
 
-    LAYA_WORKER_MODEL          model to warm up and describe          english
+    LAYA_WORKER_MODEL          model summarised at the top of /health; english
+                               also the one loaded when nothing is
+                               preloaded (LAYA_PRELOAD=0)
     LAYA_REQUIRE_DEVICE        exit instead of serving on another     0
                                device than LAYA_DEVICE asked for
     LAYA_WORKER_COMPILE        off, all, or single: torch.compile      off
@@ -102,19 +105,33 @@ def compile_agent(agent: Any, mode: str) -> None:
     agent.model = SingleRowCompiled()
 
 
-def _cached_revision(repo: str | None, ref: str = "main") -> str | None:
-    if not repo:
-        return None
-    try:
-        from huggingface_hub.constants import HF_HUB_CACHE
+def record_snapshot_revisions() -> dict[str, str]:
+    """Record the commit each Hugging Face checkpoint is loaded from, keyed by repo id.
 
-        return (Path(HF_HUB_CACHE) / f"models--{repo.replace('/', '--')}" / "refs" / ref).read_text().strip()
-    except (ImportError, OSError):
-        return None
+    laya calls huggingface_hub.snapshot_download while loading and keeps only the repo id; the
+    returned path (.../snapshots/<commit>/...) is the only place the loaded revision appears. Call this
+    before the router loads anything. A checkpoint loaded from a local path records nothing.
+    """
+    import huggingface_hub
+
+    revisions: dict[str, str] = {}
+    original = huggingface_hub.snapshot_download
+
+    def recording(repo_id, *args, **kwargs):
+        path = original(repo_id, *args, **kwargs)
+        parts = Path(path).parts
+        if "snapshots" in parts[:-1]:
+            revisions[repo_id] = parts[parts.index("snapshots") + 1]
+        return path
+
+    huggingface_hub.snapshot_download = recording
+    return revisions
 
 
-def describe(agent: Any, requested: str | None, routing: dict[str, Any] | None) -> dict[str, Any]:
-    """What /health reports about the loaded agent."""
+def describe(
+    agent: Any, requested: str | None, routing: dict[str, Any] | None, revisions: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """What /health reports about one loaded agent."""
     device = str(getattr(agent, "device", "unknown"))
     model = getattr(agent, "model", None)
     try:
@@ -131,7 +148,7 @@ def describe(agent: Any, requested: str | None, routing: dict[str, Any] | None) 
         "autocast_dtype": str(getattr(agent, "dtype", None)),
         "mps_amp_min_rows": getattr(agent, "mps_amp_min_rows", None),
         "checkpoint": repo,
-        "revision": _cached_revision(repo),
+        "revision": (revisions or {}).get(repo),
     }
 
 
@@ -142,21 +159,37 @@ def create_worker_app(
     require_device: bool = False,
     compile: str = "off",
     graph_counter=compiled_graphs,
+    revisions: dict[str, str] | None = None,
 ):
-    """Optionally compile, warm the router up, then return laya's app with /health replaced.
+    """Optionally compile, warm up every loaded model, then return laya's app with /health replaced.
+    `model` is the one summarised at the top of /health, and the one loaded if nothing is preloaded.
     Raises if compiling or warmup fails."""
     from laya.serve import create_app
 
     if compile not in ("off", "all", "single"):
         raise ValueError(f"compile mode must be off, all or single, not {compile!r}")
+    names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
     if compile != "off":
-        compile_agent(router.load(model), compile)
-    warm = warmup(router, model)
-    info = describe(router.load(model), requested, warm["routing"])
-    info["warmup_ms"] = warm["warmup_ms"]
+        for name in names:
+            compile_agent(router.load(name), compile)
+    models = {}
+    for name in names:
+        warm = warmup(router, name)
+        models[name] = {
+            **describe(router.load(name), requested, warm["routing"], revisions),
+            "warmup_ms": warm["warmup_ms"],
+        }
+    primary = model if model in models else names[0]
+    info = {
+        **models[primary],
+        "device_mismatch": any(m["device_mismatch"] for m in models.values()),
+        "warmup_ms": round(sum(m["warmup_ms"] for m in models.values()), 1),
+        "models": models,
+    }
     graphs_at_ready = graph_counter() if compile != "off" else None
     if info["device_mismatch"]:
-        message = f"asked for {info['requested_device']}, model is on {info['device']}"
+        wrong = ", ".join(f"{n} is on {m['device']}" for n, m in models.items() if m["device_mismatch"])
+        message = f"asked for {info['requested_device']}, {wrong}"
         if require_device:
             raise RuntimeError(message)
         log.warning(message)
@@ -184,6 +217,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
     model = os.environ.get("LAYA_WORKER_MODEL", "english")
     requested = os.environ.get("LAYA_DEVICE") or None
+    revisions = record_snapshot_revisions()
     try:
         app = create_worker_app(
             build_router(),
@@ -191,6 +225,7 @@ def main() -> None:
             requested,
             require_device=_env_bool("LAYA_REQUIRE_DEVICE"),
             compile=COMPILE_MODES.get(os.environ.get("LAYA_WORKER_COMPILE", "").strip().lower(), "invalid"),
+            revisions=revisions,
         )
     except Exception as exc:  # noqa: BLE001 -- any failure before binding means not ready, ever
         sys.exit(f"laya-worker: not starting: {exc}")

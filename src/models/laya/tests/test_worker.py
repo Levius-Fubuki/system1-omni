@@ -25,17 +25,20 @@ class FakeAgent:
 class FakeRouter:
     """The part of laya.router.Router the worker and laya.serve.create_app use."""
 
-    def __init__(self, agent=None, fail_on_call=None):
+    def __init__(self, agent=None, fail_on_call=None, agents=None):
         self.agent = agent or FakeAgent()
+        self.agents = agents if agents is not None else {"english": self.agent}
         self.calls = []
+        self.loads = []
         self.fail_on_call = fail_on_call
 
     @property
     def loaded(self):
-        return ["english"]
+        return list(self.agents)
 
     def load(self, name):
-        return self.agent
+        self.loads.append(name)
+        return self.agents.setdefault(name, self.agent)
 
     def predict(self, state, questions, model=None):
         self.calls.append((state, questions, model))
@@ -107,7 +110,7 @@ def test_auto_device_is_never_a_mismatch():
 
 def test_require_device_refuses_to_serve_on_another_device():
     router = FakeRouter(FakeAgent(device="cpu"))
-    with pytest.raises(RuntimeError, match="asked for mps, model is on cpu"):
+    with pytest.raises(RuntimeError, match="asked for mps, english is on cpu"):
         worker.create_worker_app(router, "english", "mps", require_device=True)
 
 
@@ -194,3 +197,55 @@ def test_single_row_batches_use_the_compiled_model(monkeypatch):
     assert agent.model(torch.zeros(1, 7)) == "compiled"
     assert agent.model(torch.zeros(3, 7)) == "eager"
     assert [p.shape for p in agent.model.parameters()] == [torch.Size([1])]  # one set of weights
+
+
+def test_every_loaded_model_is_warmed_and_described():
+    agents = {"english": FakeAgent(), "multilingual": FakeAgent(device="cpu", dtype="torch.float32")}
+    router = FakeRouter(agents=agents)
+    health = TestClient(worker.create_worker_app(router, "english", "mps")).get("/health").json()
+    per_model = len(worker.WARMUP_SHAPES) * worker.WARMUP_REPEATS
+    assert [m for _, _, m in router.calls].count("multilingual") == per_model
+    assert [m for _, _, m in router.calls].count("english") == per_model
+    assert set(health["models"]) == {"english", "multilingual"}
+    assert health["device"] == "mps"  # the top level summarises LAYA_WORKER_MODEL
+    assert health["models"]["multilingual"]["device"] == "cpu"
+    assert health["device_mismatch"] is True  # one model off the requested device is enough
+
+
+def test_a_model_that_is_not_preloaded_is_not_loaded_for_warmup():
+    router = FakeRouter(agents={"multilingual": FakeAgent()})
+    health = TestClient(worker.create_worker_app(router, "english", "mps")).get("/health").json()
+    assert "english" not in router.loads
+    assert {m for _, _, m in router.calls} == {"multilingual"}
+    assert set(health["models"]) == {"multilingual"}
+
+
+def test_nothing_preloaded_warms_the_worker_model():
+    router = FakeRouter(agents={})
+    worker.create_worker_app(router, "english", "mps")
+    assert {m for _, _, m in router.calls} == {"english"}
+
+
+def test_revision_comes_from_the_loaded_snapshot_not_a_guess():
+    revisions = {"convaiinnovations/laya": "55cf4c4"}
+    health = TestClient(worker.create_worker_app(FakeRouter(), "english", "mps", revisions=revisions)).get("/health")
+    assert health.json()["revision"] == "55cf4c4"
+    unknown = TestClient(worker.create_worker_app(FakeRouter(), "english", "mps")).get("/health").json()
+    assert unknown["revision"] is None
+
+
+def test_record_snapshot_revisions_reads_the_downloaded_path(monkeypatch):
+    import huggingface_hub
+
+    paths = {
+        "convaiinnovations/laya": "/cache/models--convaiinnovations--laya/snapshots/55cf4c4abc/multilingual",
+        "/local/checkpoint": "/local/checkpoint",
+    }
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", lambda repo_id, **kwargs: paths[repo_id])
+    revisions = worker.record_snapshot_revisions()
+    assert (
+        huggingface_hub.snapshot_download("convaiinnovations/laya", allow_patterns=["*"])
+        == paths["convaiinnovations/laya"]
+    )
+    huggingface_hub.snapshot_download("/local/checkpoint")
+    assert revisions == {"convaiinnovations/laya": "55cf4c4abc"}

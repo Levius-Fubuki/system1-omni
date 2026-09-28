@@ -42,7 +42,8 @@ class Client:
 
     def request(self, method, path, body=None, retry=False):
         """Timed calls pass retry=False so a dropped connection shows up as an error, not a slow request.
-        Untimed calls retry once: uvicorn closes keep-alive connections idle for 5 s."""
+        Untimed calls retry once: uvicorn closes keep-alive connections idle for 5 s. Any failure closes
+        the connection, so the next call reconnects instead of failing on a half-finished exchange."""
         try:
             started = time.perf_counter()
             self.conn.request(method, path, body=body, headers=self.headers)
@@ -54,6 +55,9 @@ class Client:
             if not retry:
                 raise
             return self.request(method, path, body)
+        except BaseException:
+            self.conn.close()
+            raise
 
     def close(self):
         self.conn.close()
@@ -77,6 +81,20 @@ def wait_ready(url, processes, timeout_s):
             client.close()
         time.sleep(0.05)
     sys.exit(f"worker not ready after {timeout_s} s")
+
+
+def fetch_answers(client, body):
+    """(answers, None) or (None, error record fields) for one untimed request."""
+    try:
+        _, status, data = client.request("POST", "/v1/systemone", body, retry=True)
+    except (OSError, http.client.HTTPException) as exc:
+        return None, {"status": 0, "detail": repr(exc)}
+    if status != 200:
+        return None, {"status": status, "detail": data[:200].decode(errors="replace")}
+    try:
+        return json.loads(data)["answers"], None
+    except (ValueError, KeyError) as exc:
+        return None, {"status": status, "detail": f"no answers in response: {exc!r}"}
 
 
 def body_for(workload, model):
@@ -244,11 +262,14 @@ def main():
             random.Random(args.seed).shuffle(order)
             for w in order:
                 body = body_for(w, args.model)
-                _, _, data = client.request("POST", "/v1/systemone", body, retry=True)
-                emit({"type": "answers", "workload": w["id"], "answers": json.loads(data)["answers"]})
+                answers, error = fetch_answers(client, body)
+                if error:  # parity.py reports the workload as missing
+                    emit({"type": "answers_error", "workload": w["id"], **error})
+                else:
+                    emit({"type": "answers", "workload": w["id"], "answers": answers})
                 for concurrency in args.concurrency:
                     results, elapsed = run_level(args.url, token, body, args.n, concurrency)
-                    bad = [s for _, _, s in results if s != 200]
+                    ok = sum(s == 200 for _, _, s in results)
                     for i, (thread, ms, status) in enumerate(results):
                         emit(
                             {
@@ -268,15 +289,18 @@ def main():
                             "workload": w["id"],
                             "concurrency": concurrency,
                             "n": len(results),
-                            "errors": len(bad),
+                            "errors": len(results) - ok,
                             "elapsed_s": round(elapsed, 3),
-                            "rps": round(len(results) / elapsed, 2),
+                            "rps": round(ok / elapsed, 2),  # successful requests only
                         }
                     )
 
             for w in parity:
-                _, _, data = client.request("POST", "/v1/systemone", body_for(w, args.model), retry=True)
-                emit({"type": "answers", "workload": w["id"], "answers": json.loads(data)["answers"]})
+                answers, error = fetch_answers(client, body_for(w, args.model))
+                if error:
+                    emit({"type": "answers_error", "workload": w["id"], **error})
+                else:
+                    emit({"type": "answers", "workload": w["id"], "answers": answers})
             _, _, health_end = client.request("GET", "/health", retry=True)
             client.close()
             emit({"type": "end", "health": json.loads(health_end), **memory()})

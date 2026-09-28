@@ -30,11 +30,12 @@ validated on an M1 Pro). No native CUDA or Metal backend yet.
 
 `worker.py` runs laya-serve (`laya[serve]==0.3.20`) with two changes:
 
-- It binds only after a warmup over short, long and multi-question requests, so `/health` never
-  answers for a worker that has not run a forward pass. Without it the first request after `/health`
+- It binds only after a warmup of every loaded model over short, long and multi-question requests,
+  so `/health` never answers for a worker that has not run a forward pass. Without it the first request after `/health`
   returned 200 took ~230 ms against ~45 ms warm on an M1 Pro (MPS); with it, ~73 ms.
-- `/health` reports the device, weight and autocast dtypes of the loaded model, the checkpoint and
-  revision, and `device_mismatch` when the model is not on the device `LAYA_DEVICE` asked for.
+- `/health` reports, for each loaded model under `models` and for `LAYA_WORKER_MODEL` at the top level,
+  the device, weight and autocast dtypes, the checkpoint and the revision its weights were downloaded
+  from, and `device_mismatch` when a model is not on the device `LAYA_DEVICE` asked for.
   laya-serve reports `LAYA_DEVICE` as configured, and laya falls back to CPU with only a printed
   warning. `LAYA_REQUIRE_DEVICE=1` makes the worker exit instead.
 
