@@ -2,7 +2,7 @@
 
 This directory owns Cua-S1 4B 0.2 ([#10](https://github.com/ThinkFlowLab/system1-omni/issues/10)): request mapping, prompt construction, adapter selection, execution, and the answer-letter readout. This page records the pinned upstream revisions, the inference contract an implementation must match, and how its outputs will be compared with the upstream reference.
 
-Status: a reference worker for the `text` adapter is in [`text/`](text/). It loads the model directly through Hugging Face Transformers and PEFT and serves `/v1/systemone`; setup and checks are in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). A worker for the `multimodal` adapter is proposed in [#12](https://github.com/ThinkFlowLab/system1-omni/pull/12).
+Status: a reference worker for the `text` adapter is in [`text/`](text/). It loads the model directly through Hugging Face Transformers and PEFT and serves `/v1/systemone`; setup and checks are in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). A native worker for the `text` adapter is in [`native/`](native/): Rust, with the Qwen3.5 forward pass on the CUDA kernels in [`src/backends/cuda/qwen3_5/`](../../backends/cuda/qwen3_5/); see [`recipe/cua_s1/native.md`](../../../recipe/cua_s1/native.md). A worker for the `multimodal` adapter is proposed in [#12](https://github.com/ThinkFlowLab/system1-omni/pull/12).
 
 | Path | Contents |
 | --- | --- |
@@ -10,6 +10,7 @@ Status: a reference worker for the `text` adapter is in [`text/`](text/). It loa
 | `text/engine.py` | Model and adapter loading and the answer-letter readout. |
 | `text/server.py` | The HTTP worker (`GET /health`, `POST /v1/systemone`). |
 | `text/adapter.py` | Finds and checks the local `text` adapter and its downloaded revision. |
+| `native/` | The native worker for the `text` adapter (Rust crate `omni-cua-s1-native`): the same request handling and answers as `text/`, the forward pass on `src/backends/cuda/qwen3_5/`. |
 | `tests/cua_s1/test_text_*.py` (repository root) | Tests that need neither weights nor a GPU, and tokenizer checks. The fixed input set is `tests/cua_s1/data/text_inputs.json`. |
 
 ## Pinned revisions
@@ -105,7 +106,7 @@ The status is `422` when a well-formed request cannot be answered:
 | Worker prompt vs upstream `build_prompt` | Same inputs | Identical token ids |
 | Worker vs upstream `FourBModel` | Same GPU and reference environment, bfloat16, adapter not merged, full logits, one unpadded prompt per forward pass | Identical fp32 probabilities |
 | Through the frontend vs direct to the worker | Same worker | Identical status, content type and body bytes |
-| Native engine vs fp32 worker (later) | Same GPU; the engine runs in bfloat16; the fp32 worker runs with TF32 disabled | (1) Over the whole input set, the largest per-option probability difference is at most twice the bfloat16 worker's largest difference from the fp32 worker, plus 0.01. (2) The top option matches wherever the fp32 worker's top-two margin is at least 0.05. |
+| Native engine vs fp32 worker | Same GPU; the engine runs in bfloat16; the fp32 worker runs with TF32 disabled | (1) Over the whole input set, the largest per-option probability difference is at most twice the bfloat16 worker's largest difference from the fp32 worker, plus 0.01. (2) The top option matches wherever the fp32 worker's top-two margin is at least 0.05. |
 
 The bfloat16 worker's own difference from the fp32 worker is reported next to each native-engine result.
 

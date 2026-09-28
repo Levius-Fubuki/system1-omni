@@ -2,7 +2,7 @@
 
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
-The Rust frontend forwards requests to a separately running model worker. In-repository model engines and GPU backends are not implemented yet.
+The Rust frontend forwards requests to a separately running model worker. The Cua-S1 4B 0.2 `text` adapter has a native worker with CUDA kernels in this repository; other in-repository model engines and GPU backends are not implemented yet.
 
 ## Run the frontend
 
@@ -48,15 +48,16 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend is a Cargo workspace member. Model and backend directories currently document planned work; they do not prescribe process boundaries.
+The frontend and the Cua-S1 native worker are Cargo workspace members. The other model and backend directories currently document planned work; they do not prescribe process boundaries.
 
 ## Supported models
 
-LAYA can run as an external Python worker for text requests. Its in-repository model engine is still planned:
+LAYA can run as an external Python worker for text requests; its in-repository model engine is still planned. The Cua-S1 4B 0.2 `text` adapter runs as a Python worker or as a native worker on CUDA:
 
 | Model | Status |
 | --- | --- |
 | LAYA | [External worker](recipe/laya/README.md); model engine planned |
+| Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
