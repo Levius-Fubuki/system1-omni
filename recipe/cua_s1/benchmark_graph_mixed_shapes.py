@@ -39,16 +39,22 @@ def summarize_events(events):
     }
 
 
-def main(argv=None):
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--weights", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--runs", type=int, default=2)
+    parser.add_argument("--graph-min-uses", type=int, default=2)
     args = parser.parse_args(argv)
-    if args.runs <= 0:
-        parser.error("--runs must be positive")
+    if min(args.runs, args.graph_min_uses) <= 0:
+        parser.error("--runs and --graph-min-uses must be positive")
     if (args.output / "report.json").exists():
         parser.error("report already exists; choose a fresh output directory")
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
 
     import torch
     from benchmark_multimodal_graph import measure, response_difference
@@ -76,7 +82,7 @@ def main(argv=None):
             "graph": {
                 "max_shapes": 8,
                 "max_bytes": 1024**3,
-                "min_uses": 2,
+                "min_uses": args.graph_min_uses,
                 "max_tokens": 2048,
             },
             "timing": "synchronized engine.predict, including first use and capture",
@@ -130,7 +136,9 @@ def main(argv=None):
         for workload_name, schedule in schedules().items():
             report["workloads"][workload_name] = []
             for run_index in range(args.runs):
-                runtime = GraphRuntime(engine.model, GraphConfig())
+                runtime = GraphRuntime(
+                    engine.model, GraphConfig(min_uses=args.graph_min_uses)
+                )
                 record = {
                     "run": run_index + 1,
                     "schedule": schedule,

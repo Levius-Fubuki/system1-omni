@@ -3,6 +3,8 @@
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 
 def load_benchmark():
     path = (
@@ -37,3 +39,17 @@ def test_summary_includes_capture_cost_and_reports_first_break_even():
     assert result["graph_total_ms"] == 50.0
     assert result["first_break_even_request"] == 5
     assert summarize(events[:4])["first_break_even_request"] is None
+
+
+def test_capture_threshold_must_be_positive(tmp_path):
+    with pytest.raises(SystemExit, match="2"):
+        load_benchmark().parse_args(
+            [
+                "--weights",
+                str(tmp_path / "weights"),
+                "--output",
+                str(tmp_path / "results"),
+                "--graph-min-uses",
+                "0",
+            ]
+        )
