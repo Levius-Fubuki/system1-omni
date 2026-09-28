@@ -46,6 +46,67 @@ def metrics(eager, graph, captures):
     return result
 
 
+def verify_policy(events, case, config):
+    """Audit recorded request boundaries and the pre-attempt sliding budget."""
+    for i, event in enumerate(events):
+        for variant in ("legacy", "admission"):
+            delta = event["variants"][variant]["stats_delta"]
+            failures = [
+                "numerical_mismatch",
+                "capture_error",
+                "capture_oom",
+                "rejected",
+                "unsupported",
+            ]
+            if variant == "admission":
+                failures.append("no_request")
+            for key in failures:
+                require(
+                    key in delta and delta[key] == 0, f"{variant}: unexpected {key}"
+                )
+        delta = event["variants"]["admission"]["stats_delta"]
+        require(
+            delta.get("requests") == 1, "admission request counter must increment once"
+        )
+        attempts = delta.get("capture_attempts")
+        require(
+            attempts in (0, 1),
+            "at most one capture attempt per identical question pair",
+        )
+        require(
+            attempts == delta["captures"],
+            "capture attempts must equal successful captures",
+        )
+        elapsed = delta.get("capture_attempt_ms")
+        require(
+            isinstance(elapsed, (int, float))
+            and math.isfinite(elapsed)
+            and elapsed >= 0,
+            "invalid capture attempt time",
+        )
+        require(attempts or elapsed == 0, "capture time recorded without attempt")
+        previous = [
+            e["variants"]["admission"]["stats_delta"]
+            for e in events[max(0, i - config["capture_window"] + 1) : i]
+        ]
+        require(
+            sum(d["capture_attempts"] for d in previous) + attempts
+            <= config["max_captures"],
+            "sliding capture count budget exceeded",
+        )
+        if attempts:
+            require(
+                sum(d["capture_attempt_ms"] for d in previous)
+                < config["capture_budget_ms"],
+                "capture attempted after sliding time budget exhausted",
+            )
+        if case == "churn_twelve":
+            require(
+                delta["captures"] == 0 and delta.get("replays") == 0,
+                "churn must remain eager without captures or replays",
+            )
+
+
 def verify_report(report):
     require(report["status"] == "complete", "report incomplete")
     source = report["repository"]
@@ -113,6 +174,7 @@ def verify_report(report):
                 and len(record["events"]) == len(expected[name]),
                 "schedule mismatch",
             )
+            verify_policy(record["events"], name, config["admission"])
             for i, event in enumerate(record["events"]):
                 count = expected[name][i]
                 require(
@@ -149,6 +211,11 @@ def verify_report(report):
                             isinstance(data[key], int) and data[key] >= 0,
                             "invalid memory counter",
                         )
+                    require(
+                        data["peak_allocated_bytes"] >= data["allocated_bytes"]
+                        and data["peak_reserved_bytes"] >= data["reserved_bytes"],
+                        "peak memory below current memory",
+                    )
                     require(
                         data["cache_shapes"]
                         <= (config[variant]["max_shapes"] if variant != "eager" else 0),

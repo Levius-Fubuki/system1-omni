@@ -99,7 +99,11 @@ def valid_report():
                 "reserved_bytes": 0,
                 "peak_allocated_bytes": 0,
                 "peak_reserved_bytes": 0,
-                "stats_delta": {} if variant == "eager" else {"captures": 0},
+                "stats_delta": {}
+                if variant == "eager"
+                else dict(
+                    policy_event()["variants"][variant]["stats_delta"], captures=0
+                ),
                 "max_probability_difference": 0,
             }
         events.append(
@@ -111,7 +115,16 @@ def valid_report():
                 "variants": variants,
             }
         )
-    stats = {"legacy": {"captures": 0}, "admission": {"captures": 0}}
+    stats = {
+        v: dict.fromkeys(events[0]["variants"][v]["stats_delta"], 0)
+        for v in ["legacy", "admission"]
+    }
+    final = {
+        v: {
+            k: sum(e["variants"][v]["stats_delta"][k] for e in events) for k in stats[v]
+        }
+        for v in stats
+    }
     summary = {v: verifier.metrics([10.0] * 48, [10.0] * 48, [0] * 48) for v in stats}
     return {
         "schema_version": 1,
@@ -153,7 +166,7 @@ def valid_report():
                     "schedule": schedule,
                     "events": events,
                     "stats_initial": stats,
-                    "stats_final": stats,
+                    "stats_final": final,
                     "summary": summary,
                 }
             ]
@@ -169,6 +182,12 @@ def test_verifier_accepts_valid_report_and_rejects_corruption():
     report = valid_report()
     assert verifier.verify_report(report)
     for mutate in [
+        lambda r: r["workloads"]["hot_four"][0]["events"][0]["variants"]["legacy"][
+            "stats_delta"
+        ].update(rejected=1),
+        lambda r: r["workloads"]["hot_four"][0]["events"][0]["variants"][
+            "eager"
+        ].update(allocated_bytes=1),
         lambda r: r["config"]["admission"].update(min_uses=99),
         lambda r: r["workloads"]["hot_four"][0]["events"][0]["variants"]["admission"][
             "response"
@@ -186,3 +205,83 @@ def test_verifier_accepts_valid_report_and_rejects_corruption():
         mutate(corrupted)
         with pytest.raises(ValueError):
             verifier.verify_report(corrupted)
+
+
+def policy_event(**changes):
+    stats = dict.fromkeys(
+        [
+            "numerical_mismatch",
+            "capture_error",
+            "capture_oom",
+            "rejected",
+            "unsupported",
+            "no_request",
+            "capture_attempts",
+            "captures",
+            "replays",
+            "capture_attempt_ms",
+        ],
+        0,
+    )
+    stats["requests"] = 1
+    stats.update(changes)
+    return {
+        "variants": {
+            "admission": {"stats_delta": stats},
+            "legacy": {
+                "stats_delta": {
+                    k: 0
+                    for k in [
+                        "numerical_mismatch",
+                        "capture_error",
+                        "capture_oom",
+                        "rejected",
+                        "unsupported",
+                    ]
+                }
+            },
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    "events,case,message",
+    [
+        (
+            [policy_event(capture_attempts=1, captures=1, capture_attempt_ms=1)] * 5,
+            "hot_four",
+            "count budget",
+        ),
+        (
+            [
+                policy_event(capture_attempts=1, captures=1, capture_attempt_ms=2000),
+                policy_event(capture_attempts=1, captures=1),
+            ],
+            "hot_four",
+            "time budget",
+        ),
+        ([policy_event(rejected=1)], "hot_four", "rejected"),
+        ([policy_event(requests=2)], "hot_four", "request counter"),
+        ([policy_event(capture_attempts=2, captures=2)], "hot_four", "one capture"),
+        (
+            [policy_event(capture_attempts=1, captures=0)],
+            "hot_four",
+            "successful captures",
+        ),
+        ([policy_event(replays=1)], "churn_twelve", "churn"),
+    ],
+)
+def test_policy_verifier_rejects_recorded_violations(events, case, message):
+    import verify_graph_admission as verifier
+
+    with pytest.raises(ValueError, match=message):
+        verifier.verify_policy(events, case, valid_report()["config"]["admission"])
+
+
+def test_policy_window_expires_at_request_distance_32():
+    import verify_graph_admission as verifier
+
+    events = [policy_event(capture_attempts=1, captures=1, capture_attempt_ms=2001)]
+    events += [policy_event() for _ in range(31)]
+    events += [policy_event(capture_attempts=1, captures=1, capture_attempt_ms=1)]
+    verifier.verify_policy(events, "hot_four", valid_report()["config"]["admission"])
