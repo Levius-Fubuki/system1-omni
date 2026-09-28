@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent
 
 def main():
     report = json.loads((ROOT / "paired.json").read_text())
-    reference = json.loads((ROOT.parent / "rtx4090-profile/reference.json").read_text())
+    reference = json.loads((ROOT / "reference.json").read_text())
     assert report["status"] == "complete"
     assert report["repository"]["dirty"] is False
     assert report["environment"] == reference["environment"]
