@@ -266,3 +266,15 @@ def test_reused_tensor_path_preserves_scatter_positions_and_peft_forward():
         "peft-forward",
     ]
     assert all(torch.equal(value, original[key]) for key, value in inputs.items())
+
+    captured = []
+    engine.graph_runtime = SimpleNamespace(
+        forward=lambda values: captured.append(values) or torch.tensor([0.0, 1.0, 2.0])
+    )
+    assert (
+        engine.score_reused(inputs, QUESTIONS[0], shared)
+        == torch.softmax(torch.tensor([0.0, 1.0]), dim=-1).tolist()
+    )
+    assert len(captured) == 1
+    assert torch.equal(captured[0]["position_ids"], positions)
+    assert torch.equal(captured[0]["inputs_embeds"][0, 1:3], features)

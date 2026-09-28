@@ -3,6 +3,8 @@
 For the later bounded CUDA Graph experiment after image reuse and last-token
 projection, see the [Graph feasibility report](rtx4090-graph/README.md). It
 includes both successful fixed-shape cases and correctness-gated rejections.
+The [segmented Graph runtime report](rtx4090-graph-runtime/README.md) describes
+the subsequent worker integration and its correctness and latency results.
 
 For the subsequent 16-case stage profiling experiment, refreshed upstream parity,
 and profiler annotation-counting recovery, see the

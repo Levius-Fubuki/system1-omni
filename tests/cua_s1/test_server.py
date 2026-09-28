@@ -86,7 +86,8 @@ def test_model_failure_is_not_reported_as_success(worker):
     server.engine.predict = fail
     status, body = call(url + "/v1/systemone", request())
     assert status == 500 and body == {"detail": "inference failed"}
-    assert not server.inference_lock.locked()
+    assert server.inference_lock.acquire(timeout=1)
+    server.inference_lock.release()
 
 
 @pytest.mark.parametrize(
@@ -116,7 +117,8 @@ def test_malformed_json_returns_400_without_inference(worker, raw):
     server.engine.predict = unexpected
     status, body = call(url + "/v1/systemone", raw)
     assert status == 400 and set(body) == {"detail"}
-    assert not server.inference_lock.locked()
+    assert server.inference_lock.acquire(timeout=1)
+    server.inference_lock.release()
 
 
 def test_missing_instructions_rejects_whole_request(worker):

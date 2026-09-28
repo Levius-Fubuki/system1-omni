@@ -38,6 +38,25 @@ The worker binds to `127.0.0.1:8000` only after loading and a successful warmup.
 runs at a time; concurrent requests return `503`. This is a loopback model worker,
 with the Rust frontend and an ingress responsible for public serving.
 
+To enable the optional CUDA Graph runtime for multi-question requests, add
+`--graph` to the worker command. It captures each run of Gated DeltaNet layers
+at its actual token length and keeps full-attention layers eager. The first
+request at a layout runs eagerly; the second captures and checks all output
+logits against eager before the layout enters the cache. The defaults retain at
+most eight layouts and 1 GiB of graph buffers; `--graph-max-shapes`,
+`--graph-max-memory-mib`, `--graph-min-uses`, and `--graph-max-tokens` adjust
+these limits. Inputs above 2,048 tokens, rejected layouts, or layouts that
+exceed the graph memory budget use eager inference. Cache entries own their
+static buffers and are evicted together. The loaded model must remain immutable;
+call `graph_runtime.invalidate()` before changing its weights or adapters.
+Single-question requests continue through the reference path.
+
+Whole-model capture changed BF16 attention results on the measured RTX 4090;
+the earlier [Graph feasibility report](experiments/rtx4090-graph/README.md)
+records those failures. The segmented runtime preserves eager attention
+behavior. See [the runtime experiment](experiments/rtx4090-graph-runtime/README.md)
+for the measured correctness and latency scope.
+
 To use the Rust frontend included in this repository:
 
 ```sh
@@ -147,6 +166,6 @@ ruff check --select E4,E7,E9,F,I src/models/cua_s1/multimodal recipe/cua_s1/*.py
 ruff format --check src/models/cua_s1/multimodal recipe/cua_s1/*.py tests/cua_s1
 ```
 
-Metal, native CUDA kernels, text-adapter serving, batching, caching and training
+Metal, native CUDA kernels, text-adapter serving, batching and training
 are outside this worker's scope. This implementation does not import or modify
 another contributor's text engine.
