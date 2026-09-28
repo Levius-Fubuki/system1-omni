@@ -41,5 +41,5 @@
 - [x] On RTX 4090, verify eager versus Graph for repeated, distinct, changed-image, changed-text, and long prompts, including the two previously rejected cases.
 - [x] Measure synchronized whole-request p50/p95, capture cost, retained GPU memory, and fallback counts.
 - [x] Run the full Cua-S1 test suite, Ruff, and format checks.
-- [ ] Inspect the diff, commit, push, and open a PR.
-- [ ] Stop GPU processes and shut down the user-provided server after evidence is saved.
+- [x] Inspect the diff, commit, push, and open PR #22.
+- [x] Stop GPU processes and shut down the user-provided server after evidence is saved.
