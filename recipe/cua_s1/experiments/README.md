@@ -1,5 +1,10 @@
 # RTX 4090 multimodal validation — 2026-09-27
 
+For the subsequent 16-case stage profiling experiment, refreshed upstream parity,
+and profiler annotation-counting recovery, see the
+[2026-09-28 report](rtx4090-profile/README.md). The measurements below remain the
+original baseline and have not been replaced.
+
 This is a Transformers/PEFT CUDA baseline, with the adapter unmerged and full
 logits, for the screenshot worker in [the recipe](../README.md). It does not
 implement a native CUDA backend or claim a speedup over upstream.
