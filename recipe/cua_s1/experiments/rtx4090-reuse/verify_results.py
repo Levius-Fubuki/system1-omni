@@ -14,6 +14,13 @@ def main():
     assert report["status"] == "complete"
     assert report["repository"]["dirty"] is False
     assert report["environment"] == reference["environment"]
+    expected_cases = {
+        f"{size}-{goal}-q{questions}"
+        for size in ("320x240", "640x480")
+        for goal in ("short", "long")
+        for questions in (1, 2, 4, 8)
+    } | {"640x480-distinct-q8"}
+    assert {case["id"] for case in report["cases"]} == expected_cases
     assert len(report["cases"]) == 17
     assert len(report["correctness"]) == 13
     original = {case["id"]: case for case in report["correctness"]}
