@@ -83,7 +83,12 @@ PYTHONPATH=src python recipe/cua_s1/profile_multimodal.py --list-cases
 
 The matrix covers 320×240 and 640×480 PNGs, short/long instructions and 1/2/4/8
 questions per request. Each request uses a single synthetic image with three
-candidate actions per question. Images contain no private user data.
+candidate actions per question. Questions within a case repeat the same
+instruction and criteria under different question names, isolating question
+count from prompt variation. The long instruction repeats a fixed sentence 64
+times; it is a controlled workload, not a realistic GUI task evaluation. Images
+contain no private user data. Follow-up reuse correctness tests must also cover
+different questions sharing an image.
 
 Start with a feasibility run, using a new output directory:
 
@@ -114,6 +119,20 @@ case are saved after all its runs finish; an interruption during that case can
 lose its samples. This script does not resume a partial run. Repeat the failed
 case in a new output directory and retain the original failure record.
 
+If latency sampling completed but trace collection needs to be repeated, use a
+separate trace-only run after fixing the failure:
+
+```sh
+PYTHONPATH=src python recipe/cua_s1/profile_multimodal.py \
+  --weights weights --output /tmp/cua-profile-traces \
+  --trace-only --profile 640x480-short-q1 --profile 640x480-short-q8
+```
+
+Trace-only mode collects no benchmark samples and records its own source and
+environment. Keep both reports; do not replace the original failed manifest or
+present the new trace run as a rerun of latency measurements. If `--case` is also
+specified, its set must match the `--profile` set.
+
 ## Interpretation and publication
 
 The unprofiled benchmark times `engine.predict` after JSON parsing and image
@@ -135,6 +154,15 @@ vision, language and output-head boundaries explicitly. Missing boundaries are
 an experiment failure, not zero time. See the
 [PyTorch profiler documentation](https://docs.pytorch.org/docs/stable/profiler)
 for shape-recording overhead and trace semantics.
+
+PyTorch can emit CPU and GPU annotations with the same range name. Operator
+records retain their device type and annotation flag. Invocation counts use CPU
+user annotations only; same-name GPU annotations are separate records and must
+not be added again to the CPU range's attributed CUDA duration. Raw inclusive
+device aggregates can themselves contain synthetic annotation accounting. Use
+stage CPU spans for the host timeline and individual device kernel events in the
+trace for GPU investigation; these raw parent aggregates are not disjoint kernel
+time or a reliable basis for stage GPU percentages.
 
 For a reviewable experiment PR, include:
 

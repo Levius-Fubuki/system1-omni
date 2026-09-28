@@ -326,6 +326,8 @@ def test_trace_has_shapes_times_checksum_and_exact_parity(
             return [
                 SimpleNamespace(
                     key=key,
+                    device_type=device,
+                    is_user_annotation=key.startswith("cua."),
                     input_shapes=[[1, 2]],
                     count=1,
                     cpu_time_total=8,
@@ -333,6 +335,7 @@ def test_trace_has_shapes_times_checksum_and_exact_parity(
                     device_time_total=6,
                     self_device_time_total=2,
                 )
+                for device in ("DeviceType.CPU", "DeviceType.CUDA")
                 for key in ["op"]
                 + [
                     "cua." + name
@@ -345,7 +348,7 @@ def test_trace_has_shapes_times_checksum_and_exact_parity(
                         "output_projection",
                         "readout",
                     ]
-                    if name != missing_stage
+                    if name != missing_stage or device == "DeviceType.CUDA"
                 ]
             ]
 
@@ -390,3 +393,77 @@ def test_trace_has_shapes_times_checksum_and_exact_parity(
     assert result["trace_bytes"] == 5
     assert result["operators"][0]["input_shapes"] == [[1, 2]]
     assert result["operators"][0]["self_cuda_time_us"] == 2
+    transfer = [item for item in result["operators"] if item["op"] == "cua.transfer"]
+    assert len(transfer) == 2
+    assert {item["device_type"] for item in transfer} == {
+        "DeviceType.CPU",
+        "DeviceType.CUDA",
+    }
+    assert all(item["is_user_annotation"] for item in transfer)
+
+
+def test_trace_only_requires_profiles_and_exact_case_selection(profiling):
+    first, second = "320x240-short-q1", "320x240-short-q2"
+    for extra in [[], ["--profile", first, "--case", first, "--case", second]]:
+        with pytest.raises(SystemExit):
+            profiling.parse_args(["--trace-only", "--list-cases", *extra])
+    args = profiling.parse_args(["--trace-only", "--list-cases", "--profile", first])
+    assert args.trace_only
+
+
+@pytest.mark.parametrize("profile_fails", [False, True])
+def test_trace_only_never_benchmarks_and_writes_fresh_report(
+    profiling, monkeypatch, tmp_path, profile_fails
+):
+    import evaluate_multimodal
+
+    from models.cua_s1.multimodal import model
+
+    events = []
+    monkeypatch.setattr(
+        model, "MultimodalEngine", lambda *args: SimpleNamespace(adapter_modules=178)
+    )
+    monkeypatch.setattr(evaluate_multimodal, "environment", lambda: {"gpu": "fake"})
+    monkeypatch.setattr(evaluate_multimodal, "measure", lambda call: (call(), 1.0))
+    monkeypatch.setattr(
+        profiling, "repository_state", lambda root: {"revision": "fresh"}
+    )
+    monkeypatch.setattr(
+        profiling, "input_metadata", lambda *args: [{"input_tokens": 42}]
+    )
+    monkeypatch.setattr(
+        profiling,
+        "benchmark",
+        lambda *args, **kwargs: pytest.fail("trace-only must never benchmark"),
+    )
+
+    def profile(*args):
+        events.append("profile")
+        if profile_fails:
+            raise RuntimeError("profile failed")
+        return {"instrumentation_exact_parity": True}
+
+    monkeypatch.setattr(profiling, "profile_request", profile)
+    case = "320x240-short-q1"
+    code = profiling.main(
+        [
+            "--weights",
+            str(tmp_path / "weights"),
+            "--output",
+            str(tmp_path),
+            "--trace-only",
+            "--profile",
+            case,
+        ]
+    )
+    assert events == ["profile"]
+    assert code == int(profile_fails)
+    report = json.loads((tmp_path / "report.json").read_text())
+    assert report["mode"] == "trace-only"
+    assert report["repository"] == {"revision": "fresh"}
+    assert report["config"]["runs"] == report["config"]["iterations"] == 0
+    assert len(report["cases"]) == 1
+    assert "runs" not in report["cases"][0]
+    assert report["status"] == ("failed" if profile_fails else "complete")
+    saved = json.loads((tmp_path / f"{case}.json").read_text())
+    assert saved["status"] == ("failed" if profile_fails else "complete")

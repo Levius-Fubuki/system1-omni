@@ -51,6 +51,11 @@ def parse_args(argv=None):
     parser.add_argument("--output", type=Path)
     parser.add_argument("--list-cases", action="store_true")
     parser.add_argument(
+        "--trace-only",
+        action="store_true",
+        help="trace selected --profile cases without baseline measurements",
+    )
+    parser.add_argument(
         "--case", action="append", default=[], help="case id; repeatable"
     )
     parser.add_argument(
@@ -72,6 +77,12 @@ def parse_args(argv=None):
             parser.error(f"--{name} contains duplicate or unknown case ids")
     if set(args.profile) - set(args.case or known):
         parser.error("--profile cases must also be selected by --case")
+    if args.trace_only and (
+        not args.profile or (args.case and set(args.case) != set(args.profile))
+    ):
+        parser.error(
+            "--trace-only requires --profile; when supplied, --case must match --profile exactly"
+        )
     if not args.list_cases and (args.weights is None or args.output is None):
         parser.error("--weights and --output are required unless --list-cases is used")
     return args
@@ -250,6 +261,8 @@ def profile_request(engine, request, trace):
     operators = [
         {
             "op": item.key,
+            "device_type": str(item.device_type),
+            "is_user_annotation": item.is_user_annotation,
             "input_shapes": item.input_shapes,
             "count": item.count,
             "cpu_time_us": item.cpu_time_total,
@@ -269,7 +282,13 @@ def profile_request(engine, request, trace):
         "output_projection",
         "readout",
     ):
-        count = sum(item["count"] for item in operators if item["op"] == "cua." + stage)
+        count = sum(
+            item["count"]
+            for item in operators
+            if item["op"] == "cua." + stage
+            and item["device_type"] == "DeviceType.CPU"
+            and item["is_user_annotation"]
+        )
         if count != len(request.questions):
             raise ValueError(
                 f"{stage}: observed {count} ranges; expected {len(request.questions)}"
@@ -284,9 +303,10 @@ def profile_request(engine, request, trace):
         "instrumentation_exact_parity": True,
         "modules": modules,
         "request_count": 1,
+        "uninstrumented_reference_requests": 1,
         "forward_count": stage_counts["forward"],
         "stage_counts": stage_counts,
-        "timing_note": "Inclusive nested ranges overlap; do not add them. CUDA times are attributed kernel durations, not wall time. Readout starts after root forward; transfer covers inputs.to().",
+        "timing_note": "Count invocations from CPU user annotations only. CPU and CUDA rows with the same name are distinct views, not additional invocations; do not add their durations. Inclusive nested ranges overlap. CUDA fields are raw profiler aggregates and may include synthetic annotations, not disjoint kernel time or wall time. Readout starts after root forward; transfer covers inputs.to().",
         "operators": sorted(
             operators, key=lambda x: x["self_cuda_time_us"], reverse=True
         ),
@@ -321,8 +341,9 @@ def input_metadata(engine, request):
 
 def main(argv=None):
     args = parse_args(argv)
+    selectors = args.profile if args.trace_only else args.case
     selected = [
-        case for case in case_matrix() if not args.case or case["id"] in args.case
+        case for case in case_matrix() if not selectors or case["id"] in selectors
     ]
     if args.list_cases:
         print(json.dumps(selected, indent=2))
@@ -333,17 +354,20 @@ def main(argv=None):
         )
     report = {
         "schema_version": 1,
+        "mode": "trace-only" if args.trace_only else "benchmark",
         "status": "running",
         "repository": repository_state(Path(__file__).resolve().parents[2]),
         "config": {
-            "warmup": args.warmup,
-            "runs": args.runs,
-            "iterations": args.iterations,
+            "warmup": 0 if args.trace_only else args.warmup,
+            "runs": 0 if args.trace_only else args.runs,
+            "iterations": 0 if args.trace_only else args.iterations,
             "weights": str(args.weights.resolve()),
             "profile": args.profile,
             "batch_size": 1,
             "concurrency": 1,
-            "timed_scope": "engine.predict(request), synchronized; excludes parse_request and metadata preparation",
+            "timed_scope": None
+            if args.trace_only
+            else "engine.predict(request), synchronized; excludes parse_request and metadata preparation",
         },
         "cases": [],
     }
@@ -377,20 +401,21 @@ def main(argv=None):
             current["input_tokens"] = sum(
                 q["input_tokens"] for q in current["questions_metadata"]
             )
-            current.update(
-                benchmark(
-                    engine,
-                    request,
-                    warmup=args.warmup,
-                    runs=args.runs,
-                    iterations=args.iterations,
+            if not args.trace_only:
+                current.update(
+                    benchmark(
+                        engine,
+                        request,
+                        warmup=args.warmup,
+                        runs=args.runs,
+                        iterations=args.iterations,
+                    )
                 )
-            )
-            current["status"] = "complete"
+            current["status"] = "prepared" if args.trace_only else "complete"
             write_json(args.output / f"{case['id']}.json", current)
             write_json(args.output / "report.json", report)
             print(
-                f"{case['id']}: complete ({args.runs * args.iterations} latency samples)",
+                f"{case['id']}: {current['status']} ({0 if args.trace_only else args.runs * args.iterations} latency samples)",
                 flush=True,
             )
         # Every baseline finishes before profiler state can affect later measurements.
@@ -404,6 +429,7 @@ def main(argv=None):
             current["profile"] = profile_request(
                 engine, request, args.output / f"{current['id']}.trace.json"
             )
+            current["status"] = "complete"
             write_json(args.output / f"{current['id']}.json", current)
             write_json(args.output / "report.json", report)
             print(f"{current['id']}: trace complete", flush=True)
