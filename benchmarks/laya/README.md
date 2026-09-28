@@ -10,6 +10,7 @@ Every script writes raw JSONL; `report.py` is the only place numbers are compute
 | `bench_inproc.py` | in-process: import, load, warmup, first request per workload, warm latency, memory |
 | `bench_http.py` | against a `/v1/systemone` worker: process-to-ready (with `--spawn`), first request per workload, warm latency and throughput at each `--concurrency` |
 | `profile_mps.py` | where a request's time goes on MPS: length sweep with a fixed-cost fit, stage split (encode, dispatch, GPU wait, copy back, decode) and host operator counts |
+| `frontend_overhead.py` | frontend cost, paired: each request direct and through the frontend back to back, so background load cancels |
 | `parity.py` | answers of every run vs a reference run, tolerances fixed in advance (fp32 1e-3, fp16 1e-2) |
 | `env.py` | run header: SHAs, versions, checkpoint revision, hardware, power, load |
 | `report.py` | JSONL → tables, including the run-to-run gate |
@@ -40,3 +41,16 @@ tokenization and post-processing. Workload order is shuffled per run with `--see
 Memory is the physical footprint of the process running Laya (`proc_pid_rusage`, the same number as
 Activity Monitor's "Memory" and `footprint -p`). On Apple silicon it includes Metal allocations, so
 in-process and worker numbers are comparable and MPS tensors are counted.
+
+## Results
+
+`results/` holds the reports built from the measured runs on an M1 Pro: `measured-report.md`
+(`report.py`), `measured-parity.md` (`parity.py --ref C1`) and `frontend_overhead_m1.md`. The raw
+JSONL they were built from (7 MB, 16 files) is published as a release asset rather than committed:
+
+```sh
+curl -LO https://github.com/cacheline999/system1-omni/releases/download/laya-mps-results-2026-09-28/laya-mps-results-2026-09-28.tar.gz
+shasum -a 256 laya-mps-results-2026-09-28.tar.gz   # 611ed30707ac8c98875b5aa5382360b5a7d760da166d61c626eb07ebe1ee6404
+tar xzf laya-mps-results-2026-09-28.tar.gz -C benchmarks/laya/results
+python benchmarks/laya/report.py benchmarks/laya/results/*_m[0-9].jsonl
+```
