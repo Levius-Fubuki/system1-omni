@@ -47,7 +47,7 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend is a Cargo workspace member. Model and backend directories currently document planned work; they do not prescribe process boundaries.
+The frontend and Laya checkpoint reader are Cargo workspace members. Model execution and GPU backends remain planned; these directories do not prescribe process boundaries.
 
 ## Supported models
 
@@ -55,7 +55,7 @@ LAYA can run as an external Python worker for text requests. Its in-repository m
 
 | Model | Status |
 | --- | --- |
-| LAYA | [External worker](recipe/laya/README.md); model engine planned |
+| LAYA | [External worker](recipe/laya/README.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
