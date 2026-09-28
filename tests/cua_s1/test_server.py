@@ -1,3 +1,4 @@
+import http.client
 import json
 import threading
 import urllib.error
@@ -144,6 +145,20 @@ def test_missing_instructions_rejects_whole_request(worker):
     ],
 )
 def test_transport_errors_use_detail(worker, route, body, headers, status):
-    _, url = worker
-    actual, response = call(url + route, body, **headers)
-    assert actual == status and set(response) == {"detail"}
+    server, _ = worker
+    connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+    try:
+        connection.putrequest("GET" if body is None else "POST", route)
+        request_headers = {"Content-Type": "application/json", **headers}
+        if body is not None and "Transfer-Encoding" not in headers:
+            request_headers.setdefault("Content-Length", str(len(json.dumps(body))))
+        for name, value in request_headers.items():
+            connection.putheader(name, value)
+        # Every case rejects from headers. Sending a body (especially a final
+        # chunk terminator) can race the server's early response and close.
+        connection.endheaders()
+        with connection.getresponse() as response:
+            assert response.status == status
+            assert set(json.load(response)) == {"detail"}
+    finally:
+        connection.close()
