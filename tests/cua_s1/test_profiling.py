@@ -483,7 +483,7 @@ def test_profile_recipe_selects_unoptimized_reference(profiling, monkeypatch, tm
         predict=lambda request: "optimized",
     )
     monkeypatch.setattr(model, "MultimodalEngine", lambda *args: engine)
-    monkeypatch.setattr(evaluate_multimodal, "environment", lambda: {})
+    monkeypatch.setattr(evaluate_multimodal, "environment", dict)
     monkeypatch.setattr(evaluate_multimodal, "measure", lambda call: (call(), 0.0))
     monkeypatch.setattr(
         profiling, "input_metadata", lambda *args: [{"input_tokens": 1}]
