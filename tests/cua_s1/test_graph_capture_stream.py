@@ -13,7 +13,9 @@ from models.cua_s1.multimodal.graph_runtime import _GraphSegment
 
 @pytest.fixture
 def cuda(monkeypatch):
-    state = SimpleNamespace(events=[], next_handle=100, captures=[], fail=False)
+    state = SimpleNamespace(
+        events=[], next_handle=100, captures=[], pools=[], fail=False
+    )
 
     class Tensor:
         shape = (1, 2, 3)
@@ -25,6 +27,9 @@ def cuda(monkeypatch):
 
         def clone(self):
             return Tensor()
+
+        def untyped_storage(self):
+            return SimpleNamespace(nbytes=lambda: 12)
 
     class Stream:
         def wait_stream(self, other):
@@ -49,8 +54,9 @@ def cuda(monkeypatch):
             raise RuntimeError("CUDA failure")
 
     @contextmanager
-    def graph(g, stream=None):
+    def graph(g, stream=None, pool=None):
         state.captures.append(stream)
+        state.pools.append(pool)
         if state.fail:
             raise ValueError("capture failed")
         yield
@@ -59,6 +65,8 @@ def cuda(monkeypatch):
         no_grad=nullcontext,
         cuda=SimpleNamespace(
             memory_allocated=lambda device: 0,
+            graph_pool_handle=lambda: (0, object()),
+            memory_snapshot=lambda **kwargs: [],
             Stream=lambda **kwargs: Stream(),
             current_stream=lambda device: Stream(),
             stream=lambda stream: nullcontext(),
@@ -74,8 +82,8 @@ def cuda(monkeypatch):
         ),
     )
     monkeypatch.setitem(sys.modules, "torch", state.torch)
-    state.make = lambda: _GraphSegment(
-        [lambda *a, **kw: Tensor()], 0, 1, Tensor(), Tensor()
+    state.make = lambda **kwargs: _GraphSegment(
+        [lambda *a, **kw: Tensor()], 0, 1, Tensor(), Tensor(), **kwargs
     )
     return state
 
@@ -130,3 +138,48 @@ def test_cleanup_failure_preserves_original_capture_exception(cuda):
 def test_destructor_tolerates_partial_initialization():
     segment = object.__new__(_GraphSegment)
     segment.__del__()
+
+
+def test_shape_segments_share_pool_and_stream_but_shapes_are_isolated(cuda):
+    from models.cua_s1.multimodal.graph_runtime import _GraphPool, _ShapeEntry
+
+    first = _ShapeEntry(pool=_GraphPool("cuda:0"))
+    second = _ShapeEntry(pool=_GraphPool("cuda:0"))
+    first.blocks[0] = cuda.make(pool=first.pool)
+    first.blocks[1] = cuda.make(pool=first.pool)
+    second.blocks[0] = cuda.make(pool=second.pool)
+    assert cuda.captures[0] is cuda.captures[1]
+    assert cuda.captures[0] is not cuda.captures[2]
+    assert cuda.pools[0] == cuda.pools[1] != cuda.pools[2]
+    cuda.events.clear()
+    first.close()
+    assert cuda.events.count("reset") == 2
+    assert (
+        len([e for e in cuda.events if isinstance(e, tuple) and e[0] == "destroy"]) == 1
+    )
+    assert cuda.events[-1][0] == "destroy"
+    assert second.blocks[0].graph is not None
+    second.close()
+
+
+def test_shape_counts_all_reserved_pool_bytes_and_external_inputs_once(cuda):
+    from models.cua_s1.multimodal.graph_runtime import _GraphPool, _ShapeEntry
+
+    entry = _ShapeEntry(pool=_GraphPool("cuda:0"))
+    entry.blocks[0] = cuda.make(pool=entry.pool)
+    entry.blocks[1] = cuda.make(pool=entry.pool)
+    calls = []
+
+    def snapshot(**kwargs):
+        calls.append(kwargs)
+        return [
+            {"total_size": 1000, "allocated_size": 10},
+            {"total_size": 2000, "allocated_size": 20},
+        ]
+
+    cuda.torch.cuda.memory_snapshot = snapshot
+    entry.update_bytes()
+    # Two independently cloned inputs and masks, each with 12 bytes of storage.
+    assert entry.bytes == 3000 + 4 * 12
+    assert calls == [{"mempool_id": entry.pool.pool_id, "include_traces": False}]
+    entry.close()

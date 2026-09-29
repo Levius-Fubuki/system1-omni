@@ -103,15 +103,70 @@ class GraphCache:
         return removed
 
 
+class _GraphPool:
+    """One shape's private allocator pool and exclusively owned capture stream.
+
+    Segments share scratch space only within a shape, in capture/replay order.
+    All graphs must be reset before this stream is destroyed. Other shapes use
+    separate streams because the pinned PyTorch clears cuBLAS workspaces by
+    capture stream when destroying a graph.
+    """
+
+    def __init__(self, device):
+        import torch
+
+        self._torch = torch
+        self.device = device
+        self._stream_ptr = None
+        self.pool_id = torch.cuda.graph_pool_handle()
+        with torch.cuda.device(device):
+            pointer = ctypes.c_void_p()
+            torch.cuda.check_error(
+                torch.cuda.cudart().cudaStreamCreate(ctypes.addressof(pointer))
+            )
+            self._stream_ptr = pointer.value
+            self.capture_stream = torch.cuda.ExternalStream(
+                self._stream_ptr, device=device
+            )
+
+    def reserved_bytes(self):
+        # Allocated tensor deltas omit inactive graph scratch space, which stays
+        # reserved for replay. Query this pool directly, not process-wide deltas.
+        return sum(
+            segment["total_size"]
+            for segment in self._torch.cuda.memory_snapshot(
+                mempool_id=self.pool_id, include_traces=False
+            )
+        )
+
+    def close(self):
+        if getattr(self, "_stream_ptr", None) is None:
+            return
+        torch = self._torch
+        with torch.cuda.device(self.device):
+            torch.cuda.check_error(
+                torch.cuda.cudart().cudaStreamDestroy(self._stream_ptr)
+            )
+            self._stream_ptr = None
+            self.capture_stream = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001, S110 -- best-effort destructor cleanup
+            pass
+
+
 class _GraphSegment:
     """One fixed-layout capture of adjacent linear-attention decoder layers."""
 
-    def __init__(self, layers, start, end, hidden, mask):
+    def __init__(self, layers, start, end, hidden, mask, pool=None):
         import torch
 
         self._torch = torch
         self._device = hidden.device
-        self._stream_ptr = None
+        self._pool = None
+        self._owns_pool = pool is None
         self.graph = None
         self.capture_stream = None
         self.layers = layers
@@ -119,9 +174,11 @@ class _GraphSegment:
         self.end = end
         self.input_signature = tensor_signature(hidden)
         self.mask_signature = tensor_signature(mask)
-        before = torch.cuda.memory_allocated(hidden.device)
         self.static_hidden = hidden.clone()
         self.static_mask = mask.clone() if mask is not None else None
+        self.external_bytes = self.static_hidden.untyped_storage().nbytes()
+        if self.static_mask is not None:
+            self.external_bytes += self.static_mask.untyped_storage().nbytes()
 
         stream = torch.cuda.Stream(device=hidden.device)
         stream.wait_stream(torch.cuda.current_stream(hidden.device))
@@ -131,21 +188,16 @@ class _GraphSegment:
         torch.cuda.current_stream(hidden.device).wait_stream(stream)
 
         try:
-            # The pinned PyTorch build clears cuBLAS workspaces by capture
-            # stream when a graph is destroyed. Each live graph therefore needs
-            # an exclusive stream; torch.cuda.Stream cycles through a small pool.
             with torch.cuda.device(self._device):
-                pointer = ctypes.c_void_p()
-                torch.cuda.check_error(
-                    torch.cuda.cudart().cudaStreamCreate(ctypes.addressof(pointer))
-                )
-                self._stream_ptr = pointer.value
-                self.capture_stream = torch.cuda.ExternalStream(
-                    self._stream_ptr, device=self._device
-                )
+                self._pool = pool if pool is not None else _GraphPool(self._device)
+                self.capture_stream = self._pool.capture_stream
                 self.graph = torch.cuda.CUDAGraph()
                 with (
-                    torch.cuda.graph(self.graph, stream=self.capture_stream),
+                    torch.cuda.graph(
+                        self.graph,
+                        stream=self.capture_stream,
+                        pool=self._pool.pool_id,
+                    ),
                     torch.no_grad(),
                 ):
                     self.static_output = self._forward()
@@ -155,11 +207,10 @@ class _GraphSegment:
             with suppress(Exception):
                 self.close()
             raise
-        self.bytes = max(0, torch.cuda.memory_allocated(hidden.device) - before)
 
     def close(self):
-        """Release a graph before its exclusively owned capture stream."""
-        if getattr(self, "_stream_ptr", None) is None:
+        """Retire a graph; shared-pool segments must all retire together."""
+        if getattr(self, "_pool", None) is None:
             return
         torch = self._torch
         with torch.cuda.device(self._device):
@@ -171,10 +222,9 @@ class _GraphSegment:
             self.static_output = None
             self.static_hidden = None
             self.static_mask = None
-            torch.cuda.check_error(
-                torch.cuda.cudart().cudaStreamDestroy(self._stream_ptr)
-            )
-            self._stream_ptr = None
+            if self._owns_pool:
+                self._pool.close()
+            self._pool = None
             self.capture_stream = None
 
     def __del__(self):
@@ -215,6 +265,28 @@ class _ShapeEntry:
     key: tuple | None = None
     blocks: dict = field(default_factory=dict)
     bytes: int = 0
+    pool: _GraphPool | None = None
+
+    def update_bytes(self):
+        self.bytes = self.pool.reserved_bytes() + sum(
+            block.external_bytes for block in self.blocks.values()
+        )
+
+    def close(self):
+        # No surviving segment may replay after the first reset clears the
+        # shared stream's workspace. The runtime retires an entire shape at once.
+        for block in self.blocks.values():
+            block.close()
+        self.blocks.clear()
+        if self.pool is not None:
+            self.pool.close()
+            self.pool = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001, S110 -- best-effort destructor cleanup
+            pass
 
 
 class GraphRuntime:
@@ -340,11 +412,18 @@ class GraphRuntime:
                 end += 1
             block = entry.blocks.get((index, end))
             if block is None:
+                if entry.pool is None:
+                    entry.pool = _GraphPool(hidden.device)
                 block = _GraphSegment(
-                    text.layers, index, end, hidden, masks["linear_attention"]
+                    text.layers,
+                    index,
+                    end,
+                    hidden,
+                    masks["linear_attention"],
+                    pool=entry.pool,
                 )
                 entry.blocks[(index, end)] = block
-                entry.bytes += block.bytes
+                entry.update_bytes()
             hidden = block.replay(hidden, masks["linear_attention"])
             index = end
         hidden = text.norm(hidden)
