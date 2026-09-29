@@ -29,3 +29,7 @@ weights/
 
 # macOS metadata
 .DS_Store
+
+# Local experiment outputs and assistant planning notes
+/recipe/cua_s1/experiments/
+/docs/superpowers/

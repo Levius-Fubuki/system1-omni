@@ -14,7 +14,7 @@ worker uses the same request model name; deployment routing selects its modality
 ## Setup
 
 Run from this repository's root on Linux with an NVIDIA GPU. The measured CUDA
-wheel, driver, GPU memory and results are recorded in [experiments](experiments/README.md).
+wheel, driver, GPU memory and results are recorded in [experiments](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/README.md).
 Python 3.12 is required by the pinned environment.
 
 ```sh
@@ -78,13 +78,13 @@ standalone runtime `forward` calls without that context use eager. Single-questi
 requests continue through the reference path.
 
 Whole-model capture changed BF16 attention results on the measured RTX 4090;
-the earlier [Graph feasibility report](experiments/rtx4090-graph/README.md)
+the earlier [Graph feasibility report](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/rtx4090-graph/README.md)
 records those failures. The segmented runtime preserves eager attention
-behavior. See [the runtime experiment](experiments/rtx4090-graph-runtime/README.md)
+behavior. See [the runtime experiment](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/rtx4090-graph-runtime/README.md)
 for fixed-layout correctness and latency, and the
-[mixed-length experiment](experiments/rtx4090-graph-mixed-shapes/README.md) for
+[mixed-length experiment](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/rtx4090-graph-mixed-shapes/README.md) for
 capture and eviction costs under changing lengths. The subsequent
-[request-aware admission report](experiments/rtx4090-graph-admission/README.md)
+[request-aware admission report](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/rtx4090-graph-admission/README.md)
 compares bounded capture admission against the old policy with the same owned-stream
 fix, including cold requests and negative results. See the
 [reproduction guide](graph-admission.md) for the complete schedules.

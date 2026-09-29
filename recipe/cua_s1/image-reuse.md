@@ -36,7 +36,7 @@ references disappear on return or exception. The CUDA allocator may retain
 reserved memory. The existing server serializes inference. Native-engine
 handoff and its stream/allocator contract remain future work.
 
-Measured results and raw evidence: [RTX 4090 experiment](experiments/rtx4090-reuse/README.md).
+Measured results and raw evidence: [RTX 4090 experiment](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/rtx4090-reuse/README.md).
 
 ## Correctness and performance experiment
 
