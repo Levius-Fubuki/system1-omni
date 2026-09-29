@@ -35,6 +35,16 @@ cargo test --workspace --locked
 cargo build --workspace --release --locked
 ```
 
+For an agent-assisted self-review, use the repository's
+[precheck-pr skill](.agents/skills/precheck-pr/SKILL.md). For example, ask your
+coding agent:
+
+```text
+Read .agents/skills/precheck-pr/SKILL.md and use it to self-review my changes
+before I mark this PR ready for review. Report findings and unverified checks.
+```
+
+The skill is optional; the self-review checklist applies to every contributor.
 A coding agent can help review the diff and identify issues, but contributors
 remain responsible for understanding the changes and verifying the results.
 Self-review helps maintainers focus on design and correctness; it does not
