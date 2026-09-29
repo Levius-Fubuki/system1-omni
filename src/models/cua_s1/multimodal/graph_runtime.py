@@ -41,8 +41,22 @@ class GraphConfig:
     capture_window: int = 32
     max_captures: int = 4
     capture_budget_ms: float = 2000.0
+    mode: str = "exact"
+    bucket_width: int = 64
 
     def __post_init__(self):
+        if self.mode not in {"exact", "rule-bucket"}:
+            raise ValueError("graph mode must be exact or rule-bucket")
+        if (
+            type(self.bucket_width) is not int
+            or self.bucket_width <= 0
+            or self.bucket_width % 64
+        ):
+            raise ValueError("bucket width must be a positive integer multiple of 64")
+        if self.mode == "exact" and self.bucket_width != 64:
+            raise ValueError("bucket width is only configurable in rule-bucket mode")
+        if self.mode == "rule-bucket" and self.bucket_width > self.max_tokens:
+            raise ValueError("bucket width cannot exceed graph max tokens")
         if not math.isfinite(self.capture_budget_ms):
             raise ValueError("capture time budget must be finite")
         if (
@@ -270,6 +284,8 @@ class _ShapeEntry:
     blocks: dict = field(default_factory=dict)
     bytes: int = 0
     pool: _GraphPool | None = None
+    verified_lengths: set[int] = field(default_factory=set)
+    rejected_lengths: set[int] = field(default_factory=set)
 
     def update_bytes(self):
         self.bytes = self.pool.reserved_bytes() + sum(
@@ -302,6 +318,7 @@ class GraphRuntime:
         self.cache = GraphCache(self.config.max_shapes, self.config.max_bytes)
         self.admission = AdmissionPolicy(self.config)
         self._in_request = False
+        self._closed = False
         self.disabled = OrderedDict()
         self.lock = threading.RLock()
         self.stats = {
@@ -330,6 +347,8 @@ class GraphRuntime:
     def request(self):
         """Serialize a complete prediction and count duplicate layouts only once."""
         with self.lock:
+            if self._closed:
+                raise RuntimeError("Graph runtime is closed")
             if self._in_request:
                 raise RuntimeError("nested Graph requests are unsupported")
             self._in_request = True
@@ -348,8 +367,18 @@ class GraphRuntime:
             retired = self.cache.clear()
             self.admission.reset()
             self.disabled.clear()
+            for entry in retired:
+                entry.close()
         del retired
         gc.collect()
+
+    def close(self):
+        """Synchronously retire graph resources; reject subsequent requests."""
+        with self.lock:
+            if self._closed:
+                return
+            self.invalidate()
+            self._closed = True
 
     def _eager(self, values):
         self.stats["eager"] += 1
@@ -438,6 +467,8 @@ class GraphRuntime:
         import torch
 
         with self.lock, torch.no_grad():
+            if self._closed:
+                raise RuntimeError("Graph runtime is closed")
             if not self._in_request:
                 self.stats["no_request"] += 1
                 return self._eager(values)
