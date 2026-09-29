@@ -29,6 +29,10 @@ def verify(path, require_replay=False):
         for record in records:
             assert record["status"] == "complete"
             events = record["events"]
+            if "schedules" in report["config"]:
+                assert [e["goal_repetitions"] for e in events] == report["config"][
+                    "schedules"
+                ][name]
             count += len(events) * len(variants_expected)
             for index, event in enumerate(events):
                 assert event["index"] == index
@@ -38,16 +42,15 @@ def verify(path, require_replay=False):
                     v["response"] == variants["eager"]["response"]
                     for v in variants.values()
                 )
-                for v in variants.values():
+                for variant, v in variants.items():
+                    config = (
+                        report["config"]
+                        .get("variant_graph", {})
+                        .get(variant, report["config"]["graph"])
+                    )
                     assert math.isfinite(v["latency_ms"]) and v["latency_ms"] > 0
-                    assert (
-                        0
-                        <= v["cache_shapes"]
-                        <= report["config"]["graph"]["max_shapes"]
-                    )
-                    assert (
-                        0 <= v["cache_bytes"] <= report["config"]["graph"]["max_bytes"]
-                    )
+                    assert 0 <= v["cache_shapes"] <= config["max_shapes"]
+                    assert 0 <= v["cache_bytes"] <= config["max_bytes"]
             eager_total = sum(e["variants"]["eager"]["latency_ms"] for e in events)
             for variant in variants_expected:
                 samples = [e["variants"][variant]["latency_ms"] for e in events]

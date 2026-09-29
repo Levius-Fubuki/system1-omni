@@ -17,7 +17,28 @@ def schedules():
         "probe": list(range(1, 13)) * 2,
         "hot_four": [1, 2, 4, 8] * 12,
         "churn_twelve": list(range(1, 13)) * 6,
+        "hot_cold": [v for i in range(8) for v in [1, 2, 4, 8, 13 + i]],
+        "shifting_hot": [
+            v
+            for group in [range(1, 5), range(5, 9), range(9, 13), range(1, 5)]
+            for v in list(group) * 8
+        ],
     }
+
+
+def variant_configs(kind, width, tuned_exact_window=None):
+    from models.cua_s1.multimodal.graph_runtime import GraphConfig
+
+    config = GraphConfig()
+    configs = {
+        "exact": config,
+        "bucket": replace(config, mode="rule-bucket", bucket_width=width)
+        if kind == "worker"
+        else config,
+    }
+    if tuned_exact_window is not None:
+        configs["exact_tuned"] = replace(config, admission_window=tuned_exact_window)
+    return configs
 
 
 def summary(events, variant):
@@ -39,6 +60,7 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--runs", type=int, default=2)
     p.add_argument("--width", type=int, default=64)
+    p.add_argument("--tuned-exact-window", type=int)
     p.add_argument("--kind", choices=("segment", "rule", "worker"), default="segment")
     p.add_argument(
         "--include-recipe",
@@ -53,6 +75,8 @@ def main():
         p.error("--include-recipe requires --kind worker")
     if args.runs < 1:
         p.error("runs must be positive")
+    if args.tuned_exact_window is not None and args.tuned_exact_window < 1:
+        p.error("tuned exact window must be positive")
 
     import torch
     from benchmark_multimodal_graph import measure
@@ -66,7 +90,7 @@ def main():
         write_json,
     )
 
-    from models.cua_s1.multimodal.graph_runtime import GraphConfig, GraphRuntime
+    from models.cua_s1.multimodal.graph_runtime import GraphRuntime
     from models.cua_s1.multimodal.model import MultimodalEngine
     from models.cua_s1.multimodal.protocol import parse_request
 
@@ -78,7 +102,8 @@ def main():
     args.output.mkdir(parents=True)
     report_path = args.output / "report.json"
     selected = {k: v for k, v in schedules().items() if k in (args.case or ["probe"])}
-    config = GraphConfig()
+    configs = variant_configs(args.kind, args.width, args.tuned_exact_window)
+    config = configs["exact"]
     bucket_class = RuleBucketRuntime if args.kind == "rule" else BucketRuntime
     if args.kind == "worker":
         from models.cua_s1.multimodal.graph_buckets import (
@@ -95,6 +120,10 @@ def main():
         if args.include_recipe
         else ("eager", "exact", "bucket")
     )
+    if args.tuned_exact_window is not None:
+        variants += ("exact_tuned",)
+    if args.include_recipe:
+        configs["recipe"] = config
     report = {
         "status": "running",
         "repository": source,
@@ -104,10 +133,14 @@ def main():
             for path in [
                 Path(__file__),
                 Path(__file__).with_name("graph_buckets.py"),
+                Path(__file__).with_name("benchmark_multimodal_graph.py"),
+                Path(__file__).with_name("profile_multimodal.py"),
+                Path(__file__).with_name("evaluate_multimodal.py"),
                 *(
                     root / "src/models/cua_s1/multimodal" / name
                     for name in (
                         "graph_runtime.py",
+                        "graph_admission.py",
                         "graph_buckets.py",
                         "rule_prefill.py",
                         "model.py",
@@ -117,6 +150,8 @@ def main():
         },
         "config": {
             "graph": asdict(config),
+            "variant_graph": {k: asdict(v) for k, v in configs.items()},
+            "schedules": selected,
             "variants": variants,
             "bucket_graph": asdict(
                 replace(config, mode="rule-bucket", bucket_width=args.width)
@@ -172,6 +207,10 @@ def main():
                     "exact": GraphRuntime(engine.model, config),
                     "bucket": bucket_class(engine.model, config, width=args.width),
                 }
+                if args.tuned_exact_window is not None:
+                    runtimes["exact_tuned"] = GraphRuntime(
+                        engine.model, configs["exact_tuned"]
+                    )
                 if args.include_recipe:
                     runtimes["recipe"] = RuleBucketRuntime(
                         engine.model, config, width=args.width
@@ -194,7 +233,9 @@ def main():
                         engine.graph_runtime = runtime
                         before = dict(runtime.stats) if runtime else {}
                         torch.cuda.reset_peak_memory_stats()
-                        response, elapsed = measure(lambda: engine.predict(requests[n]))
+                        response, elapsed = measure(
+                            lambda request=requests[n]: engine.predict(request)
+                        )
                         event["variants"][variant] = {
                             "response": response,
                             "latency_ms": elapsed,
@@ -226,7 +267,7 @@ def main():
                 record["status"] = "complete"
                 engine.graph_runtime = None
                 for runtime in runtimes.values():
-                    runtime.invalidate()
+                    runtime.close()
                 del runtime, runtimes
                 gc.collect()
                 torch.cuda.empty_cache()
