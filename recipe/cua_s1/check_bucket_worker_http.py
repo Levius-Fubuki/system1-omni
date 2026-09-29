@@ -16,6 +16,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--weights", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--mode", choices=("rule-bucket", "auto"), default="rule-bucket")
     args = p.parse_args()
     if args.output.exists():
         p.error("choose a fresh output")
@@ -38,14 +39,16 @@ def main():
             "--adapter",
             str(args.weights / "cua-s1-4b-0.2/multimodal"),
             "--graph-mode",
-            "rule-bucket",
+            args.mode,
         ]
     )
     engine = MultimodalEngine(
         config.base, config.adapter, graph_config=config.graph_config
     )
     runtime = engine.graph_runtime
-    assert runtime.__class__.__module__ == "models.cua_s1.multimodal.graph_buckets"
+    assert runtime.__class__.__module__ == "models.cua_s1.multimodal." + (
+        "graph_auto" if args.mode == "auto" else "graph_buckets"
+    )
     original_rule = upstream.torch_chunk_gated_delta_rule
     modules = [
         layer.linear_attn
@@ -77,6 +80,7 @@ def main():
         "repository": source,
         "environment": environment(),
         "records": [],
+        "mode": args.mode,
     }
     try:
         url = f"http://127.0.0.1:{server.server_port}"

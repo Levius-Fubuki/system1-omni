@@ -10,7 +10,7 @@ from models.cua_s1.multimodal.graph_runtime import GraphConfig, GraphRuntime
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {"mode": "auto"},
+        {"mode": "unknown"},
         {"mode": "rule-bucket", "bucket_width": 0},
         {"mode": "rule-bucket", "bucket_width": 65},
         {"mode": "rule-bucket", "bucket_width": True},
@@ -41,7 +41,7 @@ def test_cli_default_and_legacy_and_explicit_modes():
     [
         ["--graph-bucket-width", "64"],
         ["--graph", "--graph-bucket-width", "128"],
-        ["--graph-mode", "auto"],
+        ["--graph-mode", "unknown"],
         ["--graph-mode", "rule-bucket", "--graph-bucket-width", "65"],
     ],
 )

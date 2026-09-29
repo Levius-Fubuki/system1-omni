@@ -7,12 +7,14 @@ import gc
 import hashlib
 import itertools
 import math
+import random
 import statistics
 from dataclasses import asdict, replace
 from pathlib import Path
 
 
 def schedules():
+    rng = random.Random(20260929)
     return {
         "probe": list(range(1, 13)) * 2,
         "hot_four": [1, 2, 4, 8] * 12,
@@ -23,10 +25,13 @@ def schedules():
             for group in [range(1, 5), range(5, 9), range(9, 13), range(1, 5)]
             for v in list(group) * 8
         ],
+        "mixed_holdout": [1, 2] * 6
+        + [rng.choice(list(range(1, 17))) for _ in range(48)]
+        + [20, 21] * 12,
     }
 
 
-def variant_configs(kind, width, tuned_exact_window=None):
+def variant_configs(kind, width, tuned_exact_window=None, include_auto=False):
     from models.cua_s1.multimodal.graph_runtime import GraphConfig
 
     config = GraphConfig()
@@ -38,7 +43,17 @@ def variant_configs(kind, width, tuned_exact_window=None):
     }
     if tuned_exact_window is not None:
         configs["exact_tuned"] = replace(config, admission_window=tuned_exact_window)
+    if include_auto:
+        configs["auto"] = replace(config, mode="auto", bucket_width=width)
     return configs
+
+
+def variant_orders(variants):
+    if "auto" not in variants:
+        return list(itertools.permutations(variants))
+    forward = list(variants)
+    reverse = list(reversed(variants))
+    return [tuple(v[i:] + v[:i]) for v in (forward, reverse) for i in range(len(v))]
 
 
 def summary(events, variant):
@@ -61,6 +76,7 @@ def main():
     p.add_argument("--runs", type=int, default=2)
     p.add_argument("--width", type=int, default=64)
     p.add_argument("--tuned-exact-window", type=int)
+    p.add_argument("--include-auto", action="store_true")
     p.add_argument("--kind", choices=("segment", "rule", "worker"), default="segment")
     p.add_argument(
         "--include-recipe",
@@ -73,6 +89,8 @@ def main():
         p.error("choose a fresh output directory")
     if args.include_recipe and args.kind != "worker":
         p.error("--include-recipe requires --kind worker")
+    if args.include_auto and (args.kind != "worker" or args.include_recipe):
+        p.error("--include-auto requires --kind worker without --include-recipe")
     if args.runs < 1:
         p.error("runs must be positive")
     if args.tuned_exact_window is not None and args.tuned_exact_window < 1:
@@ -102,7 +120,9 @@ def main():
     args.output.mkdir(parents=True)
     report_path = args.output / "report.json"
     selected = {k: v for k, v in schedules().items() if k in (args.case or ["probe"])}
-    configs = variant_configs(args.kind, args.width, args.tuned_exact_window)
+    configs = variant_configs(
+        args.kind, args.width, args.tuned_exact_window, args.include_auto
+    )
     config = configs["exact"]
     bucket_class = RuleBucketRuntime if args.kind == "rule" else BucketRuntime
     if args.kind == "worker":
@@ -122,6 +142,8 @@ def main():
     )
     if args.tuned_exact_window is not None:
         variants += ("exact_tuned",)
+    if args.include_auto:
+        variants += ("auto",)
     if args.include_recipe:
         configs["recipe"] = config
     report = {
@@ -141,6 +163,9 @@ def main():
                     for name in (
                         "graph_runtime.py",
                         "graph_admission.py",
+                        "graph_shared.py",
+                        "graph_auto.py",
+                        "graph_selector.py",
                         "graph_buckets.py",
                         "rule_prefill.py",
                         "model.py",
@@ -164,7 +189,9 @@ def main():
             "timing": "synchronized predict including cold capture and first-length checks",
             "memory": "paired caches coexist; allocator totals are combined, cache bytes are per variant",
             "scope": "serial, two identical questions, synthetic 320x240 image, no HTTP",
-            "order": "all variant permutations cycle across requests, offset by half a cycle across runs",
+            "order": "balanced cyclic/reversed rotations, offset by half a cycle across runs"
+            if args.include_auto
+            else "all variant permutations cycle across requests, offset by half a cycle across runs",
         },
         "workloads": {},
     }
@@ -199,7 +226,7 @@ def main():
         print("lengths", tokens, "buckets", report["buckets"], flush=True)
         for _ in range(3):
             engine.predict(requests[counts[0]])
-        orders = list(itertools.permutations(variants))
+        orders = variant_orders(variants)
         for name, schedule in selected.items():
             report["workloads"][name] = []
             for run in range(args.runs):
@@ -211,6 +238,10 @@ def main():
                     runtimes["exact_tuned"] = GraphRuntime(
                         engine.model, configs["exact_tuned"]
                     )
+                if args.include_auto:
+                    from models.cua_s1.multimodal.graph_auto import AutoGraphRuntime
+
+                    runtimes["auto"] = AutoGraphRuntime(engine.model, configs["auto"])
                 if args.include_recipe:
                     runtimes["recipe"] = RuleBucketRuntime(
                         engine.model, config, width=args.width
@@ -248,6 +279,9 @@ def main():
                             "cache_bytes": runtime.cache.bytes if runtime else 0,
                             "reserved_bytes": torch.cuda.memory_reserved(),
                             "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+                            "resident_modes": [key[0] for key in runtime.cache.entries]
+                            if variant == "auto"
+                            else [],
                         }
                     assert all(
                         v["response"] == event["variants"]["eager"]["response"]
@@ -264,6 +298,8 @@ def main():
                         )
                 record["summary"] = {v: summary(record["events"], v) for v in variants}
                 record["stats_final"] = {v: dict(r.stats) for v, r in runtimes.items()}
+                if args.include_auto:
+                    record["auto_reasons"] = dict(runtimes["auto"].decisions)
                 record["status"] = "complete"
                 engine.graph_runtime = None
                 for runtime in runtimes.values():
