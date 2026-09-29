@@ -8,10 +8,122 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 
+def check_boundaries(engine, output, report):
+    import torch
+    from diagnose_graph_buckets import prepare_values
+    from graph_buckets import RuleBucketRuntime
+    from profile_multimodal import GOAL, case_matrix, fixture, write_json
+
+    from models.cua_s1.multimodal.graph_runtime import GraphConfig
+    from models.cua_s1.multimodal.protocol import parse_request
+
+    fixtures = output.parent / "boundary-fixtures"
+    case = next(c for c in case_matrix() if c["id"] == "320x240-short-q2")
+    request = parse_request(fixture(case, fixtures))
+    request = replace(
+        request,
+        questions=tuple(
+            replace(q, goal=" ".join([GOAL] * 30)) for q in request.questions
+        ),
+    )
+    report["boundary_records"] = []
+    try:
+        with torch.no_grad():
+            prepared = prepare_values(engine, request)
+            lengths = [255, 256, 257, 319, 320, 321]
+            assert prepared["inputs_embeds"].shape[1] >= max(lengths)
+            values = {
+                n: {
+                    "inputs_embeds": prepared["inputs_embeds"][:, :n].clone(),
+                    "position_ids": prepared["position_ids"][:, :, :n].clone(),
+                    "attention_mask": prepared["attention_mask"][:, :n].clone(),
+                }
+                for n in lengths
+            }
+            config = GraphConfig(
+                min_uses=1,
+                max_captures=16,
+                capture_budget_ms=10000,
+                max_bytes=4 * 1024**3,
+            )
+            runtime = RuleBucketRuntime(engine.model, config)
+            for n in lengths + lengths[::-1]:
+                expected = runtime._eager(values[n])
+                before = dict(runtime.stats)
+                with runtime.request():
+                    actual = runtime.forward(values[n])
+                equal = torch.equal(expected, actual)
+                report["boundary_records"].append(
+                    {
+                        "length": n,
+                        "equal": equal,
+                        "max_abs": (expected.float() - actual.float())
+                        .abs()
+                        .max()
+                        .item(),
+                        "stats_delta": {
+                            k: runtime.stats[k] - v for k, v in before.items()
+                        },
+                    }
+                )
+                assert equal
+                assert (
+                    runtime.stats["rejected"] == runtime.stats["length_rejections"] == 0
+                )
+            assert runtime.stats["captures"] == 3
+            assert runtime.stats["replays"] == 9
+            report["boundary_stats"] = dict(runtime.stats)
+            runtime.invalidate()
+            report["policies"] = {}
+            for name, config, sequence, counter in [
+                (
+                    "eviction",
+                    GraphConfig(
+                        min_uses=1,
+                        max_shapes=1,
+                        max_captures=16,
+                        capture_budget_ms=10000,
+                    ),
+                    [255, 319, 255, 319],
+                    "cooldown",
+                ),
+                (
+                    "memory",
+                    GraphConfig(min_uses=1, max_bytes=1 << 20),
+                    [255, 255],
+                    "memory_budget",
+                ),
+                (
+                    "capture_budget",
+                    GraphConfig(min_uses=1, max_captures=1),
+                    [255, 319, 255],
+                    "capture_budget",
+                ),
+            ]:
+                runtime = RuleBucketRuntime(engine.model, config)
+                for n in sequence:
+                    expected = runtime._eager(values[n])
+                    with runtime.request():
+                        actual = runtime.forward(values[n])
+                    assert torch.equal(expected, actual)
+                assert runtime.stats[counter] > 0
+                report["policies"][name] = dict(runtime.stats)
+                runtime.invalidate()
+                assert not runtime.cache.entries and not runtime.admission.history
+        report["status"] = "complete"
+    except Exception as exc:
+        report["status"] = "failed"
+        report["error"] = {"type": type(exc).__name__, "message": str(exc)}
+        raise
+    finally:
+        write_json(output, report)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--weights", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--boundaries-only", action="store_true")
     args = p.parse_args()
     if args.output.exists():
         p.error("choose a fresh output")
@@ -41,6 +153,9 @@ def main():
     engine = MultimodalEngine(
         str(args.weights / "Qwen3.5-4B"), str(args.weights / "cua-s1-4b-0.2/multimodal")
     )
+    if args.boundaries_only:
+        check_boundaries(engine, args.output, report)
+        return
     fixtures = args.output.parent / "check-fixtures"
     selected = {
         "320x240-short-q2",

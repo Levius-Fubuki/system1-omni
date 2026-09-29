@@ -157,3 +157,34 @@ def test_rule_call_accepts_transformers_cache_free_metadata_only():
             validate_rule_call(None, False, True, kwargs)
     with pytest.raises(RuntimeError, match="unsupported rule"):
         validate_rule_call(object(), False, True, {})
+
+
+def test_rule_dispatch_restores_global_function_after_failure(monkeypatch):
+    import types
+
+    from graph_buckets import RuleBucketRuntime
+
+    module = types.ModuleType("_cua_rule_test_module")
+
+    def original(*args, **kwargs):
+        return None
+
+    module.torch_chunk_gated_delta_rule = original
+    attention_type = type("Attention", (), {"__module__": module.__name__})
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    text = SimpleNamespace(layers=[SimpleNamespace(linear_attn=attention_type())])
+
+    class FailingModel:
+        def get_base_model(self):
+            return SimpleNamespace(model=SimpleNamespace(language_model=text))
+
+        def __call__(self, **kwargs):
+            assert module.torch_chunk_gated_delta_rule is not original
+            raise ValueError("interrupted forward")
+
+    r = RuleBucketRuntime(FailingModel())
+    with pytest.raises(ValueError, match="interrupted"):
+        r._run_segments(
+            {"inputs_embeds": SimpleNamespace(shape=(1, 63, 4))}, SimpleNamespace()
+        )
+    assert module.torch_chunk_gated_delta_rule is original
