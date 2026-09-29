@@ -9,7 +9,7 @@ import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .protocol import (
+from models.cua_s1.multimodal.protocol import (
     MAX_BODY,
     InvalidRequest,
     MalformedJSON,
@@ -107,8 +107,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    from .graph_runtime import GraphConfig
-    from .model import MultimodalEngine
+    from models.cua_s1.multimodal.graph_runtime import GraphConfig
+    from models.cua_s1.multimodal.model import MultimodalEngine
 
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
