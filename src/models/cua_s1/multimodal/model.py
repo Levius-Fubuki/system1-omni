@@ -14,6 +14,9 @@ REFERENCE_REVISION = "0e75660ce4c2edda519e0c795fa3ad98abf4e76f"
 BASE_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 ADAPTER_REVISION = "16818868b0cc7813808aae4e87b417657046ab79"
 IDENTITY = f"cua-ai/cua-s1-4b-0.2@{ADAPTER_REVISION}:multimodal"
+WEIGHTS_MANIFEST_SHA256 = (
+    "9820bd232c5762f114e19680c0f8203d7e1faaf8a60c196cfe01964d6d8a6c09"
+)
 MAX_TOKENS = 4096
 
 
@@ -49,9 +52,16 @@ def validate_adapter_config(config: dict):
         raise ValueError("expected the pinned 0.2 multimodal LoRA adapter")
 
 
+def parse_weights_manifest(raw: bytes) -> dict:
+    """Accept only the manifest from the pinned upstream reference commit."""
+    if hashlib.sha256(raw).hexdigest() != WEIGHTS_MANIFEST_SHA256:
+        raise ValueError("upstream weights manifest checksum mismatch")
+    return json.loads(raw)
+
+
 def verify_weights(base: Path, adapter: Path):
     """Check local artifacts before assigning the pinned identity to responses."""
-    lock = json.loads(Path(__file__).with_name("weights.lock.json").read_text())
+    lock = parse_weights_manifest((base.parent / "weights.lock.json").read_bytes())
     allowed = {base: set(), adapter: set()}
     for artifact in lock["artifacts"]:
         for name, expected in artifact["files"].items():

@@ -22,16 +22,22 @@ python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -r recipe/cua_s1/requirements-multimodal.txt
 PYTHONPATH=src python recipe/cua_s1/download_weights.py --dest weights
-PYTHONPATH=src python -m models.cua_s1.multimodal.server \
+PYTHONPATH=src python -m frontend.cua_s1 \
   --base weights/Qwen3.5-4B \
   --adapter weights/cua-s1-4b-0.2/multimodal
 ```
 
-`weights.lock.json` pins and checks every loaded artifact's size and SHA-256.
+The downloader fetches the upstream manifest at the fixed reference revision,
+checks its pinned SHA-256 and saves it as `weights/weights.lock.json`. The worker
+reads this local manifest and checks every loaded artifact's size and SHA-256.
+Keep the manifest next to the base checkpoint directory when moving weights.
 Extra files are rejected, except Hugging Face's `.cache` metadata, so another
 checkpoint cannot silently override verified shards. Downloads require roughly
 9 GB plus cache/install space. Loading is offline after the download completes.
 Weights are not included in this repository.
+
+The HTTP adapter lives in `src/frontend/cua_s1.py`; model execution stays in
+`src/models/cua_s1/multimodal/`.
 
 The worker binds to `127.0.0.1:8000` only after loading and a successful warmup.
 `GET /health` returns `{"status":"ready","modality":"multimodal"}`. One request
@@ -196,8 +202,8 @@ CPU-only validation:
 ```sh
 pip install Pillow==11.3.0 pytest==9.1.1 ruff==0.16.8
 PYTHONPATH=src python -m pytest tests/cua_s1 -q
-ruff check --select E4,E7,E9,F,I src/models/cua_s1/multimodal recipe/cua_s1/*.py tests/cua_s1
-ruff format --check src/models/cua_s1/multimodal recipe/cua_s1/*.py tests/cua_s1
+ruff check --select E4,E7,E9,F,I src/frontend/cua_s1.py src/models/cua_s1/multimodal recipe/cua_s1/*.py tests/cua_s1
+ruff format --check src/frontend/cua_s1.py src/models/cua_s1/multimodal recipe/cua_s1/*.py tests/cua_s1
 ```
 
 Metal, native CUDA kernels, text-adapter serving, batching and training
