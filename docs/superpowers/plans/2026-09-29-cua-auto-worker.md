@@ -16,12 +16,12 @@
 
 ## Tasks and validation
 
-- [ ] Promote shared ownership; add explicit construction injection for cache/admission/lock, reusable exact keys, atomic retirement, and tests covering lifetime and cross-mode bounds.
-- [ ] Implement bounded selector with tests for hot, dispersed, one-shot, same-request duplicates, pressure, cost rejection, cooldown, invalidation and bucket rejection.
-- [ ] Integrate config/CLI/engine, document counters and expose no experimental imports in production.
-- [ ] Run Cua-S1 CPU tests and changed-file lint/format.
-- [ ] GPU check full logits, mixed layouts, changed images/text, boundaries, aggregate budgets and lifecycle; use actual CLI-selected HTTP worker and two loaded instances.
-- [ ] Benchmark eager/default exact/tuned exact/bucket/auto on four existing workloads, plus an unseen mixed schedule. Use two cold runs and order balancing, retain capture/gates/eviction in measured time and per-mode evidence. Record negative results instead of tuning to future schedule labels.
+- [x] Promote shared ownership; add explicit construction injection for cache/admission/lock, reusable exact keys, atomic retirement, and tests covering lifetime and cross-mode bounds.
+- [x] Implement bounded selector with tests for hot, dispersed, one-shot, same-request duplicates, pressure, cost rejection, cooldown, invalidation and bucket rejection.
+- [x] Integrate config/CLI/engine, document counters and expose no experimental imports in production.
+- [x] Run Cua-S1 CPU tests and changed-file lint/format.
+- [x] GPU check full logits, mixed layouts, changed images/text, boundaries, aggregate budgets and lifecycle; use actual CLI-selected HTTP worker and two loaded instances.
+- [x] Benchmark eager/default exact/tuned exact/bucket/auto on four existing workloads, plus an unseen mixed schedule. Use two cold runs and order balancing, retain capture/gates/eviction in measured time and per-mode evidence. Record negative results instead of tuning to future schedule labels.
 - [ ] Independently verify raw data/source provenance and report scope. Run a focused code review, fix findings, rerun checks justified by changes, push branch, create and attach PR with incremental comparison against #37.
 
 ## Shipping criterion

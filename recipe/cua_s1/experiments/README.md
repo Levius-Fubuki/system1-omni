@@ -9,7 +9,9 @@ The [mixed-length Graph report](rtx4090-graph-mixed-shapes/README.md) includes
 capture and eviction costs across changing prompt lengths. The subsequent
 [request-aware admission report](rtx4090-graph-admission/README.md) tests
 extended churn and changing hotspots with bounded capture work and exclusively
-owned capture streams.
+owned capture streams. The later
+[automatic worker report](rtx4090-auto-worker/README.md) adds opt-in causal mode
+selection with shared exact/bucket budgets and a tuned-exact comparator.
 
 For the subsequent 16-case stage profiling experiment, refreshed upstream parity,
 and profiler annotation-counting recovery, see the

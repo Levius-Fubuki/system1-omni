@@ -18,6 +18,18 @@ def verify_auto(report):
     for records in report["workloads"].values():
         for record in records:
             events = record["events"]
+            for stats in record["stats_final"].values():
+                assert stats["requests"] == len(events)
+                for key in (
+                    "rejected",
+                    "length_rejections",
+                    "numerical_mismatch",
+                    "capture_error",
+                    "capture_oom",
+                    "unsupported",
+                    "no_request",
+                ):
+                    assert stats.get(key, 0) == 0
             for i, event in enumerate(events):
                 auto = event["variants"]["auto"]
                 stats = auto["stats_delta"]
@@ -69,8 +81,24 @@ def verify_parity(path):
             ]
         )
         assert hashlib.sha256(content).hexdigest() == expected
+    parity(report)
+
+
+def parity(report):
+    assert report["status"] == "complete", report.get("error")
     assert report["explicit_close"]
     assert len(report["cases"]) == 5
+    for case in report["cases"]:
+        assert case["stats_delta"]["captures"] > 0
+        assert case["stats_delta"]["replays"] > 0
+    for key in (
+        "rejected",
+        "length_rejections",
+        "numerical_mismatch",
+        "capture_error",
+        "capture_oom",
+    ):
+        assert report["stats"][key] == 0
     responses = [e for c in report["cases"] for e in c["events"]] + report[
         "churn_events"
     ]
@@ -81,7 +109,14 @@ def verify_parity(path):
     assert len(report["logit_checks"]) == 266
     assert all(c["equal"] and c["max_abs"] == 0 for c in report["logit_checks"])
     assert len(report["boundaries"]) == 24
-    assert report["churn_stats"]["selected_rule_bucket"] > 0
+    churn = report["churn_stats"]
+    assert churn["selected_rule_bucket"] > 0
+    # No exact routes occurred in this diagnostic, so actual captures/replays
+    # (not just selected routes) establish that bucket execution was exercised.
+    assert churn["selected_exact"] == 0
+    assert churn["captures"] > 0 and churn["replays"] > 0
+    assert sum(e["stats_delta"]["captures"] for e in report["boundaries"]) > 0
+    assert sum(e["stats_delta"]["replays"] for e in report["boundaries"]) > 0
     print("verified 266 complete-logit checks, 61 responses and explicit retirement")
 
 

@@ -78,7 +78,9 @@ dependent and does not guarantee the fastest fixed mode. It uses the same pinned
 single-device fallback implementation and strict gates as manual buckets.
 `selected_eager`, `selected_exact` and `selected_rule_bucket` count chosen routes;
 admission or validation may still make a selected Graph route run eagerly.
-Invalidation also clears selector history and pending timing events.
+Invalidation also clears selector history and pending timing events. See the
+[automatic worker report](experiments/rtx4090-auto-worker/README.md) for controlled
+comparisons, strict parity and shared-budget validation.
 
 Stable hot lengths can favor exact mode. See the
 [worker integration report](experiments/rtx4090-bucket-worker/README.md) for

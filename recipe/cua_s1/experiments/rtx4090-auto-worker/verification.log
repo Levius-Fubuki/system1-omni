@@ -1,0 +1,14 @@
+hot_four 1 verified 48 request groups
+hot_four 2 verified 48 request groups
+churn_twelve 1 verified 72 request groups
+churn_twelve 2 verified 72 request groups
+hot_cold 1 verified 40 request groups
+hot_cold 2 verified 40 request groups
+shifting_hot 1 verified 128 request groups
+shifting_hot 2 verified 128 request groups
+mixed_holdout 1 verified 84 request groups
+mixed_holdout 2 verified 84 request groups
+verified 3720 timed predictions; source hashes, responses, metrics and cache bounds
+verified automatic routing counts, shared cache and capture budgets
+verified 266 complete-logit checks, 61 responses and explicit retirement
+shared resource comparison verified: 119 complete-logit comparisons
