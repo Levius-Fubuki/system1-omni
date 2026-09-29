@@ -46,6 +46,27 @@ capture. Repeated questions inside one request count once. The captured logits
 must exactly match eager before the layout enters the cache. The defaults retain
 at most eight layouts and 1 GiB of measured live Graph allocations.
 
+The default remains eager. `--graph` is an alias for `--graph-mode exact`.
+For workloads rotating through many nearby lengths, explicitly select
+`--graph-mode rule-bucket --graph-bucket-width 64` instead. This mode captures
+only the internal DeltaNet rule, padding its query/key/value/decay/update inputs
+to a multiple of 64 tokens. Projections, convolutions, MLPs and full attention
+keep their actual lengths. Width must be a positive multiple of 64; the padded
+length must fit `--graph-max-tokens`. The worker uses direct per-model calls,
+without replacing Transformers globals or model methods. This path requires
+the pinned Transformers 5.17.0 implementation and an immutable resident model;
+it does not support model offloading or sharding.
+
+Rule buckets share the admission and resource limits below. Complete vocabulary
+logits must match eager exactly at capture and for each new actual length in a
+cached bucket. A rejected length uses eager while other verified lengths remain
+eligible. Dense batch-one inputs are supported; unsupported inputs use eager.
+These first-input checks do not prove equality for every possible content.
+There is no automatic mode selection or simultaneous exact/bucket cache in the
+worker. Stable hot lengths can favor exact mode. See the
+[worker integration report](experiments/rtx4090-bucket-worker/README.md) for
+correctness, HTTP checks, and workload-dependent timing.
+
 `--graph-min-uses` now counts **requests**, not question forwards. Use
 `--graph-admission-window` to change the maximum gap between observations.
 Evicted layouts lose their heat and wait `--graph-cooldown-requests` (default 32)
@@ -76,6 +97,9 @@ weights or adapters. Invalidation clears admission and cache state, while lifeti
 statistics remain cumulative. `predict` opens a serialized Graph request context;
 standalone runtime `forward` calls without that context use eager. Single-question
 requests continue through the reference path.
+`engine.close()` explicitly releases Graph resources and rejects later
+predictions. HTTP shutdown drains accepted handlers before closing the engine;
+the lifecycle lock also waits for an active direct prediction. Close is idempotent.
 
 Whole-model capture changed BF16 attention results on the measured RTX 4090;
 the earlier [Graph feasibility report](experiments/rtx4090-graph/README.md)

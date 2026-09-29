@@ -1,0 +1,27 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<01:45,  6.82it/s]Loading weights:   4%|▎         | 26/723 [00:00<00:05, 124.87it/s]Loading weights:   6%|▌         | 45/723 [00:00<00:04, 146.81it/s]Loading weights:   9%|▉         | 66/723 [00:00<00:03, 169.57it/s]Loading weights:  12%|█▏        | 90/723 [00:00<00:03, 192.96it/s]Loading weights:  15%|█▌        | 111/723 [00:00<00:03, 181.81it/s]Loading weights:  18%|█▊        | 133/723 [00:00<00:03, 184.39it/s]Loading weights:  21%|██        | 153/723 [00:00<00:03, 186.71it/s]Loading weights:  25%|██▍       | 180/723 [00:01<00:02, 205.08it/s]Loading weights:  28%|██▊       | 201/723 [00:01<00:02, 200.50it/s]Loading weights:  31%|███       | 224/723 [00:01<00:02, 207.99it/s]Loading weights:  34%|███▍      | 248/723 [00:01<00:02, 213.77it/s]Loading weights:  37%|███▋      | 270/723 [00:01<00:02, 204.85it/s]Loading weights:  40%|████      | 291/723 [00:01<00:02, 205.55it/s]Loading weights:  43%|████▎     | 312/723 [00:01<00:02, 187.47it/s]Loading weights:  47%|████▋     | 338/723 [00:01<00:01, 202.41it/s]Loading weights:  50%|████▉     | 359/723 [00:01<00:01, 203.97it/s]Loading weights:  53%|█████▎    | 382/723 [00:02<00:01, 210.62it/s]Loading weights:  56%|█████▌    | 404/723 [00:02<00:01, 200.03it/s]Loading weights:  59%|█████▉    | 425/723 [00:02<00:01, 192.12it/s]Loading weights:  77%|███████▋  | 555/723 [00:02<00:00, 493.42it/s]Loading weights:  96%|█████████▋| 696/723 [00:02<00:00, 746.59it/s]Loading weights: 100%|██████████| 723/723 [00:02<00:00, 291.85it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+Traceback (most recent call last):
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/check_graph_buckets.py", line 333, in <module>
+    main()
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/check_graph_buckets.py", line 175, in main
+    check_boundaries(engine, args.output, report, RuleBucketRuntime)
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/check_graph_buckets.py", line 56, in check_boundaries
+    actual = runtime.forward(values[n])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/src/models/cua_s1/multimodal/graph_buckets.py", line 102, in forward
+    output = self._run_segments(values, entry)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/src/models/cua_s1/multimodal/graph_buckets.py", line 172, in _run_segments
+    hidden = rule_prefill(
+             ^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/src/models/cua_s1/multimodal/rule_prefill.py", line 51, in rule_prefill
+    output, _ = rule(
+                ^^^^^
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/src/models/cua_s1/multimodal/graph_buckets.py", line 168, in dispatch
+    output, state = block.replay_values(packed)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/src/models/cua_s1/multimodal/graph_buckets.py", line 219, in replay_values
+    raise ValueError("CUDA Graph rule input layout changed")
+ValueError: CUDA Graph rule input layout changed
