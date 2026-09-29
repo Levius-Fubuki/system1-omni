@@ -921,9 +921,10 @@ impl Model {
         let mut last = vec![0u8; h * BF16];
         // SAFETY: x holds at least t rows of the hidden size.
         unsafe { cuda::download(&mut last, s.at(s.x + (t - 1) * h * BF16), self.stream)? };
-        Ok(last
-            .chunks_exact(2)
-            .map(|b| half::bf16::from_le_bytes([b[0], b[1]]).to_f32())
+        let (pairs, _) = last.as_chunks::<2>();
+        Ok(pairs
+            .iter()
+            .map(|&b| half::bf16::from_le_bytes(b).to_f32())
             .collect())
     }
 

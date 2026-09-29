@@ -168,10 +168,8 @@ fn letter_rows(dir: &Path, letter_ids: &[u32]) -> Result<(Vec<f32>, usize)> {
         let id = id as usize;
         ensure!(id < vocab, "letter id {id} outside the vocabulary");
         let row = &data[id * hidden * 2..(id + 1) * hidden * 2];
-        rows.extend(
-            row.chunks_exact(2)
-                .map(|b| half::bf16::from_le_bytes([b[0], b[1]]).to_f32()),
-        );
+        let (pairs, _) = row.as_chunks::<2>();
+        rows.extend(pairs.iter().map(|&b| half::bf16::from_le_bytes(b).to_f32()));
     }
     Ok((rows, hidden))
 }

@@ -53,9 +53,10 @@ fn from_device(buf: &DeviceBuffer, n: usize, st: Stream) -> Vec<f32> {
     let mut bytes = vec![0u8; n * 2];
     // SAFETY: the buffer holds n bfloat16 values.
     unsafe { cuda::download(&mut bytes, buf.at(0), st).unwrap() };
-    bytes
-        .chunks_exact(2)
-        .map(|b| bf16::from_le_bytes([b[0], b[1]]).to_f32())
+    let (pairs, _) = bytes.as_chunks::<2>();
+    pairs
+        .iter()
+        .map(|&b| bf16::from_le_bytes(b).to_f32())
         .collect()
 }
 

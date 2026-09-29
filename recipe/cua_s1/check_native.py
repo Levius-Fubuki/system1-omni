@@ -12,24 +12,31 @@ top-two margin is at least 0.05. The served result (from a graph when the
 prompt fits) must be bitwise identical to the eager one. With a second file (another
 process start), both runs must be bitwise identical too.
 """
+
 import json
 import sys
 from pathlib import Path
 
 
 def load_parity(path):
-    rows = [json.loads(l) for l in path.read_text().splitlines() if l]
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line]
     return {(r["case"], r["question"]): r["worker"] for r in rows}
 
 
 def load(path):
-    return [json.loads(l) for l in Path(path).read_text().splitlines() if l]
+    return [json.loads(line) for line in Path(path).read_text().splitlines() if line]
+
+
+def diff(a, b):
+    return max(abs(a[k] - b[k]) for k in b)
 
 
 runs = load(sys.argv[1])
 parity = Path(sys.argv[2])
-fp32, bf16 = load_parity(parity / "parity_float32.jsonl"), load_parity(parity / "parity_bfloat16.jsonl")
-diff = lambda a, b: max(abs(a[k] - b[k]) for k in b)
+fp32, bf16 = (
+    load_parity(parity / "parity_float32.jsonl"),
+    load_parity(parity / "parity_bfloat16.jsonl"),
+)
 allowance = 2 * max(diff(bf16[k], fp32[k]) for k in fp32) + 0.01
 eager = {(r["case"], r["question"]): r for r in runs if r["mode"] == "eager"}
 served = {(r["case"], r["question"]): r for r in runs if r["mode"] == "served"}
@@ -45,10 +52,18 @@ for key, r in eager.items():
     if margin >= 0.05 and max(ref, key=ref.get) != max(got, key=got.get):
         flips.append(f"{key[0]}/{key[1]}")
 graph_keys = [k for k, r in served.items() if r["graph"]]
-mismatch = [f"{k[0]}/{k[1]}" for k in served if served[k]["probabilities"] != eager[k]["probabilities"]]
+mismatch = [
+    f"{k[0]}/{k[1]}"
+    for k in served
+    if served[k]["probabilities"] != eager[k]["probabilities"]
+]
 print(f"{len(eager)} questions; allowance {allowance:.4f}")
-print(f"largest |eager - fp32| {worst:.4f} ({worst_at}); top-option changes: {flips or 'none'}; missing: {missing or 'none'}")
-print(f"served from a graph: {len(graph_keys)}; served differs from eager: {mismatch or 'none'}")
+print(
+    f"largest |eager - fp32| {worst:.4f} ({worst_at}); top-option changes: {flips or 'none'}; missing: {missing or 'none'}"
+)
+print(
+    f"served from a graph: {len(graph_keys)}; served differs from eager: {mismatch or 'none'}"
+)
 ok = worst <= allowance and not flips and not missing and not mismatch
 if len(sys.argv) > 3:
     other = load(sys.argv[3])

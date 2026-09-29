@@ -63,14 +63,20 @@ def compare(name, py, rs):
     rs_, rc, rb, _ = rs
     if ps != 200 or rs_ != 200:
         same = (ps, pc, pb) == (rs_, rc, rb)
-        return same, "" if same else f"python {ps} {pb[:200]!r} | native {rs_} {rb[:200]!r}", 0.0
+        return (
+            same,
+            "" if same else f"python {ps} {pb[:200]!r} | native {rs_} {rb[:200]!r}",
+            0.0,
+        )
     p, r = ordered(pb), ordered(rb)
     pd, rd = dict(p), dict(r)
     notes, worst = [], 0.0
     if [k for k, _ in p] != [k for k, _ in r]:
         notes.append("top-level keys differ")
     if pd["model"] != rd["model"] or pd["usage"] != rd["usage"]:
-        notes.append(f"model/usage differ: {pd['model']} {pd['usage']} vs {rd['model']} {rd['usage']}")
+        notes.append(
+            f"model/usage differ: {pd['model']} {pd['usage']} vs {rd['model']} {rd['usage']}"
+        )
     pa, ra = pd["answers"], rd["answers"]
     if [k for k, _ in pa] != [k for k, _ in ra]:
         notes.append("question order differs")
@@ -85,29 +91,58 @@ def compare(name, py, rs):
         top = sorted(pv, reverse=True)
         margin = top[0] - (top[1] if len(top) > 1 else 0.0)
         if pans["choice"] != rans["choice"] and margin >= 0.05:
-            notes.append(f"{qn}: choice {pans['choice']!r} vs {rans['choice']!r} (margin {margin:.3f})")
+            notes.append(
+                f"{qn}: choice {pans['choice']!r} vs {rans['choice']!r} (margin {margin:.3f})"
+            )
     return not notes, "; ".join(notes), worst
 
 
+def median(values):
+    return sorted(values)[len(values) // 2]
+
+
 def main() -> None:
-    corpus, pport, rport, out_path = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
-    cases = [json.loads(l) for l in open(corpus)]
+    corpus, pport, rport, out_path = (
+        sys.argv[1],
+        int(sys.argv[2]),
+        int(sys.argv[3]),
+        sys.argv[4],
+    )
+    cases = [json.loads(line) for line in open(corpus)]
     extra = []
     max_body = 4 << 20
     big = b'{"model": "cua-s1-4b-0.2", "state": "' + b"x" * (max_body + 1) + b'"}'
     extra.append(("http/too_large_content_length", "POST", "/v1/systemone", big, False))
     extra.append(("http/too_large_chunked", "POST", "/v1/systemone", big, True))
-    fill = max_body - len(b'{"model": "cua-s1-4b-0.2", "state": "", "questions": {"q": {"type": "choice", "instructions": "go", "criteria": {"a": "A"}}}}')
-    exact = b'{"model": "cua-s1-4b-0.2", "state": "' + b"ab " * (fill // 3) + b"a" * (fill % 3) + b'", "questions": {"q": {"type": "choice", "instructions": "go", "criteria": {"a": "A"}}}}'
+    fill = max_body - len(
+        b'{"model": "cua-s1-4b-0.2", "state": "", "questions": {"q": {"type": "choice", "instructions": "go", "criteria": {"a": "A"}}}}'
+    )
+    exact = (
+        b'{"model": "cua-s1-4b-0.2", "state": "'
+        + b"ab " * (fill // 3)
+        + b"a" * (fill % 3)
+        + b'", "questions": {"q": {"type": "choice", "instructions": "go", "criteria": {"a": "A"}}}}'
+    )
     assert len(exact) == max_body, len(exact)
     extra.append(("http/exactly_max_body", "POST", "/v1/systemone", exact, False))
-    extra.append(("http/chunked_small", "POST", "/v1/systemone", base64.b64decode(cases[0]["body"]), True))
+    extra.append(
+        (
+            "http/chunked_small",
+            "POST",
+            "/v1/systemone",
+            base64.b64decode(cases[0]["body"]),
+            True,
+        )
+    )
     extra.append(("http/get_systemone", "GET", "/v1/systemone", None, False))
     extra.append(("http/post_health", "POST", "/health", b"{}", False))
     extra.append(("http/not_found", "GET", "/nope", None, False))
 
     results, failures, worst, times = [], [], 0.0, {"py": [], "rs": []}
-    items = [(c["name"], "POST", "/v1/systemone", base64.b64decode(c["body"]), False) for c in cases] + extra
+    items = [
+        (c["name"], "POST", "/v1/systemone", base64.b64decode(c["body"]), False)
+        for c in cases
+    ] + extra
     for i, (name, method, path, body, chunked) in enumerate(items):
         py = request(pport, method, path, body, chunked=chunked)
         rs = request(rport, method, path, body, chunked=chunked)
@@ -116,8 +151,18 @@ def main() -> None:
         if py[0] == 200 and rs[0] == 200:
             times["py"].append(py[3])
             times["rs"].append(rs[3])
-        results.append({"name": name, "ok": ok, "note": note, "python_status": py[0],
-                        "native_status": rs[0], "max_prob_diff": diff, "python_ms": py[3], "native_ms": rs[3]})
+        results.append(
+            {
+                "name": name,
+                "ok": ok,
+                "note": note,
+                "python_status": py[0],
+                "native_status": rs[0],
+                "max_prob_diff": diff,
+                "python_ms": py[3],
+                "native_ms": rs[3],
+            }
+        )
         if not ok:
             failures.append((name, note))
         if (i + 1) % 100 == 0:
@@ -126,7 +171,9 @@ def main() -> None:
     hp = request(pport, "GET", "/health")
     hr = request(rport, "GET", "/health")
     hpj, hrj = json.loads(hp[2]), json.loads(hr[2])
-    health_note = {k: (hpj.get(k), hrj.get(k)) for k in {**hpj, **hrj} if hpj.get(k) != hrj.get(k)}
+    health_note = {
+        k: (hpj.get(k), hrj.get(k)) for k in {**hpj, **hrj} if hpj.get(k) != hrj.get(k)
+    }
 
     with open(out_path, "w") as f:
         for r in results:
@@ -140,8 +187,10 @@ def main() -> None:
         print(f"- {name}: {note}")
     print(f"largest probability difference on answered requests: {worst:.4f}")
     if times["py"]:
-        s = lambda v: sorted(v)[len(v) // 2]
-        print(f"answered requests: python median {s(times['py']):.1f} ms, native median {s(times['rs']):.1f} ms")
+        py_ms, rs_ms = median(times["py"]), median(times["rs"])
+        print(
+            f"answered requests: python median {py_ms:.1f} ms, native median {rs_ms:.1f} ms"
+        )
     print(f"/health differences (python, native): {health_note}")
 
 

@@ -17,8 +17,12 @@ for cp in range(0x80, sys.maxunicode + 1):
         else:
             ranges.append([cp, cp])
 version = ".".join(map(str, sys.version_info[:3]))
-print(f"//! Generated from Python {version} (Unicode {unicodedata.unidata_version}): code points >= 0x80 for which")
-print("//! `str.isprintable()` is false, as inclusive ranges. Python's `repr` escapes these.")
+print(
+    f"//! Generated from Python {version} (Unicode {unicodedata.unidata_version}): code points >= 0x80 for which"
+)
+print(
+    "//! `str.isprintable()` is false, as inclusive ranges. Python's `repr` escapes these."
+)
 print("//! Regenerate with tests/make_printable.py.")
 print()
 print("pub const NON_PRINTABLE: &[(u32, u32)] = &[")
