@@ -20,17 +20,20 @@ def verify(path, require_replay=False):
             ["git", "-C", str(root), "show", revision + ":" + name]
         )
         assert hashlib.sha256(source).hexdigest() == expected
+    variants_expected = set(
+        report["config"].get("variants", ["eager", "exact", "bucket"])
+    )
     count = 0
     for name, records in report["workloads"].items():
         assert len(records) == report["config"]["runs"]
         for record in records:
             assert record["status"] == "complete"
             events = record["events"]
-            count += len(events) * 3
+            count += len(events) * len(variants_expected)
             for index, event in enumerate(events):
                 assert event["index"] == index
                 variants = event["variants"]
-                assert set(variants) == {"eager", "exact", "bucket"}
+                assert set(variants) == variants_expected
                 assert all(
                     v["response"] == variants["eager"]["response"]
                     for v in variants.values()
@@ -46,7 +49,7 @@ def verify(path, require_replay=False):
                         0 <= v["cache_bytes"] <= report["config"]["graph"]["max_bytes"]
                     )
             eager_total = sum(e["variants"]["eager"]["latency_ms"] for e in events)
-            for variant in ("eager", "exact", "bucket"):
+            for variant in variants_expected:
                 samples = [e["variants"][variant]["latency_ms"] for e in events]
                 summary = record["summary"][variant]
                 assert summary["requests"] == len(samples)
@@ -77,7 +80,7 @@ def verify(path, require_replay=False):
                 stats = record["stats_final"]["bucket"]
                 assert stats["captures"] > 0 and stats["replays"] > 0
                 assert stats["rejected"] == stats["length_rejections"] == 0
-            print(name, record["run"], "verified", len(events), "request triplets")
+            print(name, record["run"], "verified", len(events), "request groups")
     print(
         "verified",
         count,

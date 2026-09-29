@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import gc
 import hashlib
+import itertools
 import math
 import statistics
 from dataclasses import asdict, replace
@@ -38,11 +39,18 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--runs", type=int, default=2)
     p.add_argument("--width", type=int, default=64)
-    p.add_argument("--kind", choices=("segment", "rule"), default="segment")
+    p.add_argument("--kind", choices=("segment", "rule", "worker"), default="segment")
+    p.add_argument(
+        "--include-recipe",
+        action="store_true",
+        help="also time the prior recipe algorithm with current shared runtime",
+    )
     p.add_argument("--case", choices=list(schedules()), action="append")
     args = p.parse_args()
     if args.output.exists():
         p.error("choose a fresh output directory")
+    if args.include_recipe and args.kind != "worker":
+        p.error("--include-recipe requires --kind worker")
     if args.runs < 1:
         p.error("runs must be positive")
 
@@ -72,23 +80,56 @@ def main():
     selected = {k: v for k, v in schedules().items() if k in (args.case or ["probe"])}
     config = GraphConfig()
     bucket_class = RuleBucketRuntime if args.kind == "rule" else BucketRuntime
+    if args.kind == "worker":
+        from models.cua_s1.multimodal.graph_buckets import (
+            RuleBucketRuntime as WorkerRuntime,
+        )
+
+        def bucket_class(model, config, width):
+            return WorkerRuntime(
+                model, replace(config, mode="rule-bucket", bucket_width=width)
+            )
+
+    variants = (
+        ("eager", "exact", "bucket", "recipe")
+        if args.include_recipe
+        else ("eager", "exact", "bucket")
+    )
     report = {
         "status": "running",
         "repository": source,
         "environment": environment(),
         "source_sha256": {
             str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
-            for path in [Path(__file__), Path(__file__).with_name("graph_buckets.py")]
+            for path in [
+                Path(__file__),
+                Path(__file__).with_name("graph_buckets.py"),
+                *(
+                    root / "src/models/cua_s1/multimodal" / name
+                    for name in (
+                        "graph_runtime.py",
+                        "graph_buckets.py",
+                        "rule_prefill.py",
+                        "model.py",
+                    )
+                ),
+            ]
         },
         "config": {
             "graph": asdict(config),
+            "variants": variants,
+            "bucket_graph": asdict(
+                replace(config, mode="rule-bucket", bucket_width=args.width)
+            )
+            if args.kind == "worker"
+            else asdict(config),
             "width": args.width,
             "kind": args.kind,
             "runs": args.runs,
             "timing": "synchronized predict including cold capture and first-length checks",
             "memory": "paired caches coexist; allocator totals are combined, cache bytes are per variant",
             "scope": "serial, two identical questions, synthetic 320x240 image, no HTTP",
-            "order": "all six permutations cycle across requests, reversed across runs",
+            "order": "all variant permutations cycle across requests, offset by half a cycle across runs",
         },
         "workloads": {},
     }
@@ -123,14 +164,7 @@ def main():
         print("lengths", tokens, "buckets", report["buckets"], flush=True)
         for _ in range(3):
             engine.predict(requests[counts[0]])
-        orders = [
-            ("eager", "exact", "bucket"),
-            ("exact", "bucket", "eager"),
-            ("bucket", "eager", "exact"),
-            ("bucket", "exact", "eager"),
-            ("exact", "eager", "bucket"),
-            ("eager", "bucket", "exact"),
-        ]
+        orders = list(itertools.permutations(variants))
         for name, schedule in selected.items():
             report["workloads"][name] = []
             for run in range(args.runs):
@@ -138,10 +172,14 @@ def main():
                     "exact": GraphRuntime(engine.model, config),
                     "bucket": bucket_class(engine.model, config, width=args.width),
                 }
+                if args.include_recipe:
+                    runtimes["recipe"] = RuleBucketRuntime(
+                        engine.model, config, width=args.width
+                    )
                 record = {"run": run + 1, "status": "running", "events": []}
                 report["workloads"][name].append(record)
                 for index, n in enumerate(schedule):
-                    order = orders[(index + run * 3) % len(orders)]
+                    order = orders[(index + run * (len(orders) // 2)) % len(orders)]
                     event = {
                         "index": index,
                         "goal_repetitions": n,
@@ -183,10 +221,7 @@ def main():
                             {v: dict(r.stats) for v, r in runtimes.items()},
                             flush=True,
                         )
-                record["summary"] = {
-                    v: summary(record["events"], v)
-                    for v in ("eager", "exact", "bucket")
-                }
+                record["summary"] = {v: summary(record["events"], v) for v in variants}
                 record["stats_final"] = {v: dict(r.stats) for v, r in runtimes.items()}
                 record["status"] = "complete"
                 engine.graph_runtime = None

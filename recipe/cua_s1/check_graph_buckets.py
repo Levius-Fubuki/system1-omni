@@ -8,7 +8,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 
-def check_boundaries(engine, output, report):
+def check_boundaries(engine, output, report, runtime_type=None):
     import torch
     from diagnose_graph_buckets import prepare_values
     from graph_buckets import RuleBucketRuntime
@@ -17,6 +17,8 @@ def check_boundaries(engine, output, report):
     from models.cua_s1.multimodal.graph_runtime import GraphConfig
     from models.cua_s1.multimodal.protocol import parse_request
 
+    if runtime_type is not None:
+        RuleBucketRuntime = runtime_type
     fixtures = output.parent / "boundary-fixtures"
     case = next(c for c in case_matrix() if c["id"] == "320x240-short-q2")
     request = parse_request(fixture(case, fixtures))
@@ -124,6 +126,11 @@ def main():
     p.add_argument("--weights", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--boundaries-only", action="store_true")
+    p.add_argument(
+        "--worker",
+        action="store_true",
+        help="check the production instance-local runtime",
+    )
     args = p.parse_args()
     if args.output.exists():
         p.error("choose a fresh output")
@@ -140,6 +147,16 @@ def main():
     from models.cua_s1.multimodal.model import MultimodalEngine
     from models.cua_s1.multimodal.protocol import parse_request
 
+    if args.worker:
+        from models.cua_s1.multimodal.graph_buckets import (
+            RuleBucketRuntime as WorkerRuntime,
+        )
+
+        def RuleBucketRuntime(model, config=None):
+            return WorkerRuntime(
+                model, replace(config or GraphConfig(), mode="rule-bucket")
+            )
+
     source = repository_state(Path(__file__).resolve().parents[2])
     if source["dirty"]:
         raise ValueError("clean source required")
@@ -149,12 +166,13 @@ def main():
         "environment": environment(),
         "cases": [],
         "memory": {},
+        "runtime": "worker" if args.worker else "recipe",
     }
     engine = MultimodalEngine(
         str(args.weights / "Qwen3.5-4B"), str(args.weights / "cua-s1-4b-0.2/multimodal")
     )
     if args.boundaries_only:
-        check_boundaries(engine, args.output, report)
+        check_boundaries(engine, args.output, report, RuleBucketRuntime)
         return
     fixtures = args.output.parent / "check-fixtures"
     selected = {
