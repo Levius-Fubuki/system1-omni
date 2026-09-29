@@ -7,8 +7,8 @@ import urllib.request
 import pytest
 from test_protocol import image_url, request
 
+from frontend.cua_s1 import Handler, WorkerServer
 from models.cua_s1.multimodal.protocol import MAX_BODY
-from models.cua_s1.multimodal.server import Handler, WorkerServer
 
 
 class Engine:
