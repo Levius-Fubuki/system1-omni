@@ -133,7 +133,7 @@ def verify_report(report):
         "current runtime hash required",
     )
     overrides = {
-        "legacy-policy-with-stream-fix": "current exclusive-stream _GraphSegment; historical admission policy only",
+        "legacy-policy-with-execution-fix": "current _GraphSegment, _ShapeEntry, and GraphRuntime._run_segments; shared per-shape pool, owned stream, and reserved-memory accounting; historical admission/cache policy only",
         "unpatched-legacy-diagnostic": "none; unpatched historical runtime diagnostic",
     }
     kind = report.get("comparison_kind")

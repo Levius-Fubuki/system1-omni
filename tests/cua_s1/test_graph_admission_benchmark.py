@@ -135,9 +135,9 @@ def valid_report():
             "revision": "c" * 40,
             "source_bytes_verified_against_git": True,
             "current_graph_runtime_sha256": "d" * 64,
-            "runtime_segment_override": "current exclusive-stream _GraphSegment; historical admission policy only",
+            "runtime_segment_override": "current _GraphSegment, _ShapeEntry, and GraphRuntime._run_segments; shared per-shape pool, owned stream, and reserved-memory accounting; historical admission/cache policy only",
         },
-        "comparison_kind": "legacy-policy-with-stream-fix",
+        "comparison_kind": "legacy-policy-with-execution-fix",
         "environment": {"python": "test"},
         "fixture": {},
         "fixture_sha256": hashlib.sha256(
@@ -317,18 +317,30 @@ def test_legacy_source_provenance_checks_git_bytes(tmp_path):
 def test_legacy_segment_override_and_diagnostic():
     from types import SimpleNamespace
 
-    original, current = object(), object()
-    module = SimpleNamespace(_GraphSegment=original)
-    marker = benchmark().configure_legacy_segment(module, current)
-    assert module._GraphSegment is current
-    assert (
-        marker
-        == "current exclusive-stream _GraphSegment; historical admission policy only"
+    original = object()
+    segment, entry, run = object(), object(), object()
+    current = SimpleNamespace(
+        _GraphSegment=segment,
+        _ShapeEntry=entry,
+        GraphRuntime=SimpleNamespace(_run_segments=run),
     )
-    module = SimpleNamespace(_GraphSegment=original)
-    marker = benchmark().configure_legacy_segment(module, current, unpatched=True)
-    assert module._GraphSegment is original
-    assert marker == "none; unpatched historical runtime diagnostic"
+    for unpatched in (False, True):
+        runtime = SimpleNamespace(_run_segments=original, admission_policy=original)
+        module = SimpleNamespace(
+            _GraphSegment=original, _ShapeEntry=original, GraphRuntime=runtime
+        )
+        marker = benchmark().configure_legacy_execution(
+            module, current, unpatched=unpatched
+        )
+        assert module._GraphSegment is (original if unpatched else segment)
+        assert module._ShapeEntry is (original if unpatched else entry)
+        assert module.GraphRuntime._run_segments is (original if unpatched else run)
+        assert module.GraphRuntime.admission_policy is original
+        assert marker == (
+            "none; unpatched historical runtime diagnostic"
+            if unpatched
+            else "current _GraphSegment, _ShapeEntry, and GraphRuntime._run_segments; shared per-shape pool, owned stream, and reserved-memory accounting; historical admission/cache policy only"
+        )
 
 
 def test_verifier_requires_explicit_segment_provenance():

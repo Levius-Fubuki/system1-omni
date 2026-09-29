@@ -1,11 +1,14 @@
 # Capture admission experiment
 
 `benchmark_graph_admission.py` measures the entire synchronized `engine.predict`
-request, including cold misses and capture cost. It pairs eager, legacy-policy-with-stream-fix, and current admission on one
-engine. The legacy variant imports the original #24 runtime but replaces its
-`_GraphSegment` class with the current exclusive-stream implementation. This
-is a comparison of admission policies with the same stream-lifetime fix,
-not a reproduction of raw #24 performance. Each variant retains its own
+request, including cold misses and capture cost. It pairs eager,
+legacy-policy-with-execution-fix, and current admission on one engine. The legacy variant imports the original #24 runtime but replaces its
+`_GraphSegment`, `_ShapeEntry`, and `GraphRuntime._run_segments` with their
+current implementations. Both variants therefore use the same implementation
+for per-shape graph pools, owned streams, and reserved-memory accounting. Historical admission and
+cache policy remain unchanged. This is a comparison of admission policies
+with the same execution and accounting fixes; it does not reproduce raw #24
+performance. Each variant retains its own
 runtime across a schedule; all runtimes are destroyed between runs. Execution
 order reverses on alternating requests and runs. No allocator purge occurs
 between paired variants. Both graph pools coexist, so allocator memory totals
@@ -19,10 +22,10 @@ import. Reports preserve the original file SHA-256, revision, explicit segment
 override, and current `graph_runtime.py` SHA-256:
 
 ```sh
-git show 6e0a432:src/models/cua_s1/multimodal/graph_runtime.py > /tmp/legacy-graph-runtime.py
+git show 2336a085fc090c1c6ac3a297f91d826b66949f30:src/models/cua_s1/multimodal/graph_runtime.py > /tmp/legacy-graph-runtime.py
 PYTHONPATH=src:recipe/cua_s1 python recipe/cua_s1/benchmark_graph_admission.py \
   --weights /path/to/weights --output /path/to/fresh-admission-output \
-  --legacy-runtime /tmp/legacy-graph-runtime.py --legacy-revision 6e0a432a6aa6fb3f1bed746ef8c68289bee20425 --runs 2
+  --legacy-runtime /tmp/legacy-graph-runtime.py --legacy-revision 2336a085fc090c1c6ac3a297f91d826b66949f30 --runs 2
 python recipe/cua_s1/verify_graph_admission.py /path/to/fresh-admission-output/report.json
 ```
 
@@ -51,9 +54,12 @@ Historical #24 raw JSON and its verifier retain their original schema.
 The initial extended experiment using unpatched legacy #24 failed during
 `shifting_hot` at request 104 after more than 400 completed request pairs, with
 an SGEMM replay error. That incomplete run is excluded from performance
-conclusions. Both policy variants now use exclusively owned per-segment capture
-streams to avoid a destroyed graph invalidating another live graph’s shared
-stream workspace. Every published policy-comparison schedule must be rerun
+conclusions. An intermediate exclusive-stream run from `b094c92` completed the
+matrix but failed the publication verifier because `shifting_hot` recorded capture OOMs;
+it is also excluded from performance conclusions. Both policy variants now
+use per-shape pools and owned streams, with reserved-memory accounting,
+to avoid both cross-shape workspace invalidation and unaccounted pool growth.
+Every published policy-comparison schedule must be rerun
 from the updated clean source; earlier partial samples cannot be combined with
 those runs.
 

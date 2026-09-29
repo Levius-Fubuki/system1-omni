@@ -57,11 +57,13 @@ def verify_legacy_source(path, revision, root):
         raise ValueError("legacy runtime bytes do not match the declared Git revision")
 
 
-def configure_legacy_segment(module, current_segment, *, unpatched=False):
+def configure_legacy_execution(module, current, *, unpatched=False):
     if unpatched:
         return "none; unpatched historical runtime diagnostic"
-    module._GraphSegment = current_segment
-    return "current exclusive-stream _GraphSegment; historical admission policy only"
+    module._GraphSegment = current._GraphSegment
+    module._ShapeEntry = current._ShapeEntry
+    module.GraphRuntime._run_segments = current.GraphRuntime._run_segments
+    return "current _GraphSegment, _ShapeEntry, and GraphRuntime._run_segments; shared per-shape pool, owned stream, and reserved-memory accounting; historical admission/cache policy only"
 
 
 def load_legacy(path):
@@ -131,11 +133,8 @@ def main(argv=None):
         write_json,
     )
 
-    from models.cua_s1.multimodal.graph_runtime import (
-        GraphConfig,
-        GraphRuntime,
-        _GraphSegment,
-    )
+    from models.cua_s1.multimodal import graph_runtime as current_runtime
+    from models.cua_s1.multimodal.graph_runtime import GraphConfig, GraphRuntime
     from models.cua_s1.multimodal.model import MultimodalEngine
     from models.cua_s1.multimodal.protocol import parse_request
 
@@ -145,8 +144,8 @@ def main(argv=None):
     root = Path(__file__).resolve().parents[2]
     verify_legacy_source(args.legacy_runtime, args.legacy_revision, root)
     legacy, digest = load_legacy(args.legacy_runtime)
-    override = configure_legacy_segment(
-        legacy, _GraphSegment, unpatched=args.unpatched_legacy
+    override = configure_legacy_execution(
+        legacy, current_runtime, unpatched=args.unpatched_legacy
     )
     current_runtime_sha256 = hashlib.sha256(
         (root / "src/models/cua_s1/multimodal/graph_runtime.py").read_bytes()
@@ -168,7 +167,7 @@ def main(argv=None):
         },
         "comparison_kind": "unpatched-legacy-diagnostic"
         if args.unpatched_legacy
-        else "legacy-policy-with-stream-fix",
+        else "legacy-policy-with-execution-fix",
         "config": {
             "runs": args.runs,
             "cases": list(selected),
