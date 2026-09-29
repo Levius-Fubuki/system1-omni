@@ -25,6 +25,15 @@ two-question fixture. This preserves its previous empty goal and prompt. Model
 loading, image processing, prompt construction and scoring are unchanged; GPU
 parity and performance have not been remeasured for the protocol revision.
 
+The 2026-09-29 review follow-up rejects image aspect ratios above 200:1 with
+HTTP 422 before processing, matching pinned Transformers 5.17.0. Tests retain
+acceptance at exactly 200:1 in either orientation. Lock cleanup checks now use
+bounded acquisition, with a fixture that deliberately pauses the handler after
+writing the response. All 70 Python tests passed with both pinned Pillow 11.3.0
+and Pillow 12.3.0; the 14 affected cleanup cases passed three additional runs in
+the pinned environment. Rust's 13 tests, formatting and Clippy also passed.
+These are CPU checks; the archived GPU measurements have not been rerun.
+
 ## Environment and artifacts
 
 - One NVIDIA GeForce RTX 4090, 24,564 MiB, compute capability 8.9.
