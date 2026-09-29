@@ -4,10 +4,10 @@ import urllib.error
 import urllib.request
 
 import pytest
-from test_protocol import request
+from test_protocol import image_url, request
 
 from models.cua_s1.multimodal.protocol import MAX_BODY
-from models.cua_s1.multimodal.server import WorkerServer
+from models.cua_s1.multimodal.server import Handler, WorkerServer
 
 
 class Engine:
@@ -27,6 +27,41 @@ def worker():
     server.shutdown()
     server.server_close()
     thread.join()
+
+
+@pytest.fixture
+def deferred_cleanup(worker, monkeypatch):
+    """Hold cleanup until the test starts waiting for the inference lock."""
+    server, _ = worker
+    lock = server.inference_lock
+    allow_cleanup = threading.Event()
+
+    class DeferredLock:
+        def acquire(self, blocking=True, timeout=-1):
+            if blocking:
+                allow_cleanup.set()
+            return lock.acquire(blocking, timeout)
+
+        def release(self):
+            lock.release()
+
+        def locked(self):
+            return lock.locked()
+
+    server.inference_lock = DeferredLock()
+    send_json = Handler.send_json
+
+    def send_then_wait(handler, status, value):
+        send_json(handler, status, value)
+        # The client has the complete response, but finally has not run yet.
+        if not allow_cleanup.wait(timeout=5):
+            raise AssertionError("test did not wait for handler cleanup")
+
+    monkeypatch.setattr(Handler, "send_json", send_then_wait)
+    try:
+        yield worker
+    finally:
+        allow_cleanup.set()
 
 
 def call(url, body=None, **headers):
@@ -76,8 +111,8 @@ def test_body_limit_checked_before_reading(worker):
     )
 
 
-def test_model_failure_is_not_reported_as_success(worker):
-    server, url = worker
+def test_model_failure_is_not_reported_as_success(deferred_cleanup):
+    server, url = deferred_cleanup
 
     def fail(_):
         raise RuntimeError("private file or input must not leak")
@@ -85,7 +120,8 @@ def test_model_failure_is_not_reported_as_success(worker):
     server.engine.predict = fail
     status, body = call(url + "/v1/systemone", request())
     assert status == 500 and body == {"detail": "inference failed"}
-    assert not server.inference_lock.locked()
+    assert server.inference_lock.acquire(timeout=2), "handler did not release the lock"
+    server.inference_lock.release()
 
 
 @pytest.mark.parametrize(
@@ -106,8 +142,8 @@ def test_model_failure_is_not_reported_as_success(worker):
         "{}".encode("utf-16"),
     ],
 )
-def test_malformed_json_returns_400_without_inference(worker, raw):
-    server, url = worker
+def test_malformed_json_returns_400_without_inference(deferred_cleanup, raw):
+    server, url = deferred_cleanup
 
     def unexpected(_):
         raise AssertionError("malformed JSON reached inference")
@@ -115,7 +151,8 @@ def test_malformed_json_returns_400_without_inference(worker, raw):
     server.engine.predict = unexpected
     status, body = call(url + "/v1/systemone", raw)
     assert status == 400 and set(body) == {"detail"}
-    assert not server.inference_lock.locked()
+    assert server.inference_lock.acquire(timeout=2), "handler did not release the lock"
+    server.inference_lock.release()
 
 
 def test_missing_instructions_rejects_whole_request(worker):
@@ -147,3 +184,21 @@ def test_transport_errors_use_detail(worker, route, body, headers, status):
     _, url = worker
     actual, response = call(url + route, body, **headers)
     assert actual == status and set(response) == {"detail"}
+
+
+@pytest.mark.parametrize("size", [(2048, 1), (1, 2048), (201, 1), (1, 201)])
+def test_unsupported_image_aspect_ratio_returns_422_before_inference(worker, size):
+    server, url = worker
+    reached_engine = []
+
+    def unexpected(parsed):
+        reached_engine.append(parsed)
+        raise ValueError("unsupported processor input")
+
+    server.engine.predict = unexpected
+    value = request()
+    value["state"]["image"] = image_url(size=size)
+    status, body = call(url + "/v1/systemone", value)
+    assert status == 422 and set(body) == {"detail"}
+    assert "aspect ratio" in body["detail"]
+    assert not reached_engine

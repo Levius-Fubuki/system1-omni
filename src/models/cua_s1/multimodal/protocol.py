@@ -16,6 +16,7 @@ MAX_BODY = 8 * 1024 * 1024
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
 MAX_PIXELS = 1024 * 1024
 MAX_SIDE = 2048
+MAX_ASPECT_RATIO = 200  # Pinned Transformers Qwen image processor's smart_resize.
 MAX_QUESTIONS = 8
 MAX_TEXT = 16384
 
@@ -132,6 +133,10 @@ def _image(state):
             if source.format != expected[prefix]:
                 raise InvalidRequest("image format does not match its MIME type")
             w, h = source.size
+            if max(w, h) > MAX_ASPECT_RATIO * min(w, h):
+                raise InvalidRequest(
+                    f"image aspect ratio must not exceed {MAX_ASPECT_RATIO}:1"
+                )
             if (
                 max(w, h) > MAX_SIDE
                 or w * h > MAX_PIXELS

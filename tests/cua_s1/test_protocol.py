@@ -163,3 +163,10 @@ def test_explicit_empty_or_null_instructions_omits_goal(instructions):
     question = parse_request(value).questions[0]
     assert question.goal == ""
     assert "Goal:" not in build_messages(question)[1]["content"][1]["text"]
+
+
+@pytest.mark.parametrize("size", [(200, 1), (1, 200), (199, 1), (1, 199)])
+def test_supported_aspect_ratio_boundary(size):
+    value = request()
+    value["state"]["image"] = image_url(size=size)
+    assert parse_request(value).image.size == size
