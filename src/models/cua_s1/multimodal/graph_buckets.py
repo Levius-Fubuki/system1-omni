@@ -185,7 +185,9 @@ def pack_rule_inputs(values, width):
     length = values["query"].shape[1]
     padding = bucket_length(length, width) - length
     return {
-        name: F.pad(value, (0, 0) * (value.ndim - 2) + (0, padding))
+        # Zero-padding is a clone that can preserve noncontiguous strides.
+        # Canonicalize even on an exact boundary so one bucket has one layout.
+        name: F.pad(value, (0, 0) * (value.ndim - 2) + (0, padding)).contiguous()
         for name, value in values.items()
     }
 

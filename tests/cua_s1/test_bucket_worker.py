@@ -128,6 +128,60 @@ def test_rule_segment_rejects_layout_change_before_copy():
     assert torch.count_nonzero(segment.static_extra["value"]) == 0
 
 
+def test_rule_packing_normalizes_strides_at_exact_bucket_boundary():
+    torch = pytest.importorskip("torch")
+    from models.cua_s1.multimodal.graph_buckets import pack_rule_inputs
+    from models.cua_s1.multimodal.graph_runtime import tensor_signature
+
+    signatures = []
+    for length in [255, 256]:
+        mixed = torch.arange(24 * length).reshape(1, 24, length).transpose(1, 2)
+        values = {
+            name: value.reshape(1, length, 2, 4)
+            for name, value in zip(("query", "key", "value"), mixed.split(8, dim=-1))
+        }
+        packed = pack_rule_inputs(values, 64)
+        for name, value in packed.items():
+            assert torch.equal(value[:, :length], values[name])
+            assert value.is_contiguous()
+        signatures.append({k: tensor_signature(v) for k, v in packed.items()})
+    assert signatures[0] == signatures[1]
+
+
+def test_rejected_length_bypasses_replay_without_disabling_verified_length():
+    torch = pytest.importorskip("torch")
+    from models.cua_s1.multimodal.graph_buckets import RuleBucketRuntime
+
+    runtime = RuleBucketRuntime(object())
+    entry = SimpleNamespace(bytes=1, verified_lengths={63}, rejected_lengths=set())
+    runtime.cache.put("bucket", entry)
+    runtime._supported = lambda values: True
+    runtime._key = lambda values: "bucket"
+    reference = torch.tensor([1.0, 2.0])
+    runtime._eager = lambda values: reference
+    replayed = []
+
+    def replay(values, cached):
+        length = values["inputs_embeds"].shape[1]
+        replayed.append(length)
+        return reference if length == 63 else reference + 1
+
+    runtime._run_segments = replay
+    for length in [64, 64, 63]:
+        values = {
+            "inputs_embeds": torch.ones(1, length, 4),
+            "attention_mask": torch.ones(1, length),
+        }
+        with runtime.request():
+            assert torch.equal(runtime.forward(values), reference)
+    assert replayed == [64, 63]
+    assert entry.rejected_lengths == {64}
+    assert entry.verified_lengths == {63}
+    assert runtime.stats["length_rejections"] == 1
+    assert runtime.stats["length_disabled"] == 1
+    assert runtime.stats["replays"] == 2
+
+
 def test_worker_close_waits_for_inflight_http_before_engine_close():
     import threading
 

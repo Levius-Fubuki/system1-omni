@@ -113,6 +113,35 @@ def main():
         assert report["records"][0]["stats_delta"]["captures"] == 0
         assert report["records"][1]["stats_delta"]["captures"] == 1
         report["global_and_instance_methods_unchanged"] = True
+        # Two live, independently loaded models: one owner's close must not
+        # affect the other owner's cached replay or installed upstream code.
+        first_stats = dict(runtime.stats)
+        first_entries = dict(runtime.cache.entries)
+        other = MultimodalEngine(
+            config.base, config.adapter, graph_config=config.graph_config
+        )
+        try:
+            assert other.model is not engine.model
+            assert other.graph_runtime is not runtime
+            assert other.predict(parse_request(raw)) == expected[0]
+            assert other.predict(parse_request(raw)) == expected[0]
+            assert other.predict(parse_request(black)) == expected[2]
+            assert other.graph_runtime.stats["captures"] == 1
+            assert other.graph_runtime.stats["replays"] >= 3
+            assert runtime.stats == first_stats
+            assert dict(runtime.cache.entries) == first_entries
+            report["second_runtime_stats"] = dict(other.graph_runtime.stats)
+        finally:
+            other.close()
+        assert not runtime._closed and other.graph_runtime._closed
+        assert engine.predict(parse_request(changed)) == expected[3]
+        assert runtime.stats["replays"] == first_stats["replays"] + 2
+        assert upstream.torch_chunk_gated_delta_rule is original_rule
+        assert all(
+            getattr(m.forward, "__func__", m.forward) is f
+            for m, f in zip(modules, forwards)
+        )
+        report["two_model_runtime_isolation"] = True
         entries = list(runtime.cache.entries.values())
         server.shutdown()
         server.server_close()
