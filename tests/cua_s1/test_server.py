@@ -5,7 +5,7 @@ import urllib.error
 import urllib.request
 
 import pytest
-from test_protocol import request
+from test_protocol import image_url, request
 
 from models.cua_s1.multimodal.protocol import MAX_BODY
 from models.cua_s1.multimodal.server import WorkerServer
@@ -57,6 +57,26 @@ def test_invalid_question_never_reaches_model(worker):
     r["questions"]["next"]["type"] = "noul"
     status, body = call(url + "/v1/systemone", r)
     assert status == 422 and set(body) == {"detail"}
+
+
+@pytest.mark.parametrize("size", [(2048, 1), (1, 2048)])
+def test_unsupported_image_aspect_ratio_returns_422_without_inference(worker, size):
+    server, url = worker
+    calls = []
+
+    def unexpected(parsed):
+        calls.append(parsed)
+        raise AssertionError("invalid image reached inference")
+
+    server.engine.predict = unexpected
+    value = request()
+    value["state"]["image"] = image_url(size=size)
+    status, body = call(url + "/v1/systemone", value)
+    assert status == 422 and set(body) == {"detail"}
+    assert "aspect ratio" in body["detail"]
+    assert not calls
+    assert server.inference_lock.acquire(timeout=1)
+    server.inference_lock.release()
 
 
 def test_busy_worker_rejects_instead_of_queueing_gpu_work(worker):

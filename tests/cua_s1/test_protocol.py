@@ -96,6 +96,22 @@ def test_mime_mismatch_and_oversized_dimensions():
             parse_request(r)
 
 
+@pytest.mark.parametrize("fmt", ["PNG", "JPEG"])
+@pytest.mark.parametrize("size", [(2048, 1), (1, 2048), (201, 1), (1, 201)])
+def test_unsupported_image_aspect_ratio_is_rejected(fmt, size):
+    r = request()
+    r["state"]["image"] = image_url(fmt, size)
+    with pytest.raises(InvalidRequest, match="aspect ratio"):
+        parse_request(r)
+
+
+@pytest.mark.parametrize("size", [(200, 1), (1, 200), (199, 1), (1, 199)])
+def test_supported_image_aspect_ratio_boundary_is_preserved(size):
+    r = request()
+    r["state"]["image"] = image_url(size=size)
+    assert parse_request(r).image.size == size
+
+
 @pytest.mark.parametrize(
     "criteria", [{}, {str(i): "x" for i in range(27)}, {"a": 1}, {"a": True}]
 )

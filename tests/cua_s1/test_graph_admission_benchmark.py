@@ -297,21 +297,45 @@ def test_policy_window_expires_at_request_distance_32():
 def test_legacy_source_provenance_checks_git_bytes(tmp_path):
     import subprocess
 
-    revision = subprocess.check_output(
-        ["git", "rev-parse", "6e0a432"], cwd=ROOT, text=True
-    ).strip()
-    source = subprocess.check_output(
-        ["git", "show", revision + ":src/models/cua_s1/multimodal/graph_runtime.py"],
-        cwd=ROOT,
+    # Keep this unit test independent of checkout depth and project history.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    relative = "src/models/cua_s1/multimodal/graph_runtime.py"
+    tracked = repo / relative
+    tracked.parent.mkdir(parents=True)
+    source = b"# Synthetic historical runtime for byte provenance validation.\n"
+    tracked.write_bytes(source)
+    subprocess.run(["git", "add", relative], cwd=repo, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Provenance Test",
+            "-c",
+            "user.email=provenance@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-qm",
+            "Add synthetic runtime",
+        ],
+        cwd=repo,
+        check=True,
     )
+    revision = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+    ).strip()
+    # Provenance must use the committed bytes, not the current working file.
+    tracked.write_bytes(source + b"# Uncommitted change\n")
     path = tmp_path / "legacy.py"
     path.write_bytes(source)
-    benchmark().verify_legacy_source(path, revision, ROOT)
+    benchmark().verify_legacy_source(path, revision, repo)
     path.write_bytes(source + b"\n# changed\n")
     with pytest.raises(ValueError, match="bytes"):
-        benchmark().verify_legacy_source(path, revision, ROOT)
+        benchmark().verify_legacy_source(path, revision, repo)
     with pytest.raises(ValueError, match="40"):
-        benchmark().verify_legacy_source(path, "6e0a432", ROOT)
+        benchmark().verify_legacy_source(path, revision[:7], repo)
 
 
 def test_legacy_segment_override_and_diagnostic():
