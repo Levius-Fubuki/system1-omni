@@ -118,6 +118,10 @@ class _GraphPool:
         self._torch = torch
         self.device = device
         self._stream_ptr = None
+        if torch.cuda.get_allocator_backend() != "native":
+            raise RuntimeError(
+                "graph memory accounting requires the native CUDA allocator"
+            )
         self.pool_id = torch.cuda.graph_pool_handle()
         with torch.cuda.device(device):
             pointer = ctypes.c_void_p()

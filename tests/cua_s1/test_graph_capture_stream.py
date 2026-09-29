@@ -65,6 +65,7 @@ def cuda(monkeypatch):
         no_grad=nullcontext,
         cuda=SimpleNamespace(
             memory_allocated=lambda device: 0,
+            get_allocator_backend=lambda: "native",
             graph_pool_handle=lambda: (0, object()),
             memory_snapshot=lambda **kwargs: [],
             Stream=lambda **kwargs: Stream(),
@@ -183,3 +184,12 @@ def test_shape_counts_all_reserved_pool_bytes_and_external_inputs_once(cuda):
     assert entry.bytes == 3000 + 4 * 12
     assert calls == [{"mempool_id": entry.pool.pool_id, "include_traces": False}]
     entry.close()
+
+
+def test_unsupported_allocator_fails_before_allocating_unaccounted_pool(cuda):
+    from models.cua_s1.multimodal.graph_runtime import _GraphPool
+
+    cuda.torch.cuda.get_allocator_backend = lambda: "cudaMallocAsync"
+    with pytest.raises(RuntimeError, match="native CUDA allocator"):
+        _GraphPool("cuda:0")
+    assert not cuda.events
