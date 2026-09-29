@@ -105,10 +105,11 @@ def test_unsupported_image_aspect_ratio_is_rejected(fmt, size):
         parse_request(r)
 
 
+@pytest.mark.parametrize("fmt", ["PNG", "JPEG"])
 @pytest.mark.parametrize("size", [(200, 1), (1, 200), (199, 1), (1, 199)])
-def test_supported_image_aspect_ratio_boundary_is_preserved(size):
+def test_supported_image_aspect_ratio_boundary_is_preserved(fmt, size):
     r = request()
-    r["state"]["image"] = image_url(size=size)
+    r["state"]["image"] = image_url(fmt, size)
     assert parse_request(r).image.size == size
 
 
