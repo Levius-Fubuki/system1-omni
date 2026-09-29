@@ -229,6 +229,22 @@ class _RuleSegment(_GraphSegment):
         self.static_extra.clear()
 
 
+def validate_rule_call(initial_state, output_final_state, normalize, kwargs):
+    harmless_flags = {"use_cache", "output_attentions", "output_hidden_states"}
+    if (
+        initial_state is not None
+        or output_final_state
+        or not normalize
+        or any(
+            v is not None and not (k in harmless_flags and v is False)
+            for k, v in kwargs.items()
+        )
+    ):
+        raise RuntimeError(
+            "unsupported rule call; requires normalized cache-free prefill"
+        )
+
+
 class RuleBucketRuntime(BucketRuntime):
     """Single-thread experiment: only pad the internal DeltaNet rule inputs.
 
@@ -261,15 +277,9 @@ class RuleBucketRuntime(BucketRuntime):
             **kwargs,
         ):
             nonlocal index
-            if (
-                initial_state is not None
-                or output_final_state
-                or not use_qk_l2norm_in_kernel
-                or any(v is not None for v in kwargs.values())
-            ):
-                raise RuntimeError(
-                    f"unsupported rule call: state={initial_state is not None}, final={output_final_state}, norm={use_qk_l2norm_in_kernel}, extras={kwargs}"
-                )
+            validate_rule_call(
+                initial_state, output_final_state, use_qk_l2norm_in_kernel, kwargs
+            )
             packed = pack_rule_inputs(
                 dict(query=query, key=key, value=value, g=g, beta=beta), self.width
             )

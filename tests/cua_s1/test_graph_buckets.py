@@ -117,3 +117,43 @@ def test_rule_packing_zeros_future_decay_and_updates():
         assert tensor.shape[1] == 64
         assert torch.equal(tensor[:, :63], original[name])
         assert torch.count_nonzero(tensor[:, 63:]) == 0
+
+
+def test_benchmark_summary_uses_nearest_rank_p95_and_total_cost():
+    from benchmark_graph_buckets import summary
+
+    events = [
+        {"variants": {"eager": {"latency_ms": 10}, "bucket": {"latency_ms": v}}}
+        for v in [2, 4, 6, 20]
+    ]
+    result = summary(events, "bucket")
+    assert result["p50_ms"] == 5
+    assert result["p95_ms"] == 20
+    assert result["total_ms"] == 32
+    assert result["total_reduction_vs_eager_pct"] == pytest.approx(20)
+
+
+def test_rule_call_accepts_transformers_cache_free_metadata_only():
+    from graph_buckets import validate_rule_call
+
+    validate_rule_call(
+        None,
+        False,
+        True,
+        {
+            "cu_seqlens": None,
+            "use_cache": False,
+            "output_attentions": None,
+            "output_hidden_states": None,
+        },
+    )
+    for kwargs in (
+        {"use_cache": True},
+        {"chunk_size": 32},
+        {"cu_seqlens": [0, 63]},
+        {"unknown": False},
+    ):
+        with pytest.raises(RuntimeError, match="unsupported rule"):
+            validate_rule_call(None, False, True, kwargs)
+    with pytest.raises(RuntimeError, match="unsupported rule"):
+        validate_rule_call(object(), False, True, {})
