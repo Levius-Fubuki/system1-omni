@@ -1,34 +1,0 @@
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<01:54,  6.29it/s]Loading weights:   4%|▎         | 27/723 [00:00<00:05, 123.95it/s]Loading weights:   7%|▋         | 53/723 [00:00<00:03, 175.07it/s]Loading weights:  11%|█         | 80/723 [00:00<00:03, 205.20it/s]Loading weights:  15%|█▍        | 106/723 [00:00<00:02, 223.34it/s]Loading weights:  19%|█▊        | 134/723 [00:00<00:02, 239.34it/s]Loading weights:  23%|██▎       | 165/723 [00:00<00:02, 256.18it/s]Loading weights:  27%|██▋       | 196/723 [00:00<00:01, 269.75it/s]Loading weights:  31%|███       | 224/723 [00:01<00:01, 259.60it/s]Loading weights:  35%|███▍      | 253/723 [00:01<00:01, 263.42it/s]Loading weights:  39%|███▊      | 280/723 [00:01<00:01, 254.81it/s]Loading weights:  43%|████▎     | 310/723 [00:01<00:01, 261.80it/s]Loading weights:  47%|████▋     | 342/723 [00:01<00:01, 275.52it/s]Loading weights:  51%|█████     | 370/723 [00:01<00:01, 266.37it/s]Loading weights:  55%|█████▌    | 398/723 [00:01<00:01, 262.62it/s]Loading weights:  59%|█████▉    | 425/723 [00:01<00:01, 257.44it/s]Loading weights:  88%|████████▊ | 638/723 [00:01<00:00, 782.16it/s]Loading weights: 100%|██████████| 723/723 [00:01<00:00, 377.13it/s]
-[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
-[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
-correctness small: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness medium: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness jpeg: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness single: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness 26-options: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness structured: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness special-token: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 1, 'image_preprocess': 1}
-correctness two-questions: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 2, 'image_preprocess': 1}
-correctness distinct-eight: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
-correctness distinct-jpeg: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
-correctness distinct-reversed: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
-correctness distinct-small-image: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
-correctness distinct-original-again: exact tensors, embeddings, positions, responses; {'vision': 1, 'language': 8, 'image_preprocess': 1}
-benchmark 320x240-long-q4: [{"baseline": 566.04, "reuse": 503.31}, {"baseline": 540.73, "reuse": 478.02}]
-benchmark 320x240-short-q4: [{"baseline": 448.85, "reuse": 382.62}, {"baseline": 443.57, "reuse": 379.76}]
-benchmark 640x480-long-q2: [{"baseline": 309.13, "reuse": 286.97}, {"baseline": 310.54, "reuse": 289.53}]
-benchmark 640x480-short-q8: [{"baseline": 1092.57, "reuse": 874.72}, {"baseline": 1096.68, "reuse": 891.88}]
-benchmark 640x480-distinct-q8: [{"baseline": 1100.03, "reuse": 887.54}, {"baseline": 1094.87, "reuse": 888.45}]
-benchmark 320x240-short-q1: [{"baseline": 108.11, "reuse": 108.09}, {"baseline": 108.17, "reuse": 108.04}]
-benchmark 320x240-long-q1: [{"baseline": 135.56, "reuse": 136.22}, {"baseline": 135.63, "reuse": 135.66}]
-benchmark 640x480-short-q4: [{"baseline": 532.07, "reuse": 461.2}, {"baseline": 520.37, "reuse": 449.92}]
-benchmark 640x480-long-q4: [{"baseline": 629.4, "reuse": 561.65}, {"baseline": 630.98, "reuse": 566.86}]
-benchmark 640x480-short-q2: [{"baseline": 256.55, "reuse": 234.05}, {"baseline": 256.11, "reuse": 236.78}]
-benchmark 320x240-long-q2: [{"baseline": 286.12, "reuse": 261.18}, {"baseline": 271.52, "reuse": 251.31}]
-benchmark 320x240-long-q8: [{"baseline": 1159.29, "reuse": 967.33}, {"baseline": 1137.77, "reuse": 950.53}]
-benchmark 640x480-long-q1: [{"baseline": 158.14, "reuse": 156.43}, {"baseline": 155.74, "reuse": 155.89}]
-benchmark 640x480-long-q8: [{"baseline": 1319.17, "reuse": 1113.74}, {"baseline": 1316.22, "reuse": 1112.65}]
-benchmark 320x240-short-q8: [{"baseline": 914.48, "reuse": 748.1}, {"baseline": 889.32, "reuse": 724.66}]
-benchmark 320x240-short-q2: [{"baseline": 228.86, "reuse": 205.76}, {"baseline": 230.37, "reuse": 207.33}]
-benchmark 640x480-short-q1: [{"baseline": 128.17, "reuse": 128.0}, {"baseline": 126.42, "reuse": 126.42}]
