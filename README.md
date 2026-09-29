@@ -57,7 +57,7 @@ Validated coverage is listed by modality and execution path:
 | Model | Status |
 | --- | --- |
 | LAYA | [External worker](recipe/laya/README.md); model engine planned |
-| [Cua-S1 4B 0.2](recipe/cua_s1/README.md) | Multimodal screenshot choices via Transformers/PEFT on RTX 4090 CUDA; [parity and measurements](recipe/cua_s1/experiments/README.md). Text serving, native CUDA kernels and Metal deferred. |
+| [Cua-S1 4B 0.2](recipe/cua_s1/README.md) | Multimodal screenshot choices via Transformers/PEFT on RTX 4090 CUDA; [parity and measurements](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/README.md). Text serving, native CUDA kernels and Metal deferred. |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
