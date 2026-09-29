@@ -62,10 +62,15 @@ fall back to eager until budget expires. This is a request-count window, not a
 wall-clock rate limit. Cached layouts can still replay when capture is paused.
 
 `--graph-max-shapes`, `--graph-max-memory-mib` and `--graph-max-tokens` adjust
-cache and token limits. Inputs above 2,048 tokens, rejected layouts, insufficient
+cache and token limits. Graph pool accounting requires the native PyTorch CUDA
+allocator; other allocator backends fall back eagerly. Inputs above 2,048 tokens, rejected layouts, insufficient
 reuse and exhausted budgets use eager inference. The memory budget covers
-retained live allocations, not capture-time peaks or allocator reservations.
-Cache entries own their static buffers and are evicted together. The loaded model
+the full reservations of each retained Graph private pool plus external static
+input buffers. It excludes the model, default allocator cache and capture-time
+peaks; an in-progress candidate temporarily coexists with retained entries.
+Segments of one shape share an exclusively owned stream and pool and replay
+in capture order. Different shapes have independent owners. Cache entries own
+their static buffers and all segments are retired together. The loaded model
 must remain immutable; call `graph_runtime.invalidate()` before changing its
 weights or adapters. Invalidation clears admission and cache state, while lifetime
 statistics remain cumulative. `predict` opens a serialized Graph request context;
@@ -78,7 +83,11 @@ records those failures. The segmented runtime preserves eager attention
 behavior. See [the runtime experiment](experiments/rtx4090-graph-runtime/README.md)
 for fixed-layout correctness and latency, and the
 [mixed-length experiment](experiments/rtx4090-graph-mixed-shapes/README.md) for
-capture and eviction costs under changing lengths.
+capture and eviction costs under changing lengths. The subsequent
+[request-aware admission report](experiments/rtx4090-graph-admission/README.md)
+compares bounded capture admission against the old policy with the same owned-stream
+fix, including cold requests and negative results. See the
+[reproduction guide](graph-admission.md) for the complete schedules.
 
 To use the Rust frontend included in this repository:
 

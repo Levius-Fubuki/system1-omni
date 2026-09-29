@@ -6,7 +6,10 @@ includes both successful fixed-shape cases and correctness-gated rejections.
 The [segmented Graph runtime report](rtx4090-graph-runtime/README.md) describes
 the subsequent worker integration and its correctness and latency results.
 The [mixed-length Graph report](rtx4090-graph-mixed-shapes/README.md) includes
-capture and eviction costs across changing prompt lengths.
+capture and eviction costs across changing prompt lengths. The subsequent
+[request-aware admission report](rtx4090-graph-admission/README.md) tests
+extended churn and changing hotspots with bounded capture work and exclusively
+owned capture streams.
 
 For the subsequent 16-case stage profiling experiment, refreshed upstream parity,
 and profiler annotation-counting recovery, see the

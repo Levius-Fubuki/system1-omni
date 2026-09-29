@@ -1,0 +1,152 @@
+{
+  "status": "complete",
+  "repository": {
+    "revision": "9f2c7ef1cb1778b573d0c8f844c2b5be0710cf1a",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "health": {
+    "status": "ready",
+    "modality": "multimodal"
+  },
+  "eager_response": {
+    "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+    "answers": {
+      "q1": {
+        "type": "choice",
+        "choice": "save",
+        "probabilities": {
+          "save": 0.9958575367927551,
+          "cancel": 0.0005507932510226965,
+          "wait": 0.003591623157262802
+        },
+        "confidence": 0.9740719299887141
+      },
+      "q2": {
+        "type": "choice",
+        "choice": "save",
+        "probabilities": {
+          "save": 0.9958575367927551,
+          "cancel": 0.0005507932510226965,
+          "wait": 0.003591623157262802
+        },
+        "confidence": 0.9740719299887141
+      }
+    },
+    "usage": {
+      "input_tokens": 472,
+      "output_tokens": 0
+    }
+  },
+  "http_responses": [
+    {
+      "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+      "answers": {
+        "q1": {
+          "type": "choice",
+          "choice": "save",
+          "probabilities": {
+            "save": 0.9958575367927551,
+            "cancel": 0.0005507932510226965,
+            "wait": 0.003591623157262802
+          },
+          "confidence": 0.9740719299887141
+        },
+        "q2": {
+          "type": "choice",
+          "choice": "save",
+          "probabilities": {
+            "save": 0.9958575367927551,
+            "cancel": 0.0005507932510226965,
+            "wait": 0.003591623157262802
+          },
+          "confidence": 0.9740719299887141
+        }
+      },
+      "usage": {
+        "input_tokens": 472,
+        "output_tokens": 0
+      }
+    },
+    {
+      "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+      "answers": {
+        "q1": {
+          "type": "choice",
+          "choice": "save",
+          "probabilities": {
+            "save": 0.9958575367927551,
+            "cancel": 0.0005507932510226965,
+            "wait": 0.003591623157262802
+          },
+          "confidence": 0.9740719299887141
+        },
+        "q2": {
+          "type": "choice",
+          "choice": "save",
+          "probabilities": {
+            "save": 0.9958575367927551,
+            "cancel": 0.0005507932510226965,
+            "wait": 0.003591623157262802
+          },
+          "confidence": 0.9740719299887141
+        }
+      },
+      "usage": {
+        "input_tokens": 472,
+        "output_tokens": 0
+      }
+    },
+    {
+      "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+      "answers": {
+        "q1": {
+          "type": "choice",
+          "choice": "save",
+          "probabilities": {
+            "save": 0.9958575367927551,
+            "cancel": 0.0005507932510226965,
+            "wait": 0.003591623157262802
+          },
+          "confidence": 0.9740719299887141
+        },
+        "q2": {
+          "type": "choice",
+          "choice": "save",
+          "probabilities": {
+            "save": 0.9958575367927551,
+            "cancel": 0.0005507932510226965,
+            "wait": 0.003591623157262802
+          },
+          "confidence": 0.9740719299887141
+        }
+      },
+      "usage": {
+        "input_tokens": 472,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "stats": {
+    "requests": 3,
+    "no_request": 0,
+    "cooldown": 0,
+    "capture_budget": 0,
+    "capture_attempts": 1,
+    "capture_attempt_ms": 440.25929691269994,
+    "eager": 3,
+    "unsupported": 0,
+    "warmup": 2,
+    "disabled": 0,
+    "replays": 3,
+    "captures": 1,
+    "capture_ms": 350.8566820528358,
+    "evictions": 0,
+    "rejected": 0,
+    "memory_budget": 0,
+    "capture_oom": 0,
+    "capture_error": 0,
+    "numerical_mismatch": 0
+  }
+}

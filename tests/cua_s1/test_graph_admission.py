@@ -146,7 +146,11 @@ def runtime_fixture(monkeypatch, **config):
             dtype="bf16",
             device="cuda:0",
         )
-        return {"inputs_embeds": tensor, "position_ids": tensor, "attention_mask": tensor}
+        return {
+            "inputs_embeds": tensor,
+            "position_ids": tensor,
+            "attention_mask": tensor,
+        }
 
     return r, values
 

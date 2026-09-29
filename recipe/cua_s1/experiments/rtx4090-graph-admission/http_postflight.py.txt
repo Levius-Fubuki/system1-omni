@@ -1,0 +1,46 @@
+"""Run on the measured source with PYTHONPATH=src:recipe/cua_s1."""
+import argparse
+import json
+import threading
+import urllib.request
+from pathlib import Path
+
+from models.cua_s1.multimodal.graph_runtime import GraphConfig, GraphRuntime
+from models.cua_s1.multimodal.model import MultimodalEngine
+from models.cua_s1.multimodal.protocol import parse_request
+from models.cua_s1.multimodal.server import WorkerServer
+from profile_multimodal import case_matrix, fixture, repository_state, write_json
+
+p = argparse.ArgumentParser()
+p.add_argument('--weights', type=Path, required=True)
+p.add_argument('--output', type=Path, required=True)
+a = p.parse_args()
+if a.output.exists():
+    raise ValueError('output exists')
+engine = MultimodalEngine(str(a.weights/'Qwen3.5-4B'), str(a.weights/'cua-s1-4b-0.2/multimodal'))
+raw = fixture(next(c for c in case_matrix() if c['id']=='320x240-short-q2'), a.output.parent/'http-fixtures')
+expected = engine.predict(parse_request(raw))
+runtime = GraphRuntime(engine.model, GraphConfig())
+engine.graph_runtime = runtime
+server = WorkerServer(('127.0.0.1',0), engine)
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+base = 'http://127.0.0.1:'+str(server.server_address[1])
+try:
+    with urllib.request.urlopen(base+'/health',timeout=20) as r:
+        health = json.load(r)
+    responses=[]
+    for _ in range(3):
+        request=urllib.request.Request(base+'/v1/systemone', data=json.dumps(raw).encode(), headers={'Content-Type':'application/json'})
+        with urllib.request.urlopen(request,timeout=60) as r:
+            assert r.status==200
+            responses.append(json.load(r))
+    assert all(r==expected for r in responses)
+    assert runtime.stats['captures']==1 and runtime.stats['replays']==3
+    assert runtime.stats['requests']==3
+    write_json(a.output, {'status':'complete','repository':repository_state(Path.cwd()),'health':health,'eager_response':expected,'http_responses':responses,'stats':dict(runtime.stats)})
+    print('HTTP health, cold admission, capture and replay: exact eager parity')
+finally:
+    server.shutdown()
+    thread.join()
+    server.server_close()

@@ -1,0 +1,39 @@
+import argparse,ctypes,gc,json
+import torch
+p=argparse.ArgumentParser();p.add_argument('--owned',action='store_true');a=p.parse_args()
+torch.manual_seed(1)
+left=torch.randn((32768,640),device='cuda',dtype=torch.bfloat16,requires_grad=True)
+right=torch.randn((640,640),device='cuda',dtype=torch.bfloat16,requires_grad=True)
+with torch.no_grad():reference=left@right
+torch.cuda.synchronize()
+handles=[]
+def stream():
+ if not a.owned:return None
+ h=ctypes.c_void_p();torch.cuda.check_error(torch.cuda.cudart().cudaStreamCreate(ctypes.addressof(h)));handles.append(h.value)
+ return torch.cuda.ExternalStream(h.value)
+def capture():
+ g=torch.cuda.CUDAGraph();s=stream()
+ with torch.cuda.graph(g,stream=s):y=left@right
+ g.replay();torch.cuda.synchronize();assert torch.equal(y,reference)
+ return g,y,s
+training_stream=stream() if a.owned else torch.cuda.Stream()
+if not a.owned:
+ def stream():return training_stream
+with torch.cuda.stream(training_stream):
+ output=left@right
+ grad=torch.ones_like(output)
+ expected=torch.autograd.grad(output,(left,right),grad)
+ training=torch.cuda.CUDAGraph()
+ with torch.cuda.graph(training,stream=training_stream):
+  output=left@right
+  gradients=torch.autograd.grad(output,(left,right),grad)
+ training.replay()
+torch.cuda.synchronize()
+for _ in range(2):
+ temporary=capture()
+ temporary[0].reset();del temporary;gc.collect();torch.cuda.empty_cache()
+training.replay();torch.cuda.synchronize()
+assert all(torch.equal(a,b) for a,b in zip(expected,gradients))
+print(json.dumps({'owned':a.owned,'surviving_graph_exact':True,'torch_git':torch.version.git_version}))
+training.reset();del training
+for h in handles:torch.cuda.check_error(torch.cuda.cudart().cudaStreamDestroy(h))

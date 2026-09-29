@@ -1,0 +1,17 @@
+hot_four run 1 legacy: 7577.37 ms vs eager 11710.46 ms; reduction 35.29%; p95 619.87 ms; sustained 16
+hot_four run 1 admission: 7734.34 ms vs eager 11710.46 ms; reduction 33.95%; p95 563.04 ms; sustained 18
+hot_four run 2 legacy: 7303.02 ms vs eager 11348.29 ms; reduction 35.65%; p95 594.07 ms; sustained 16
+hot_four run 2 admission: 7577.55 ms vs eager 11348.29 ms; reduction 33.23%; p95 539.90 ms; sustained 18
+churn_twelve run 1 legacy: 51336.25 ms vs eager 17455.10 ms; reduction -194.10%; p95 804.66 ms; sustained None
+churn_twelve run 1 admission: 17082.38 ms vs eager 17455.10 ms; reduction 2.14%; p95 254.70 ms; sustained None
+churn_twelve run 2 legacy: 51957.36 ms vs eager 17581.85 ms; reduction -195.52%; p95 794.51 ms; sustained None
+churn_twelve run 2 admission: 17075.38 ms vs eager 17581.85 ms; reduction 2.88%; p95 247.66 ms; sustained None
+hot_cold run 1 legacy: 11788.70 ms vs eager 9784.76 ms; reduction -20.48%; p95 856.01 ms; sustained None
+hot_cold run 1 admission: 8010.80 ms vs eager 9784.76 ms; reduction 18.13%; p95 556.48 ms; sustained 22
+hot_cold run 2 legacy: 11647.41 ms vs eager 9688.87 ms; reduction -20.21%; p95 845.56 ms; sustained None
+hot_cold run 2 admission: 7775.37 ms vs eager 9688.87 ms; reduction 19.75%; p95 536.67 ms; sustained 22
+shifting_hot run 1 legacy: 24278.16 ms vs eager 30910.87 ms; reduction 21.46%; p95 706.05 ms; sustained 16
+shifting_hot run 1 admission: 26138.76 ms vs eager 30910.87 ms; reduction 15.44%; p95 705.66 ms; sustained 18
+shifting_hot run 2 legacy: 24321.80 ms vs eager 31253.25 ms; reduction 22.18%; p95 720.38 ms; sustained 16
+shifting_hot run 2 admission: 25621.29 ms vs eager 31253.25 ms; reduction 18.02%; p95 586.47 ms; sustained 18
+Publication gate passed: four schedules x two runs; 576 triplets / 1728 predictions; Git hashes match
