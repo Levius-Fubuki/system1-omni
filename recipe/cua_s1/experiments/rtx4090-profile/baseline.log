@@ -1,23 +1,0 @@
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<01:51,  6.48it/s]Loading weights:   4%|▍         | 28/723 [00:00<00:05, 131.99it/s]Loading weights:   7%|▋         | 53/723 [00:00<00:03, 178.74it/s]Loading weights:  11%|█         | 81/723 [00:00<00:03, 213.79it/s]Loading weights:  15%|█▍        | 107/723 [00:00<00:02, 229.44it/s]Loading weights:  19%|█▊        | 134/723 [00:00<00:02, 237.66it/s]Loading weights:  23%|██▎       | 166/723 [00:00<00:02, 261.89it/s]Loading weights:  27%|██▋       | 195/723 [00:00<00:01, 267.33it/s]Loading weights:  31%|███       | 224/723 [00:00<00:01, 268.95it/s]Loading weights:  35%|███▍      | 253/723 [00:01<00:01, 270.95it/s]Loading weights:  39%|███▉      | 281/723 [00:01<00:01, 266.08it/s]Loading weights:  43%|████▎     | 310/723 [00:01<00:01, 267.65it/s]Loading weights:  47%|████▋     | 343/723 [00:01<00:01, 283.30it/s]Loading weights:  51%|█████▏    | 372/723 [00:01<00:01, 268.85it/s]Loading weights:  55%|█████▌    | 400/723 [00:01<00:01, 265.13it/s]Loading weights:  61%|██████    | 442/723 [00:01<00:00, 307.93it/s]Loading weights:  91%|█████████▏| 660/723 [00:01<00:00, 841.74it/s]Loading weights: 100%|██████████| 723/723 [00:01<00:00, 386.52it/s]
-[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
-[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
-320x240-short-q1: complete (100 latency samples)
-320x240-short-q2: complete (100 latency samples)
-320x240-short-q4: complete (100 latency samples)
-320x240-short-q8: complete (100 latency samples)
-320x240-long-q1: complete (100 latency samples)
-320x240-long-q2: complete (100 latency samples)
-320x240-long-q4: complete (100 latency samples)
-320x240-long-q8: complete (100 latency samples)
-640x480-short-q1: complete (100 latency samples)
-640x480-short-q2: complete (100 latency samples)
-640x480-short-q4: complete (100 latency samples)
-640x480-short-q8: complete (100 latency samples)
-640x480-long-q1: complete (100 latency samples)
-640x480-long-q2: complete (100 latency samples)
-640x480-long-q4: complete (100 latency samples)
-640x480-long-q8: complete (100 latency samples)
-USDT:2026-09-28 11:15:28 2396:2396 SyncActivityProfilerHandler.cpp:39] profiler_start
-USDT:2026-09-28 11:15:28 2396:2396 SyncActivityProfilerHandler.cpp:46] profiler_stop
-Profiling failed: {'type': 'ValueError', 'message': 'transfer: observed 2 ranges; expected 1'}

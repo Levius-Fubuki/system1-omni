@@ -1,6 +1,0 @@
-hot_four 1 verified 48 request groups
-hot_four 2 verified 48 request groups
-churn_twelve 1 verified 72 request groups
-churn_twelve 2 verified 72 request groups
-verified 960 timed predictions; source hashes, responses, metrics and cache bounds
-verified 136 full-logit comparisons and 20 full-response parity records; all final GPU reports share clean revision 74760be2df0727d2d71467a52f0f0c2f4c92a398
