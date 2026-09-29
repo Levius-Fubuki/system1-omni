@@ -1,7 +1,7 @@
 # Multimodal profiling experiment
 
 This experiment attributes the existing unmerged BF16 Transformers/PEFT worker's
-cost before changing inference. It extends the [original baseline](experiments/README.md)
+cost before changing inference. It extends the [original baseline](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/README.md)
 with image-size, text-length and same-image question-count sweeps. It does not
 implement image reuse, native CUDA kernels, CUDA Graphs or batching.
 
