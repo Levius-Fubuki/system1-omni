@@ -59,7 +59,12 @@ def main():
         request = parse_request(raw)
         # Expanded validation limits ensure all distinct layouts and the long
         # prompt actually replay; performance measurements use worker defaults.
-        config = GraphConfig(max_tokens=4096, max_captures=16, capture_budget_ms=10000)
+        config = GraphConfig(
+            max_tokens=4096,
+            max_captures=16,
+            capture_budget_ms=10000,
+            max_bytes=4 * 1024**3,
+        )
         runtime = GraphRuntime(engine.model, config)
         changed_image = replace(
             request, image=Image.new("RGB", request.image.size, "black")
