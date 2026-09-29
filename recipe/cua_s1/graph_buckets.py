@@ -7,6 +7,7 @@ shapes can change rounding, so every real length receives a strict logits gate.
 
 from __future__ import annotations
 
+import logging
 import time
 
 from models.cua_s1.multimodal.graph_runtime import (
@@ -267,7 +268,7 @@ class RuleBucketRuntime(BucketRuntime):
                 or any(v is not None for v in kwargs.values())
             ):
                 raise RuntimeError(
-                    "unsupported rule call; experiment requires cache-free normalized prefill"
+                    f"unsupported rule call: state={initial_state is not None}, final={output_final_state}, norm={use_qk_l2norm_in_kernel}, extras={kwargs}"
                 )
             packed = pack_rule_inputs(
                 dict(query=query, key=key, value=value, g=g, beta=beta), self.width
@@ -283,10 +284,14 @@ class RuleBucketRuntime(BucketRuntime):
             output, state = block.replay_values(packed)
             return output[:, : query.shape[1]].contiguous(), state
 
-        with patch.object(module, "torch_chunk_gated_delta_rule", dispatch):
-            output = self.model(**values, logits_to_keep=1, use_cache=False).logits[
-                0, -1, :
-            ]
+        try:
+            with patch.object(module, "torch_chunk_gated_delta_rule", dispatch):
+                output = self.model(**values, logits_to_keep=1, use_cache=False).logits[
+                    0, -1, :
+                ]
+        except RuntimeError:
+            logging.getLogger(__name__).exception("experimental rule capture failed")
+            raise
         if index != text.config.layer_types.count("linear_attention"):
             raise RuntimeError("unexpected DeltaNet call count")
         return output
