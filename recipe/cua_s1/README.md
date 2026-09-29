@@ -103,7 +103,8 @@ The request shape is:
   the upstream chooser's label escaping. Instructions accept strings, objects
   or arrays and must be present; an empty string or `null` omits the goal block.
 - Limits: 8 MiB body, 4 MiB decoded image, 2048 pixels per side, 1,048,576 pixels
-  total, 16,384 characters per question and 4096 processed tokens per question.
+  total, at most 200:1 aspect ratio in either orientation, 16,384 characters per
+  question and 4096 processed tokens per question.
   Every question is validated/preprocessed before any forward pass begins.
 - `<|image_pad|>`, `<|video_pad|>`, `<|vision_start|>` and `<|vision_end|>` are
   rejected in user text because the processor interprets them as media controls.
