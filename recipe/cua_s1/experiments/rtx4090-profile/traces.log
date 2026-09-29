@@ -1,12 +1,0 @@
-[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
-Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<02:20,  5.13it/s]Loading weights:   4%|▎         | 27/723 [00:00<00:06, 112.40it/s]Loading weights:   7%|▋         | 47/723 [00:00<00:04, 141.98it/s]Loading weights:  11%|█         | 79/723 [00:00<00:03, 199.90it/s]Loading weights:  14%|█▍        | 102/723 [00:00<00:03, 198.91it/s]Loading weights:  18%|█▊        | 132/723 [00:00<00:02, 218.24it/s]Loading weights:  21%|██▏       | 155/723 [00:00<00:02, 217.38it/s]Loading weights:  25%|██▌       | 184/723 [00:00<00:02, 237.78it/s]Loading weights:  29%|██▉       | 209/723 [00:01<00:02, 216.60it/s]Loading weights:  33%|███▎      | 237/723 [00:01<00:02, 232.38it/s]Loading weights:  36%|███▌      | 261/723 [00:01<00:02, 220.02it/s]Loading weights:  40%|████      | 290/723 [00:01<00:01, 231.31it/s]Loading weights:  43%|████▎     | 314/723 [00:01<00:01, 218.67it/s]Loading weights:  48%|████▊     | 344/723 [00:01<00:01, 232.18it/s]Loading weights:  51%|█████     | 368/723 [00:01<00:01, 221.02it/s]Loading weights:  55%|█████▌    | 399/723 [00:01<00:01, 239.30it/s]Loading weights:  59%|█████▊    | 424/723 [00:02<00:01, 237.09it/s]Loading weights:  82%|████████▏ | 590/723 [00:02<00:00, 627.75it/s]Loading weights: 100%|██████████| 723/723 [00:02<00:00, 330.44it/s]
-640x480-short-q1: prepared (0 latency samples)
-640x480-short-q8: prepared (0 latency samples)
-[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
-[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
-USDT:2026-09-28 11:22:20 3439:3439 SyncActivityProfilerHandler.cpp:39] profiler_start
-USDT:2026-09-28 11:22:20 3439:3439 SyncActivityProfilerHandler.cpp:46] profiler_stop
-640x480-short-q1: trace complete
-USDT:2026-09-28 11:22:26 3439:3439 SyncActivityProfilerHandler.cpp:39] profiler_start
-USDT:2026-09-28 11:22:29 3439:3439 SyncActivityProfilerHandler.cpp:46] profiler_stop
-640x480-short-q8: trace complete

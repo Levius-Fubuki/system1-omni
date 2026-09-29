@@ -1,9 +1,0 @@
-{
-  "status": "complete",
-  "torch": "2.14.0+cu130",
-  "torch_git": "08187d9e0fba026dc8217405802ab5381dc88d90",
-  "live_unique_streams": 40,
-  "initial_exact_replays": 40,
-  "survivor_changed_input_exact_replays": 60,
-  "idempotent_cleanup": true
-}
