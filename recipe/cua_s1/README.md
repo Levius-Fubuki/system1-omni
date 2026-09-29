@@ -14,7 +14,7 @@ worker uses the same request model name; deployment routing selects its modality
 ## Setup
 
 Run from this repository's root on Linux with an NVIDIA GPU. The measured CUDA
-wheel, driver, GPU memory and results are recorded in [experiments](experiments/README.md).
+wheel, driver, GPU memory and results are recorded in [experiments](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/README.md).
 Python 3.12 is required by the pinned environment.
 
 ```sh
