@@ -25,9 +25,9 @@ def main():
     from profile_multimodal import case_matrix, fixture, repository_state, write_json
     from transformers.models.qwen3_5 import modeling_qwen3_5 as upstream
 
+    from frontend.cua_s1 import WorkerServer, parse_args
     from models.cua_s1.multimodal.model import MultimodalEngine
     from models.cua_s1.multimodal.protocol import parse_request
-    from models.cua_s1.multimodal.server import WorkerServer, parse_args
 
     source = repository_state(Path(__file__).resolve().parents[2])
     if source["dirty"]:

@@ -8,7 +8,7 @@ from models.cua_s1.multimodal.graph_runtime import GraphConfig, GraphRuntime
 
 
 def test_auto_config_and_cli_are_opt_in():
-    from models.cua_s1.multimodal.server import parse_args
+    from frontend.cua_s1 import parse_args
 
     config = GraphConfig(mode="auto", bucket_width=128)
     assert config.mode == "auto"
