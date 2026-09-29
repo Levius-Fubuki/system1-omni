@@ -22,7 +22,8 @@
 - [x] Run Cua-S1 CPU tests and changed-file lint/format.
 - [x] GPU check full logits, mixed layouts, changed images/text, boundaries, aggregate budgets and lifecycle; use actual CLI-selected HTTP worker and two loaded instances.
 - [x] Benchmark eager/default exact/tuned exact/bucket/auto on four existing workloads, plus an unseen mixed schedule. Use two cold runs and order balancing, retain capture/gates/eviction in measured time and per-mode evidence. Record negative results instead of tuning to future schedule labels.
-- [ ] Independently verify raw data/source provenance and report scope. Run a focused code review, fix findings, rerun checks justified by changes, push branch, create and attach PR with incremental comparison against #37.
+- [x] Independently verify raw data/source provenance and report scope. Run a focused code review, fix findings and rerun checks justified by changes.
+- [ ] Push the branch, create and attach a PR with incremental comparison against #37.
 
 ## Shipping criterion
 

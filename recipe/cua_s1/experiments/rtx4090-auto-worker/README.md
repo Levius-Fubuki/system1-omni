@@ -4,7 +4,7 @@ RTX 4090, 2026-09-29. Stacked on PR #37 (`fd5c417`).
 
 ## Findings
 
-Opt-in automatic selection reduced total synchronized request time by **18.29–33.08% versus eager** across five tested workloads and two cold runs. All **3,720 timed complete responses equal eager**. The selector uses only past/current requests and shares resource limits between exact and rule-bucket execution.
+Opt-in automatic selection reduced total synchronized request time by **18.29–33.08% versus eager** across five tested workloads and two cold runs. All **3,720 timed complete responses equal eager** (744 eager baselines and 2,976 Graph-enabled variant predictions, including 744 auto predictions). The selector uses only past/current requests and shares resource limits between exact and rule-bucket execution.
 
 It does not always match the best fixed mode. Tables below retain both benefits and regressions. Stable hot layouts tend toward exact, while recurring dispersed lengths can reuse buckets after an observation period. Manual modes remain available and eager remains the default.
 
@@ -61,8 +61,8 @@ No production import depends on recipe code. Full attention, projection,
 convolution, MLP and position processing retain their real lengths.
 
 Exact and rule-bucket caches share one namespaced LRU, request clock, lock,
-resident-memory limit and capture count/time ledger. Each graph retains its own
-stream/pool and buffers. One mode cannot obtain a second budget by switching.
+resident-memory limit and capture count/time ledger. Each cache entry retains its own
+stream/pool and buffers; its captured segments share that owner. One mode cannot obtain a second budget by switching.
 The resident limit is not a hard process VRAM limit: capture candidates coexist
 with retained graphs, and weights/default-allocator memory are excluded. A
 synchronous attempt may overshoot the capture-time allowance; later captures
@@ -121,6 +121,8 @@ they do not alter the measured production implementation.
 The measured GPU source passed all 266 Cua-S1 tests (`tests.log`). The later
 independent-verifier regressions add 13 tests, including corrupted clocks,
 budgets, routing records, missing captures/replays and incorrect responses.
+The complete PR suite then passed **279 tests** on the GPU host at `543fade`
+(`tests-pr.log`); subsequent changes only clarify documentation and retain logs.
 The local CPU-only run passed 257 tests and skipped 22 requiring PyTorch
 (`cpu-tests.log`). CI-scoped Ruff lint and formatting passed (`lint.log`).
 A focused code review found two initial issues (unconditional bucket-mask
