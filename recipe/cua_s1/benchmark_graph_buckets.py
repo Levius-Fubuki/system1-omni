@@ -38,6 +38,7 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--runs", type=int, default=2)
     p.add_argument("--width", type=int, default=64)
+    p.add_argument("--kind", choices=("segment", "rule"), default="segment")
     p.add_argument("--case", choices=list(schedules()), action="append")
     args = p.parse_args()
     if args.output.exists():
@@ -48,7 +49,7 @@ def main():
     import torch
     from benchmark_multimodal_graph import measure
     from evaluate_multimodal import environment
-    from graph_buckets import BucketRuntime, bucket_length
+    from graph_buckets import BucketRuntime, RuleBucketRuntime, bucket_length
     from profile_multimodal import (
         GOAL,
         case_matrix,
@@ -70,6 +71,7 @@ def main():
     report_path = args.output / "report.json"
     selected = {k: v for k, v in schedules().items() if k in (args.case or ["probe"])}
     config = GraphConfig()
+    bucket_class = RuleBucketRuntime if args.kind == "rule" else BucketRuntime
     report = {
         "status": "running",
         "repository": source,
@@ -81,6 +83,7 @@ def main():
         "config": {
             "graph": asdict(config),
             "width": args.width,
+            "kind": args.kind,
             "runs": args.runs,
             "timing": "synchronized predict including cold capture and first-length checks",
             "memory": "paired caches coexist; allocator totals are combined, cache bytes are per variant",
@@ -133,7 +136,7 @@ def main():
             for run in range(args.runs):
                 runtimes = {
                     "exact": GraphRuntime(engine.model, config),
-                    "bucket": BucketRuntime(engine.model, config, width=args.width),
+                    "bucket": bucket_class(engine.model, config, width=args.width),
                 }
                 record = {"run": run + 1, "status": "running", "events": []}
                 report["workloads"][name].append(record)

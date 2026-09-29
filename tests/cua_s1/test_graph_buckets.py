@@ -104,3 +104,16 @@ def test_original_padding_is_not_supported():
     assert not r._dense(v)
     v["attention_mask"] = torch.ones(1, 63, 1)
     assert not r._dense(v)
+
+
+def test_rule_packing_zeros_future_decay_and_updates():
+    from graph_buckets import pack_rule_inputs
+
+    torch = pytest.importorskip("torch")
+    original = {k: torch.ones(1, 63, 2, 4) for k in ("query", "key", "value")}
+    original.update(g=torch.full((1, 63, 2), -0.5), beta=torch.ones(1, 63, 2))
+    packed = pack_rule_inputs(original, 64)
+    for name, tensor in packed.items():
+        assert tensor.shape[1] == 64
+        assert torch.equal(tensor[:, :63], original[name])
+        assert torch.count_nonzero(tensor[:, 63:]) == 0

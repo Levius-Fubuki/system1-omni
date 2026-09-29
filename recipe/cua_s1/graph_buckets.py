@@ -182,3 +182,111 @@ class BucketRuntime(GraphRuntime):
             index = end
         hidden = text.norm(hidden)
         return self.model.get_base_model().lm_head(hidden[:, -1:, :])[0, -1, :]
+
+
+def pack_rule_inputs(values, width):
+    import torch.nn.functional as F
+
+    length = values["query"].shape[1]
+    padding = bucket_length(length, width) - length
+    return {
+        name: F.pad(value, (0, 0) * (value.ndim - 2) + (0, padding))
+        for name, value in values.items()
+    }
+
+
+class _RuleSegment(_GraphSegment):
+    """Capture just the fallback rule, reusing #33 stream/pool ownership."""
+
+    def __init__(self, function, values, pool):
+        self.function = function
+        self.static_extra = {k: v.clone() for k, v in values.items() if k != "query"}
+        super().__init__([], 0, 0, values["query"], None, pool=pool)
+        self.external_bytes += sum(
+            v.untyped_storage().nbytes() for v in self.static_extra.values()
+        )
+
+    def _forward(self):
+        return self.function(
+            self.static_hidden,
+            self.static_extra["key"],
+            self.static_extra["value"],
+            g=self.static_extra["g"],
+            beta=self.static_extra["beta"],
+            initial_state=None,
+            output_final_state=False,
+            use_qk_l2norm_in_kernel=True,
+        )
+
+    def replay_values(self, values):
+        for name, value in self.static_extra.items():
+            value.copy_(values[name])
+        return super().replay(values["query"], None)
+
+    def close(self):
+        super().close()
+        self.static_extra.clear()
+
+
+class RuleBucketRuntime(BucketRuntime):
+    """Single-thread experiment: only pad the internal DeltaNet rule inputs.
+
+    Temporarily replaces the installed module's fallback function under the
+    runtime lock. Not suitable for simultaneous engines or production serving.
+    The original function is restored even on failure.
+    """
+
+    def _run_segments(self, values, entry):
+        import inspect
+        from unittest.mock import patch
+
+        text = self.model.get_base_model().model.language_model
+        module = inspect.getmodule(text.layers[0].linear_attn.__class__)
+        original = module.torch_chunk_gated_delta_rule
+        index = 0
+        length = values["inputs_embeds"].shape[1]
+        self.stats["real_tokens"] += length
+        self.stats["padded_tokens"] += bucket_length(length, self.width) - length
+
+        def dispatch(
+            query,
+            key,
+            value,
+            g,
+            beta,
+            initial_state=None,
+            output_final_state=False,
+            use_qk_l2norm_in_kernel=False,
+            **kwargs,
+        ):
+            nonlocal index
+            if (
+                initial_state is not None
+                or output_final_state
+                or not use_qk_l2norm_in_kernel
+                or any(v is not None for v in kwargs.values())
+            ):
+                raise RuntimeError(
+                    "unsupported rule call; experiment requires cache-free normalized prefill"
+                )
+            packed = pack_rule_inputs(
+                dict(query=query, key=key, value=value, g=g, beta=beta), self.width
+            )
+            block = entry.blocks.get(index)
+            if block is None:
+                if entry.pool is None:
+                    entry.pool = _GraphPool(query.device)
+                block = _RuleSegment(original, packed, entry.pool)
+                entry.blocks[index] = block
+                entry.update_bytes()
+            index += 1
+            output, state = block.replay_values(packed)
+            return output[:, : query.shape[1]].contiguous(), state
+
+        with patch.object(module, "torch_chunk_gated_delta_rule", dispatch):
+            output = self.model(**values, logits_to_keep=1, use_cache=False).logits[
+                0, -1, :
+            ]
+        if index != text.config.layer_types.count("linear_attention"):
+            raise RuntimeError("unexpected DeltaNet call count")
+        return output
