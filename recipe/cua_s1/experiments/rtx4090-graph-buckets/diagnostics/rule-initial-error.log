@@ -1,0 +1,99 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<01:57,  6.13it/s]Loading weights:   4%|▎         | 27/723 [00:00<00:05, 121.60it/s]Loading weights:   6%|▋         | 46/723 [00:00<00:04, 144.97it/s]Loading weights:   9%|▉         | 67/723 [00:00<00:03, 167.44it/s]Loading weights:  13%|█▎        | 93/723 [00:00<00:03, 195.03it/s]Loading weights:  16%|█▌        | 114/723 [00:00<00:03, 199.26it/s]Loading weights:  19%|█▊        | 135/723 [00:00<00:03, 191.68it/s]Loading weights:  21%|██▏       | 155/723 [00:00<00:02, 191.38it/s]Loading weights:  25%|██▌       | 181/723 [00:01<00:02, 211.14it/s]Loading weights:  28%|██▊       | 203/723 [00:01<00:02, 202.75it/s]Loading weights:  31%|███       | 224/723 [00:01<00:02, 198.03it/s]Loading weights:  34%|███▍      | 249/723 [00:01<00:02, 212.23it/s]Loading weights:  37%|███▋      | 271/723 [00:01<00:02, 201.24it/s]Loading weights:  40%|████      | 292/723 [00:01<00:02, 200.96it/s]Loading weights:  43%|████▎     | 313/723 [00:01<00:02, 191.65it/s]Loading weights:  47%|████▋     | 341/723 [00:01<00:01, 212.66it/s]Loading weights:  50%|█████     | 363/723 [00:01<00:01, 200.20it/s]Loading weights:  53%|█████▎    | 384/723 [00:02<00:01, 202.45it/s]Loading weights:  57%|█████▋    | 410/723 [00:02<00:01, 215.23it/s]Loading weights:  60%|█████▉    | 432/723 [00:02<00:01, 208.73it/s]Loading weights:  79%|███████▉  | 574/723 [00:02<00:00, 545.51it/s]Loading weights:  99%|█████████▉| 714/723 [00:02<00:00, 769.05it/s]Loading weights: 100%|██████████| 723/723 [00:02<00:00, 294.27it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+experimental rule capture failed
+Traceback (most recent call last):
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/graph_buckets.py", line 289, in _run_segments
+    output = self.model(**values, logits_to_keep=1, use_cache=False).logits[
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/peft/peft_model.py", line 2120, in forward
+    return self.base_model(
+           ^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/peft/tuners/tuners_utils.py", line 359, in forward
+    return self.model(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/utils/generic.py", line 939, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1855, in forward
+    outputs = self.model(
+              ^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/utils/generic.py", line 939, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1648, in forward
+    outputs = self.language_model(
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/utils/generic.py", line 1068, in wrapper
+    output = func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/utils/output_capturing.py", line 286, in wrapper
+    outputs = func(self, *args, **kwargs)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1292, in forward
+    hidden_states = decoder_layer(
+                    ^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/modeling_layers.py", line 109, in __call__
+    return super().__call__(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 889, in forward
+    hidden_states = self.linear_attn(
+                    ^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1783, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1794, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/integrations/accelerate.py", line 1010, in wrapped
+    output = forward_func(self, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/venv/lib/python3.12/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 639, in forward
+    core_attn_out, last_recurrent_state = torch_chunk_gated_delta_rule(
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/graph_buckets.py", line 270, in dispatch
+    raise RuntimeError(
+RuntimeError: unsupported rule call: state=False, final=False, norm=True, extras={'cu_seqlens': None, 'use_cache': False, 'output_attentions': None, 'output_hidden_states': None}
+Traceback (most recent call last):
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/check_graph_buckets.py", line 200, in <module>
+    main()
+  File "/root/autodl-tmp/system1-omni-work/graph-buckets-repo/recipe/cua_s1/check_graph_buckets.py", line 135, in main
+    runtime.stats["rejected"]
+AssertionError

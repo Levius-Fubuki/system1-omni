@@ -1,0 +1,4276 @@
+{
+  "status": "complete",
+  "repository": {
+    "revision": "17e70444f23c72afb3cbd7542deb2083e1206987",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.13",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "source_sha256": {
+    "recipe/cua_s1/benchmark_graph_buckets.py": "0ce7d109398ee74c046627280d749fe353b8b01b51f9fe23bffb620b191cbea3",
+    "recipe/cua_s1/graph_buckets.py": "4cb71084180145a2e9b7e266b7ed4778d6f3410002fc7139b4f34decc92a409e"
+  },
+  "config": {
+    "graph": {
+      "max_shapes": 8,
+      "max_bytes": 1073741824,
+      "min_uses": 2,
+      "max_tokens": 2048,
+      "admission_window": 8,
+      "cooldown_requests": 32,
+      "capture_window": 32,
+      "max_captures": 4,
+      "capture_budget_ms": 2000.0
+    },
+    "width": 64,
+    "kind": "rule",
+    "runs": 1,
+    "timing": "synchronized predict including cold capture and first-length checks",
+    "memory": "paired caches coexist; allocator totals are combined, cache bytes are per variant",
+    "scope": "serial, two identical questions, synthetic 320x240 image, no HTTP",
+    "order": "all six permutations cycle across requests, reversed across runs"
+  },
+  "workloads": {
+    "probe": [
+      {
+        "run": 1,
+        "status": "complete",
+        "events": [
+          {
+            "index": 0,
+            "goal_repetitions": 1,
+            "tokens": 236,
+            "bucket": 256,
+            "order": [
+              "eager",
+              "exact",
+              "bucket"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 472,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 230.11990799568594,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 472,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 224.23953097313643,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 472,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 228.06435683742166,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              }
+            }
+          },
+          {
+            "index": 1,
+            "goal_repetitions": 2,
+            "tokens": 242,
+            "bucket": 256,
+            "order": [
+              "exact",
+              "bucket",
+              "eager"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 484,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 224.72534189000726,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 484,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 417.29540890082717,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 1,
+                  "capture_attempt_ms": 287.1094618458301,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 1,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 1,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 1,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 242,
+                  "padded_tokens": 14
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 484,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 232.36770299263299,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              }
+            }
+          },
+          {
+            "index": 2,
+            "goal_repetitions": 3,
+            "tokens": 248,
+            "bucket": 256,
+            "order": [
+              "bucket",
+              "eager",
+              "exact"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 496,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 223.533351207152,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 496,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 229.5636220369488,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 496,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 225.00460012815893,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              }
+            }
+          },
+          {
+            "index": 3,
+            "goal_repetitions": 4,
+            "tokens": 254,
+            "bucket": 256,
+            "order": [
+              "bucket",
+              "exact",
+              "eager"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 508,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 224.45260407403111,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 508,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 225.31376918777823,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 508,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 229.52128993347287,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              }
+            }
+          },
+          {
+            "index": 4,
+            "goal_repetitions": 5,
+            "tokens": 260,
+            "bucket": 320,
+            "order": [
+              "exact",
+              "eager",
+              "bucket"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 520,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 235.98686885088682,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 520,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 239.38163090497255,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 520,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.96097698807716,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9432989696,
+                "peak_reserved_bytes": 9432989696
+              }
+            }
+          },
+          {
+            "index": 5,
+            "goal_repetitions": 6,
+            "tokens": 266,
+            "bucket": 320,
+            "order": [
+              "eager",
+              "bucket",
+              "exact"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 532,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 241.55692104250193,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 532,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 388.09332298114896,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 1,
+                  "capture_attempt_ms": 253.11217596754432,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 1,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 1,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 1,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 266,
+                  "padded_tokens": 54
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 532,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 289.7951330523938,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 6,
+            "goal_repetitions": 7,
+            "tokens": 272,
+            "bucket": 320,
+            "order": [
+              "eager",
+              "exact",
+              "bucket"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 544,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 248.3767019584775,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 544,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 233.50150207988918,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 544,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 241.32554791867733,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 7,
+            "goal_repetitions": 8,
+            "tokens": 278,
+            "bucket": 320,
+            "order": [
+              "exact",
+              "bucket",
+              "eager"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 556,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 240.30115804634988,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 556,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 236.94147216156125,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 556,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 240.71424407884479,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 8,
+            "goal_repetitions": 9,
+            "tokens": 284,
+            "bucket": 320,
+            "order": [
+              "bucket",
+              "eager",
+              "exact"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 568,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 238.67377499118447,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 568,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 239.1948369331658,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 568,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 232.0446609519422,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 9,
+            "goal_repetitions": 10,
+            "tokens": 290,
+            "bucket": 320,
+            "order": [
+              "bucket",
+              "exact",
+              "eager"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 580,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.51520199887455,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 580,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 233.56805089861155,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 580,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 238.50637604482472,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 10,
+            "goal_repetitions": 11,
+            "tokens": 296,
+            "bucket": 320,
+            "order": [
+              "exact",
+              "eager",
+              "bucket"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 592,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 233.35048812441528,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 592,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 241.56577815301716,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 592,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 235.96438392996788,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 11,
+            "goal_repetitions": 12,
+            "tokens": 302,
+            "bucket": 320,
+            "order": [
+              "eager",
+              "bucket",
+              "exact"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 604,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 243.25736286118627,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 604,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 236.01146088913083,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 604,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.05863298103213,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 12,
+            "goal_repetitions": 1,
+            "tokens": 236,
+            "bucket": 256,
+            "order": [
+              "eager",
+              "exact",
+              "bucket"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 472,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 231.07350408099592,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 472,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 226.43924318253994,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9958575367927551,
+                        "cancel": 0.0005507932510226965,
+                        "wait": 0.003591623157262802
+                      },
+                      "confidence": 0.9740719299887141
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 472,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 224.98491895385087,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 13,
+            "goal_repetitions": 2,
+            "tokens": 242,
+            "bucket": 256,
+            "order": [
+              "exact",
+              "bucket",
+              "eager"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 484,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 225.02801194787025,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 484,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 225.2354291267693,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.992048442363739,
+                        "cancel": 0.00037710636388510466,
+                        "wait": 0.007574383169412613
+                      },
+                      "confidence": 0.9564194115498138
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 484,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 230.22652813233435,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 14,
+            "goal_repetitions": 3,
+            "tokens": 248,
+            "bucket": 256,
+            "order": [
+              "bucket",
+              "eager",
+              "exact"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 496,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 224.7268189676106,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 496,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 230.95240606926382,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 496,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 223.19415397942066,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 15,
+            "goal_repetitions": 4,
+            "tokens": 254,
+            "bucket": 256,
+            "order": [
+              "bucket",
+              "exact",
+              "eager"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 508,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 224.3007409851998,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 508,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 223.10616495087743,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.991942286491394,
+                        "cancel": 0.0004841623594984412,
+                        "wait": 0.00757357245311141
+                      },
+                      "confidence": 0.9556683854522905
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 508,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 231.24814894981682,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 16,
+            "goal_repetitions": 5,
+            "tokens": 260,
+            "bucket": 320,
+            "order": [
+              "exact",
+              "eager",
+              "bucket"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 520,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 241.4556727744639,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 520,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 245.7449329085648,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9927616715431213,
+                        "cancel": 0.000549080956261605,
+                        "wait": 0.006689175497740507
+                      },
+                      "confidence": 0.9591952166424068
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 520,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 237.54199198447168,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 17,
+            "goal_repetitions": 6,
+            "tokens": 266,
+            "bucket": 320,
+            "order": [
+              "eager",
+              "bucket",
+              "exact"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 532,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 240.1798099745065,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 532,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 233.37024194188416,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 532,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.34484819881618,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 18,
+            "goal_repetitions": 7,
+            "tokens": 272,
+            "bucket": 320,
+            "order": [
+              "eager",
+              "exact",
+              "bucket"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 544,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 242.87283886224031,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 544,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 239.1285819467157,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 544,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 238.1719509139657,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 19,
+            "goal_repetitions": 8,
+            "tokens": 278,
+            "bucket": 320,
+            "order": [
+              "exact",
+              "bucket",
+              "eager"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 556,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 236.81690800003707,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 556,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 235.75516906566918,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9936069250106812,
+                        "cancel": 0.00048497485113330185,
+                        "wait": 0.00590820237994194
+                      },
+                      "confidence": 0.9632344640175577
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 556,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 244.01001213118434,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 20,
+            "goal_repetitions": 9,
+            "tokens": 284,
+            "bucket": 320,
+            "order": [
+              "bucket",
+              "eager",
+              "exact"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 568,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 236.15237488411367,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 568,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 241.70392891392112,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9935426712036133,
+                        "cancel": 0.0005495129153132439,
+                        "wait": 0.005907820537686348
+                      },
+                      "confidence": 0.9627919737934512
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 568,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.77634484879673,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 21,
+            "goal_repetitions": 10,
+            "tokens": 290,
+            "bucket": 320,
+            "order": [
+              "bucket",
+              "exact",
+              "eager"
+            ],
+            "variants": {
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 580,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 243.7980780377984,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 580,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 233.92338887788355,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9932942986488342,
+                        "cancel": 0.0007993367617018521,
+                        "wait": 0.005906343925744295
+                      },
+                      "confidence": 0.961138635754178
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 580,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 241.2355849519372,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 22,
+            "goal_repetitions": 11,
+            "tokens": 296,
+            "bucket": 320,
+            "order": [
+              "exact",
+              "eager",
+              "bucket"
+            ],
+            "variants": {
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 592,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.6417368389666,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 592,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 242.09321709349751,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9926069974899292,
+                        "cancel": 0.0007049240521155298,
+                        "wait": 0.006688133347779512
+                      },
+                      "confidence": 0.9581546345308546
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 592,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 235.58391607366502,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          },
+          {
+            "index": 23,
+            "goal_repetitions": 12,
+            "tokens": 302,
+            "bucket": 320,
+            "order": [
+              "eager",
+              "bucket",
+              "exact"
+            ],
+            "variants": {
+              "eager": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 604,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 242.2525780275464,
+                "stats_delta": {},
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "bucket": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 604,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 234.96369901113212,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 0,
+                  "disabled": 2,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0,
+                  "length_checks": 0,
+                  "length_rejections": 0,
+                  "length_disabled": 0,
+                  "length_check_ms": 0.0,
+                  "real_tokens": 0,
+                  "padded_tokens": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              },
+              "exact": {
+                "response": {
+                  "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+                  "answers": {
+                    "q1": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    },
+                    "q2": {
+                      "type": "choice",
+                      "choice": "save",
+                      "probabilities": {
+                        "save": 0.9917238354682922,
+                        "cancel": 0.0007042968645691872,
+                        "wait": 0.007571904454380274
+                      },
+                      "confidence": 0.9541878514365509
+                    }
+                  },
+                  "usage": {
+                    "input_tokens": 604,
+                    "output_tokens": 0
+                  }
+                },
+                "latency_ms": 235.84029008634388,
+                "stats_delta": {
+                  "requests": 1,
+                  "no_request": 0,
+                  "cooldown": 0,
+                  "capture_budget": 0,
+                  "capture_attempts": 0,
+                  "capture_attempt_ms": 0.0,
+                  "eager": 2,
+                  "unsupported": 0,
+                  "warmup": 2,
+                  "disabled": 0,
+                  "replays": 0,
+                  "captures": 0,
+                  "capture_ms": 0.0,
+                  "evictions": 0,
+                  "rejected": 0,
+                  "memory_budget": 0,
+                  "capture_oom": 0,
+                  "capture_error": 0,
+                  "numerical_mismatch": 0
+                },
+                "cache_shapes": 0,
+                "cache_bytes": 0,
+                "reserved_bytes": 9453961216,
+                "peak_reserved_bytes": 9453961216
+              }
+            }
+          }
+        ],
+        "summary": {
+          "eager": {
+            "requests": 24,
+            "total_ms": 5717.71986503154,
+            "p50_ms": 240.44702702667564,
+            "p95_ms": 245.7449329085648,
+            "total_reduction_vs_eager_pct": 0.0
+          },
+          "exact": {
+            "requests": 24,
+            "total_ms": 5620.585082797334,
+            "p50_ms": 233.74571988824755,
+            "p95_ms": 241.4556727744639,
+            "total_reduction_vs_eager_pct": 1.6988377277499023
+          },
+          "bucket": {
+            "requests": 24,
+            "total_ms": 5934.417192824185,
+            "p50_ms": 235.6695425696671,
+            "p95_ms": 388.09332298114896,
+            "total_reduction_vs_eager_pct": -3.789925580613396
+          }
+        },
+        "stats_final": {
+          "exact": {
+            "requests": 24,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 48,
+            "unsupported": 0,
+            "warmup": 48,
+            "disabled": 0,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0
+          },
+          "bucket": {
+            "requests": 24,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 2,
+            "capture_attempt_ms": 540.2216378133744,
+            "eager": 48,
+            "unsupported": 0,
+            "warmup": 4,
+            "disabled": 42,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 2,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 2,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 508,
+            "padded_tokens": 68
+          }
+        }
+      }
+    ]
+  },
+  "fixture": {
+    "model": "cua-s1-4b-0.2",
+    "state": {
+      "image": "data:image/png;base64,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"
+    },
+    "questions": {
+      "q1": {
+        "type": "choice",
+        "instructions": "Save the changed display name.",
+        "criteria": {
+          "save": "Click Save changes",
+          "cancel": "Click Cancel",
+          "wait": "Wait"
+        }
+      },
+      "q2": {
+        "type": "choice",
+        "instructions": "Save the changed display name.",
+        "criteria": {
+          "save": "Click Save changes",
+          "cancel": "Click Cancel",
+          "wait": "Wait"
+        }
+      }
+    }
+  },
+  "tokens": {
+    "1": 236,
+    "2": 242,
+    "3": 248,
+    "4": 254,
+    "5": 260,
+    "6": 266,
+    "7": 272,
+    "8": 278,
+    "9": 284,
+    "10": 290,
+    "11": 296,
+    "12": 302
+  },
+  "buckets": {
+    "1": 256,
+    "2": 256,
+    "3": 256,
+    "4": 256,
+    "5": 320,
+    "6": 320,
+    "7": 320,
+    "8": 320,
+    "9": 320,
+    "10": 320,
+    "11": 320,
+    "12": 320
+  }
+}
