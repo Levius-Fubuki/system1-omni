@@ -84,7 +84,11 @@ def test_unlisted_model_files_cannot_override_verified_shards(tmp_path, monkeypa
             }
         )
     )
-    monkeypatch.setattr(model, "__file__", str(tmp_path / "model.py"))
+    monkeypatch.setattr(
+        model,
+        "WEIGHTS_MANIFEST_SHA256",
+        hashlib.sha256(manifest.read_bytes()).hexdigest(),
+    )
     model.verify_weights(base, adapter)
     (base / "model.safetensors").write_bytes(b"override")
     with pytest.raises(ValueError, match="unlisted"):
@@ -110,3 +114,11 @@ def test_all_question_lengths_are_checked_before_inference():
     with pytest.raises(InvalidRequest, match="4096"):
         engine.predict(Request(None, (first, second)))
     assert forwarded == []
+
+
+def test_weights_manifest_must_match_pinned_upstream_digest(tmp_path):
+    from models.cua_s1.multimodal.model import verify_weights
+
+    (tmp_path / "weights.lock.json").write_text('{"artifacts": []}')
+    with pytest.raises(ValueError, match="manifest checksum"):
+        verify_weights(tmp_path / "base", tmp_path / "adapter")
