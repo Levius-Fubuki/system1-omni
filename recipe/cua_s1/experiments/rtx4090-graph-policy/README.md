@@ -159,7 +159,8 @@ python recipe/cua_s1/verify_graph_policy.py \
 PYTHONPATH=src python -m pytest tests/cua_s1 -q
 ```
 
-The verifier regression tests deliberately corrupt comparison limits, request
+The final Cua-S1 suite passes **241 tests** (`tests.log`); changed Python files
+pass Ruff lint and formatting. The verifier regression tests deliberately corrupt comparison limits, request
 counts, schedules, logits, memory accounting, retirement evidence, complete
 responses and cleanup state. See `verification.log`, `tests.log` and
 `SHA256SUMS` for final validation and evidence integrity.
