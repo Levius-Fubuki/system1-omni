@@ -101,11 +101,9 @@ class AutoGraphRuntime(SharedGraphRuntime):
             runtime = exact if mode == "eager" else self._runtimes[mode]
             before = dict(runtime.stats)
             samples = sum(self.selections.values())
-            sample = (
-                samples <= 8
-                or samples % 16 == 0
-                or mode not in self.selector.costs.get(bucket, {})
-            )
+            # Keep overhead bounded even when a selected mode repeatedly falls
+            # back and therefore never acquires its own replay-cost sample.
+            sample = samples <= 8 or samples % 16 == 0
             start = end = None
             with torch.cuda.device(values["inputs_embeds"].device):
                 if sample:

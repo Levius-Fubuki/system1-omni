@@ -138,3 +138,33 @@ def test_auto_sampling_and_request_decisions_are_bounded(monkeypatch):
     assert len(runtime.selector.history) <= 128
     assert len(runtime._pending) <= 16
     assert len(events) < 100
+
+
+def test_auto_sampling_stays_bounded_when_selected_mode_never_replays(monkeypatch):
+    runtime, exact, _, values, events = fake_dispatch(monkeypatch)
+    runtime.selector.choose = lambda *args, **kwargs: "exact"
+    exact.forward = lambda values: "eager"
+    for _ in range(64):
+        with runtime.request():
+            assert runtime.forward(values) == "eager"
+    assert len(events) == 24
+    assert "exact" not in runtime.selector.costs["bucket"]
+    assert runtime.selector.costs["bucket"]["eager"] == 100
+
+
+@pytest.mark.parametrize("counter", ["capture_attempts", "length_checks"])
+def test_auto_does_not_learn_gate_or_capture_as_replay_cost(monkeypatch, counter):
+    runtime, _, bucket, values, _ = fake_dispatch(monkeypatch)
+    runtime.selector.choose = lambda *args, **kwargs: "rule-bucket"
+
+    def gated(values):
+        bucket.stats[counter] += 1
+        bucket.stats["capture_attempt_ms"] += 500
+        bucket.stats["replays"] += 1
+        return "bucket"
+
+    bucket.forward = gated
+    with runtime.request():
+        assert runtime.forward(values) == "bucket"
+    assert not runtime._pending
+    assert "rule-bucket" not in runtime.selector.costs.get("bucket", {})

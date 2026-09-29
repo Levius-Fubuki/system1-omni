@@ -62,8 +62,25 @@ logits must match eager exactly at capture and for each new actual length in a
 cached bucket. A rejected length uses eager while other verified lengths remain
 eligible. Dense batch-one inputs are supported; unsupported inputs use eager.
 These first-input checks do not prove equality for every possible content.
-There is no automatic mode selection or simultaneous exact/bucket cache in the
-worker. Stable hot lengths can favor exact mode. See the
+For bounded online selection, opt in with `--graph-mode auto`. It observes the
+last 32 requests (at most 128 layouts) and chooses eager, exact or rule-bucket
+per layout, keeping that choice fixed within a request. Exact and bucket entries
+share one namespaced LRU cache, request clock, capture-count/time ledger and
+resident-memory budget. No second budget is allocated when switching modes.
+The selector estimates reuse over the next 64 requests, compares savings with
+capture and new-length validation costs, and applies a 25% capture-cost margin
+and a 32-request switching cooldown. Initial heuristics use 500 ms capture cost
+and exact/bucket replay ratios of 0.45/0.65 relative to eager; observations replace
+these priors. CUDA event spans are sampled for the first eight supported forwards
+and every sixteenth thereafter, queried without extra synchronization. Capture
+and length-check spans do not train replay costs. This heuristic is workload
+dependent and does not guarantee the fastest fixed mode. It uses the same pinned,
+single-device fallback implementation and strict gates as manual buckets.
+`selected_eager`, `selected_exact` and `selected_rule_bucket` count chosen routes;
+admission or validation may still make a selected Graph route run eagerly.
+Invalidation also clears selector history and pending timing events.
+
+Stable hot lengths can favor exact mode. See the
 [worker integration report](experiments/rtx4090-bucket-worker/README.md) for
 correctness, HTTP checks, and workload-dependent timing.
 
