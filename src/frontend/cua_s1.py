@@ -9,7 +9,7 @@ import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .protocol import (
+from models.cua_s1.multimodal.protocol import (
     MAX_BODY,
     InvalidRequest,
     MalformedJSON,
@@ -116,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def parse_args(argv=None):
-    from .graph_runtime import GraphConfig
+    from models.cua_s1.multimodal.graph_runtime import GraphConfig
 
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
@@ -180,7 +180,7 @@ def parse_args(argv=None):
 
 
 def main():
-    from .model import MultimodalEngine
+    from models.cua_s1.multimodal.model import MultimodalEngine
 
     args = parse_args()
     logging.basicConfig(level=logging.INFO)

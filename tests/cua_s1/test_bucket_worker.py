@@ -24,7 +24,7 @@ def test_graph_mode_configuration_rejects_invalid_settings(kwargs):
 
 
 def test_cli_default_and_legacy_and_explicit_modes():
-    from models.cua_s1.multimodal.server import parse_args
+    from frontend.cua_s1 import parse_args
 
     base = ["--base", "base", "--adapter", "adapter"]
     assert parse_args(base).graph_config is None
@@ -46,7 +46,7 @@ def test_cli_default_and_legacy_and_explicit_modes():
     ],
 )
 def test_cli_invalid_modes_rejected_before_loading(args):
-    from models.cua_s1.multimodal.server import parse_args
+    from frontend.cua_s1 import parse_args
 
     with pytest.raises(SystemExit):
         parse_args(["--base", "base", "--adapter", "adapter", *args])
@@ -188,7 +188,7 @@ def test_worker_close_waits_for_inflight_http_before_engine_close():
     from test_protocol import request
     from test_server import call
 
-    from models.cua_s1.multimodal.server import WorkerServer
+    from frontend.cua_s1 import WorkerServer
 
     started, release, closing, closed = (threading.Event() for _ in range(4))
 
