@@ -24,3 +24,7 @@ target
 .venv/
 __pycache__/
 .DS_Store
+
+# Documentation site build and environment
+/site/
+.venv-docs/

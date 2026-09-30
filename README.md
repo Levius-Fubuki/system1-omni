@@ -1,5 +1,7 @@
 # System1-Omni
 
+Documentation: <https://thinkflowlab.github.io/system1-omni/>
+
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
 The Rust frontend forwards requests to a separately running model worker. In-repository model engines and GPU backends are not implemented yet.
