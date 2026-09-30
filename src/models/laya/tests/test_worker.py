@@ -5,6 +5,7 @@ python -m pytest src/models/laya/tests
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +14,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import worker
 
 ANSWER = {"type": "noul", "noul": 0.9, "confidence": 0.9}
+
+
+def on_gpu(rows):
+    """Stands in for input_ids on the GPU: the wrapper only reads its device type and number of rows."""
+    return SimpleNamespace(device=SimpleNamespace(type="mps"), shape=(rows, 7))
 
 
 class FakeAgent:
@@ -212,8 +218,9 @@ def test_compiled_paths_by_batch_rows(monkeypatch):
     model = Model()
     agent.model = model
     worker.compile_agent(agent)
-    assert agent.model(torch.zeros(1, 7)) == "whole model compiled"  # one question
-    assert agent.model(torch.zeros(3, 7)) == ("head", "compiled encoder")  # several: eager head, compiled encoder
+    assert agent.model(on_gpu(1)) == "whole model compiled"  # one question
+    assert agent.model(on_gpu(3)) == ("head", "compiled encoder")  # several: eager head, compiled encoder
+    assert agent.model(torch.zeros(1, 7)) == ("head", "eager encoder")  # on the CPU: laya's model as it is
     assert model.encoder(torch.zeros(1, 7)) == "eager encoder"  # the original model is left as it was
     assert len(list(agent.model.parameters())) == len(list(model.parameters()))  # one set of weights
 
@@ -282,8 +289,8 @@ def test_fp16_weights_keep_act_head_in_fp32():
     agent = FakeAgent()
     agent.model = Model()
     worker.use_fp16_weights(agent)
-    assert agent.model.encoder.weight.dtype == torch.float16
-    assert agent.model.act_head.weight.dtype == torch.float32
+    assert agent.model.eager.encoder.weight.dtype == torch.float16
+    assert agent.model.eager.act_head.weight.dtype == torch.float32
 
 
 def test_fp16_weights_are_applied_to_every_loaded_model_before_warmup(monkeypatch):
@@ -300,15 +307,45 @@ def test_unknown_weights_mode_is_refused():
         worker.create_worker_app(FakeRouter(), "english", "mps", weights="int8")
 
 
-def test_fp16_weights_on_cpu_are_flagged(monkeypatch, caplog):
-    monkeypatch.setattr(worker, "use_fp16_weights", lambda agent: None)
+def test_options_are_not_applied_to_a_model_on_the_cpu(monkeypatch, caplog):
+    applied = []
+    monkeypatch.setattr(worker, "use_fp16_weights", lambda agent: applied.append("fp16"))
+    monkeypatch.setattr(worker, "compile_agent", lambda agent: applied.append("compile"))
     with caplog.at_level("WARNING", logger="laya-worker"):
-        worker.create_worker_app(FakeRouter(FakeAgent(device="cpu")), "english", "cpu", weights="fp16")
-    assert "fp16 weights on CPU are slower" in caplog.text
+        worker.create_worker_app(
+            FakeRouter(FakeAgent(device="cpu")), "english", "cpu", weights="fp16", compile="on", graph_counter=lambda: 0
+        )
+    assert applied == []
+    assert "apply on the GPU only" in caplog.text
     caplog.clear()
     with caplog.at_level("WARNING", logger="laya-worker"):
-        worker.create_worker_app(FakeRouter(), "english", "mps", weights="fp16")
-    assert "slower" not in caplog.text
+        worker.create_worker_app(FakeRouter(), "english", "mps", weights="fp16", compile="on", graph_counter=lambda: 0)
+    assert applied == ["fp16", "compile"]
+    assert "GPU only" not in caplog.text
+
+
+def test_after_a_fallback_to_cpu_the_model_runs_fp32_and_uncompiled(monkeypatch):
+    import torch
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.encoder = torch.nn.Linear(4, 4)
+            self.act_head = torch.nn.Linear(4, 2)
+
+        def forward(self, input_ids):
+            return ("eager", self.encoder.weight.dtype)
+
+    monkeypatch.setattr(torch, "compile", lambda module, dynamic: lambda *a, **k: "compiled")
+    agent = FakeAgent()
+    agent.model = Model()
+    worker.use_fp16_weights(agent)
+    worker.compile_agent(agent)
+    assert agent.model(on_gpu(1)) == "compiled"
+    assert next(agent.model.parameters()).dtype == torch.float16
+    assert agent.model(torch.zeros(1, 7)) == ("eager", torch.float32)  # inputs on the CPU: laya fell back
+    assert {p.dtype for p in agent.model.parameters()} == {torch.float32}
+    assert agent.model(torch.zeros(3, 7)) == ("eager", torch.float32)
 
 
 def test_health_follows_a_fallback_to_cpu_after_startup():

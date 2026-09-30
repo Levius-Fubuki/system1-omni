@@ -22,7 +22,10 @@ Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, L
                                before warmup; see compile_agent
     LAYA_WORKER_WEIGHTS        fp32 or fp16: keep the checkpoint's     fp32
                                fp16 weights instead of laya's fp32
-                               upcast. For MPS; on CPU fp16 is slower
+                               upcast
+
+Both options apply on the GPU only. If laya falls back to the CPU after a GPU out-of-memory error, the
+worker runs laya's fp32 model uncompiled from then on, and /health shows the CPU.
 
 The warmup also compiles the graphs, so the worker takes longer to become ready (35–39 s instead of
 8–10 s on an M1 Pro). /health counts compiled graphs at readiness and now; `recompiled_after_ready` means
@@ -86,14 +89,54 @@ COMPILE_MODES = {"": "off", "0": "off", "off": "off", "1": "on", "on": "on"}
 WEIGHT_MODES = {"": "fp32", "fp32": "fp32", "fp16": "fp16"}
 
 
+def _served(agent: Any) -> Any:
+    """The module the worker puts in place of laya's model, created on first use.
+
+    On the GPU it runs the compiled paths when there are any, otherwise laya's model. On the CPU it always
+    runs laya's model in fp32: laya moves the model to the CPU when a request runs out of GPU memory, and
+    there fp16 weights are slower (334 ms against 138 ms for a 68-token request) and the compiled graphs
+    would first recompile (28 s measured). So after a fallback the worker behaves like plain laya.
+    """
+    import torch
+
+    if getattr(agent.model, "laya_worker_wrapper", False):
+        return agent.model
+    eager = agent.model
+
+    class Served(torch.nn.Module):
+        laya_worker_wrapper = True
+
+        def __init__(self):
+            super().__init__()
+            self.eager = eager
+            self.fp16 = False
+            self.paths = None  # (whole model compiled, encoder-only compiled); a tuple is not a submodule
+
+        def forward(self, input_ids, *args, **kwargs):
+            if input_ids.device.type == "cpu":
+                if self.fp16:
+                    self.eager.float()
+                    self.fp16 = False
+                return self.eager(input_ids, *args, **kwargs)
+            if self.paths is None:
+                return self.eager(input_ids, *args, **kwargs)
+            whole, encoder_only = self.paths
+            return (whole if input_ids.shape[0] == 1 else encoder_only)(input_ids, *args, **kwargs)
+
+    agent.model = Served()
+    return agent.model
+
+
 def use_fp16_weights(agent: Any) -> None:
     """Keep the weights in fp16, the checkpoint's own precision, so the conversion is exact. laya 0.3.20
     upcasts them to fp32 on MPS and CPU. `act_head` stays fp32 because laya feeds it `.float()` features.
-    Meant for MPS: on CPU the answers are the same but a 68-token request took 334 ms instead of 138 ms."""
-    agent.model.half()
-    act_head = getattr(agent.model, "act_head", None)
+    For the GPU only: see _served for what happens on the CPU."""
+    served = _served(agent)
+    served.eager.half()
+    act_head = getattr(served.eager, "act_head", None)
     if act_head is not None:
         act_head.float()
+    served.fp16 = True
 
 
 def compile_agent(agent: Any) -> None:
@@ -108,22 +151,13 @@ def compile_agent(agent: Any) -> None:
 
     import torch
 
-    eager = agent.model
+    served = _served(agent)
+    eager = served.eager
     whole = torch.compile(eager, dynamic=True)
     encoder_only = copy.copy(eager)  # same parameters and submodules ...
     encoder_only._modules = dict(eager._modules)  # ... except the encoder slot
     encoder_only._modules["encoder"] = torch.compile(eager.encoder, dynamic=True)
-
-    class Compiled(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.eager = eager
-
-        def forward(self, input_ids, *args, **kwargs):
-            model = whole if input_ids.shape[0] == 1 else encoder_only
-            return model(input_ids, *args, **kwargs)
-
-    agent.model = Compiled()
+    served.paths = (whole, encoder_only)
 
 
 def record_snapshot_revisions() -> dict[str, str]:
@@ -193,12 +227,18 @@ def create_worker_app(
     if weights not in ("fp32", "fp16"):
         raise ValueError(f"weights must be fp32 or fp16, not {weights!r}")
     names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
-    if weights == "fp16":
-        for name in names:
-            use_fp16_weights(router.load(name))
-    if compile != "off":
-        for name in names:
-            compile_agent(router.load(name))
+    for name in names:
+        agent = router.load(name)
+        if str(getattr(agent, "device", "")).startswith("cpu"):
+            if weights == "fp16" or compile != "off":
+                log.warning(
+                    "%s is on the CPU: LAYA_WORKER_WEIGHTS=fp16 and LAYA_WORKER_COMPILE=on apply on the GPU only", name
+                )
+            continue
+        if weights == "fp16":
+            use_fp16_weights(agent)
+        if compile != "off":
+            compile_agent(agent)
     warmed = {name: warmup(router, name) for name in names}
     agents = {name: router.load(name) for name in names}
     primary = model if model in agents else names[0]
@@ -223,12 +263,6 @@ def create_worker_app(
     info = current()
     models = info["models"]
     graphs_at_ready = graph_counter() if compile != "off" else None
-    on_cpu = [n for n, m in models.items() if m["device"].startswith("cpu")]
-    if weights == "fp16" and on_cpu:
-        log.warning(
-            "fp16 weights on CPU are slower than fp32 (%s); LAYA_WORKER_WEIGHTS=fp16 is meant for MPS",
-            ", ".join(on_cpu),
-        )
     if info["device_mismatch"]:
         wrong = ", ".join(f"{n} is on {m['device']}" for n, m in models.items() if m["device_mismatch"])
         message = f"asked for {info['requested_device']}, {wrong}"

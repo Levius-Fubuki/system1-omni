@@ -48,7 +48,9 @@ curl -s http://127.0.0.1:8000/health
 revision, the weight dtype (`torch.float32`; Laya upcasts the fp16 checkpoint on MPS), the autocast
 dtype Laya uses for requests with at least `mps_amp_min_rows` questions, and the warmup time. The device
 and dtypes are read on every call: if a request runs out of GPU memory, Laya moves the model to the CPU
-and keeps serving, and `/health` then shows `device: cpu` and `device_mismatch: true`.
+and keeps serving, and `/health` then shows `device: cpu` and `device_mismatch: true`. Triggered on the
+M1 Pro by lowering PyTorch's MPS memory limit: the request that ran out of memory still returned 200
+after about 30 s, and later 68-token requests took 140–270 ms from the CPU.
 
 ### Faster: compile and fp16 weights
 
@@ -78,6 +80,9 @@ ready after 19 s instead of 3 s; its first request took 21–36 ms in 21 of 23 f
 
 `/health` reports under `compile` how many graphs existed when the worker became ready and how many
 exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup.
+
+Both options apply on the GPU only. After a fallback to the CPU the worker runs Laya's fp32 model
+uncompiled, like a worker started without them.
 
 ## Start the frontend
 
@@ -131,7 +136,8 @@ Runs labelled anything other than `feasibility` refuse to start on battery power
   is not available to this Python. Check the `torch.backends.mps.is_available()` line above (an x86_64
   Python under Rosetta, for example, has no MPS).
 - `device_mismatch: true` on a worker that started on MPS: Laya fell back to the CPU after a GPU
-  out-of-memory error. Free memory and restart the worker.
+  out-of-memory error. It keeps answering, several times slower; free memory and restart the worker
+  to get back on the GPU.
 - The worker process uses about 4 GB, or 3 GB with fp16 weights (Activity Monitor's Memory column,
   which counts MPS allocations). On a 16 GB Mac, close other large applications before benchmarking.
 - `Address already in use`: another worker or frontend still holds port 8000 or 8080.
