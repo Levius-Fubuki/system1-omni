@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from models.cua_s1.text.adapter import downloaded_revision, text_adapter_dir
+from models.cua_s1.text.model import downloaded_revision, text_adapter_dir
 
 REV = "16818868b0cc7813808aae4e87b417657046ab79"
 
