@@ -49,3 +49,22 @@ A coding agent can help review the diff and identify issues, but contributors
 remain responsible for understanding the changes and verifying the results.
 Self-review helps maintainers focus on design and correctness; it does not
 replace maintainer review.
+
+## Documentation site
+
+The site at <https://thinkflowlab.github.io/system1-omni/> is built with MkDocs
+from the README, this guide, the frontend README and the Markdown files under
+`recipe/` and `docs/`. `mkdocs.yml` sets the navigation and, in `exclude_docs`,
+the published files. Pages keep their repository paths, so write links as
+relative paths that work on GitHub; links to files that are not published go to
+GitHub. Put images in `docs/assets/`.
+
+To run the check from the Docs workflow and preview the site, with Python 3.10 or
+later:
+
+```sh
+python3 -m venv .venv-docs
+.venv-docs/bin/pip install -r docs/requirements.txt
+.venv-docs/bin/mkdocs build --strict
+.venv-docs/bin/mkdocs serve    # http://127.0.0.1:8001/system1-omni/
+```
