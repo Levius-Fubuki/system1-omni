@@ -73,7 +73,9 @@ def main():
         assert victim.pool is None and not victim.blocks
         assert survivor in runtime.cache.entries.values()
         for offset in (0.0, 0.01, -0.02):
-            changed = dict(values[255], inputs_embeds=values[255]['inputs_embeds'] + offset)
+            changed = dict(values[255])
+            # Keep the captured strides, including singleton batch strides.
+            changed['inputs_embeds'].add_(offset)
             assert check(changed)['stats_delta']['replays'] == 1
         pools = []
         for entry in runtime.cache.entries.values():
