@@ -2,7 +2,7 @@
 
 This directory owns Cua-S1 4B 0.2 ([#10](https://github.com/ThinkFlowLab/system1-omni/issues/10)): request mapping, prompt construction, adapter selection, execution, and the answer-letter readout. This page records the pinned upstream revisions, the inference contract an implementation must match, and how its outputs will be compared with the upstream reference.
 
-Status: the `multimodal` adapter has a Transformers/PEFT CUDA worker validated on RTX 4090. See the [multimodal recipe](../../../recipe/cua_s1/README.md) for its screenshot request extension, input limits and archived GPU parity results. The `text` worker is tracked separately in [PR #13](https://github.com/ThinkFlowLab/system1-omni/pull/13); the text mapping below remains its contract.
+Status: planned; nothing is implemented or validated yet. The first target is the `text` adapter on CUDA, starting with a worker that loads the model directly through Hugging Face Transformers and PEFT. The `multimodal` adapter is deferred; see [Not covered yet](#not-covered-yet).
 
 ## Pinned revisions
 
@@ -105,7 +105,7 @@ The bfloat16 worker's own difference from the fp32 worker is reported next to ea
 
 ## Not covered yet
 
-- Text-adapter serving in this checkout (tracked in PR #13), and native GPU kernels.
+- The `multimodal` adapter: image preprocessing, the vision tower and the vision LoRA. This is tracked in [#10](https://github.com/ThinkFlowLab/system1-omni/issues/10).
 - `score` and `noul` questions.
 - More than 26 options per question.
 - The Metal backend.
