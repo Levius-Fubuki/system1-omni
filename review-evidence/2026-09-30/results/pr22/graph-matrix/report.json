@@ -1,0 +1,617 @@
+{
+  "status": "complete",
+  "repository": {
+    "revision": "da07a404a201eb4b3d0aa1ff3797d35fc25e374c",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "config": {
+    "weights": "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+    "output": "/root/cua-review-20260930/results/pr22/graph-matrix",
+    "case": [
+      "320x240-short-q2",
+      "320x240-short-q8",
+      "640x480-short-q8",
+      "640x480-long-q8",
+      "640x480-distinct-q8"
+    ],
+    "warmup": 2,
+    "runs": 2,
+    "iterations": 10,
+    "graph_max_tokens": 4096
+  },
+  "cases": [
+    {
+      "id": "320x240-short-q2",
+      "status": "complete",
+      "fixture_sha256": "d32998f61c3f875804c0161fe9eaca360d5eae5eb6e8adebde55b969ebbf666c",
+      "runs": [
+        {
+          "eager": {
+            "samples_ms": [
+              194.67275962233543,
+              194.96351666748524,
+              194.54840943217278,
+              197.43988662958145,
+              193.54806654155254,
+              196.783896535635,
+              195.9698423743248,
+              198.33753257989883,
+              203.1469438225031,
+              198.38083162903786
+            ],
+            "p50_ms": 196.3768694549799,
+            "p95_ms": 203.1469438225031
+          },
+          "graph": {
+            "samples_ms": [
+              100.72003863751888,
+              100.48507899045944,
+              101.62434354424477,
+              102.52254828810692,
+              100.86419060826302,
+              100.84360279142857,
+              103.37333008646965,
+              100.75794532895088,
+              102.67874039709568,
+              100.86510144174099
+            ],
+            "p50_ms": 100.864646025002,
+            "p95_ms": 103.37333008646965
+          }
+        },
+        {
+          "eager": {
+            "samples_ms": [
+              199.8436339199543,
+              198.50239530205727,
+              198.7870279699564,
+              197.56721705198288,
+              193.72046925127506,
+              200.93705132603645,
+              194.38039511442184,
+              195.86674124002457,
+              199.4740180671215,
+              195.8100013434887
+            ],
+            "p50_ms": 198.03480617702007,
+            "p95_ms": 200.93705132603645
+          },
+          "graph": {
+            "samples_ms": [
+              100.97149945795536,
+              101.50935687124729,
+              101.37783922255039,
+              107.09962621331215,
+              101.36954486370087,
+              101.2333519756794,
+              100.92290863394737,
+              100.69204308092594,
+              101.64751671254635,
+              102.89911739528179
+            ],
+            "p50_ms": 101.37369204312563,
+            "p95_ms": 107.09962621331215
+          }
+        }
+      ],
+      "original_max_probability_difference": 0.0,
+      "changed_image_max_probability_difference": 0.0,
+      "changed_text_verb": "Open",
+      "changed_text_max_probability_difference": 0.0,
+      "stats_after_validation": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 6,
+        "captures": 1,
+        "capture_ms": 338.972732424736,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_after_validation": 120815616,
+      "cache_shapes_after_validation": 1,
+      "stats_final": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 50,
+        "captures": 1,
+        "capture_ms": 338.972732424736,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_final": 120815616,
+      "cache_shapes_final": 1
+    },
+    {
+      "id": "320x240-short-q8",
+      "status": "complete",
+      "fixture_sha256": "c18af7ee94cfe01f0a583e7f528e5e2e62f95a619278a49c6655e1e685f6f869",
+      "runs": [
+        {
+          "eager": {
+            "samples_ms": [
+              708.2550898194313,
+              704.8034854233265,
+              707.8700233250856,
+              706.7743111401796,
+              708.6558882147074,
+              709.2014849185944,
+              704.3721955269575,
+              712.495194748044,
+              706.8354450166225,
+              710.0818734616041
+            ],
+            "p50_ms": 708.0625565722585,
+            "p95_ms": 712.495194748044
+          },
+          "graph": {
+            "samples_ms": [
+              339.2053656280041,
+              339.22596275806427,
+              339.21079710125923,
+              339.3229078501463,
+              339.1291815787554,
+              345.7572516053915,
+              339.6602272987366,
+              339.5466897636652,
+              339.1322363168001,
+              339.5404014736414
+            ],
+            "p50_ms": 339.2744353041053,
+            "p95_ms": 345.7572516053915
+          }
+        },
+        {
+          "eager": {
+            "samples_ms": [
+              706.7849840968847,
+              706.9992478936911,
+              704.3040543794632,
+              702.2321224212646,
+              707.0107720792294,
+              704.2437456548214,
+              705.2573803812265,
+              702.7865704149008,
+              703.1593210995197,
+              702.1241188049316
+            ],
+            "p50_ms": 704.2739000171423,
+            "p95_ms": 707.0107720792294
+          },
+          "graph": {
+            "samples_ms": [
+              340.6656701117754,
+              340.1022031903267,
+              339.4295573234558,
+              339.5044431090355,
+              339.95409682393074,
+              339.14439380168915,
+              339.67017754912376,
+              338.9020673930645,
+              339.4729234278202,
+              339.172899723053
+            ],
+            "p50_ms": 339.48868326842785,
+            "p95_ms": 340.6656701117754
+          }
+        }
+      ],
+      "original_max_probability_difference": 0.0,
+      "changed_image_max_probability_difference": 0.0,
+      "changed_text_verb": "Open",
+      "changed_text_max_probability_difference": 0.0,
+      "stats_after_validation": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 30,
+        "captures": 1,
+        "capture_ms": 320.19592821598053,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_after_validation": 120815616,
+      "cache_shapes_after_validation": 1,
+      "stats_final": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 206,
+        "captures": 1,
+        "capture_ms": 320.19592821598053,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_final": 120815616,
+      "cache_shapes_final": 1
+    },
+    {
+      "id": "640x480-short-q8",
+      "status": "complete",
+      "fixture_sha256": "038faab1159fdf610cb0c828b6c9e7cb12ee95a82539b9639f283530c99b5bf7",
+      "runs": [
+        {
+          "eager": {
+            "samples_ms": [
+              837.222520262003,
+              837.0590880513191,
+              834.399500861764,
+              840.9159202128649,
+              841.2783034145832,
+              843.4034809470177,
+              837.1247909963131,
+              835.6429636478424,
+              842.3557989299297,
+              838.9401435852051
+            ],
+            "p50_ms": 838.081331923604,
+            "p95_ms": 843.4034809470177
+          },
+          "graph": {
+            "samples_ms": [
+              547.9288399219513,
+              551.3705275952816,
+              548.7555004656315,
+              553.7155661731958,
+              549.0875970572233,
+              551.3348430395126,
+              549.6911779046059,
+              552.4560417979956,
+              548.9540863782167,
+              549.1137243807316
+            ],
+            "p50_ms": 549.4024511426687,
+            "p95_ms": 553.7155661731958
+          }
+        },
+        {
+          "eager": {
+            "samples_ms": [
+              842.364713549614,
+              836.1877705901861,
+              840.5890762805939,
+              834.5540761947632,
+              837.1373154222965,
+              839.6725188940763,
+              846.8220438808203,
+              838.1374832242727,
+              835.1748120039701,
+              834.9483720958233
+            ],
+            "p50_ms": 837.6373993232846,
+            "p95_ms": 846.8220438808203
+          },
+          "graph": {
+            "samples_ms": [
+              548.5087875276804,
+              548.6517325043678,
+              549.0197986364365,
+              548.0324197560549,
+              548.5699772834778,
+              549.5571084320545,
+              553.3456988632679,
+              549.3033267557621,
+              552.9679674655199,
+              548.5061556100845
+            ],
+            "p50_ms": 548.8357655704021,
+            "p95_ms": 553.3456988632679
+          }
+        }
+      ],
+      "original_max_probability_difference": 0.0,
+      "changed_image_max_probability_difference": 0.0,
+      "changed_text_verb": "Open",
+      "changed_text_max_probability_difference": 0.0,
+      "stats_after_validation": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 30,
+        "captures": 1,
+        "capture_ms": 412.53514029085636,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_after_validation": 192741376,
+      "cache_shapes_after_validation": 1,
+      "stats_final": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 206,
+        "captures": 1,
+        "capture_ms": 412.53514029085636,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_final": 192741376,
+      "cache_shapes_final": 1
+    },
+    {
+      "id": "640x480-long-q8",
+      "status": "complete",
+      "fixture_sha256": "458daec297c15711744c3912daaf55c4e63a27989c95f050440c6559a457dab2",
+      "runs": [
+        {
+          "eager": {
+            "samples_ms": [
+              1042.540479451418,
+              1050.0264186412096,
+              1078.9431370794773,
+              1061.2160172313452,
+              1044.005012139678,
+              1044.3733092397451,
+              1042.253827676177,
+              1041.8803039938211,
+              1033.0221559852362,
+              1217.7029997110367
+            ],
+            "p50_ms": 1044.1891606897116,
+            "p95_ms": 1217.7029997110367
+          },
+          "graph": {
+            "samples_ms": [
+              929.6726398169994,
+              929.6494647860527,
+              930.2743766456842,
+              933.0445416271687,
+              932.138942182064,
+              931.0709033161402,
+              934.9559135735035,
+              933.266956359148,
+              930.6390099227428,
+              935.6930665671825
+            ],
+            "p50_ms": 931.6049227491021,
+            "p95_ms": 935.6930665671825
+          }
+        },
+        {
+          "eager": {
+            "samples_ms": [
+              1023.7049516290426,
+              1026.8794372677803,
+              1026.0535944253206,
+              1024.4695637375116,
+              1021.7392593622208,
+              1020.5885004252195,
+              1027.486840263009,
+              1041.79616458714,
+              1046.1800023913383,
+              1038.2225029170513
+            ],
+            "p50_ms": 1026.4665158465505,
+            "p95_ms": 1046.1800023913383
+          },
+          "graph": {
+            "samples_ms": [
+              931.3976112753153,
+              931.4809255301952,
+              931.557185947895,
+              935.4254174977541,
+              931.9272097200155,
+              932.92136490345,
+              932.2149772197008,
+              934.2524483799934,
+              932.913813740015,
+              934.0122640132904
+            ],
+            "p50_ms": 932.5643954798579,
+            "p95_ms": 935.4254174977541
+          }
+        }
+      ],
+      "original_max_probability_difference": 0.0,
+      "changed_image_max_probability_difference": 0.0,
+      "changed_text_verb": "Open",
+      "changed_text_max_probability_difference": 0.0,
+      "stats_after_validation": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 30,
+        "captures": 1,
+        "capture_ms": 581.1739023774862,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_after_validation": 367607808,
+      "cache_shapes_after_validation": 1,
+      "stats_final": {
+        "eager": 2,
+        "unsupported": 0,
+        "warmup": 1,
+        "disabled": 0,
+        "replays": 206,
+        "captures": 1,
+        "capture_ms": 581.1739023774862,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_final": 367607808,
+      "cache_shapes_final": 1
+    },
+    {
+      "id": "640x480-distinct-q8",
+      "status": "complete",
+      "fixture_sha256": "2f508d5412387edbd4f85e216568095990a63d1909a12e5c0635373116c7b7b2",
+      "runs": [
+        {
+          "eager": {
+            "samples_ms": [
+              836.0845353454351,
+              843.0576492100954,
+              838.22126314044,
+              846.7020690441132,
+              841.4943348616362,
+              841.0948067903519,
+              834.5930818468332,
+              839.3394947052002,
+              841.3967099040747,
+              846.6509785503149
+            ],
+            "p50_ms": 841.2457583472133,
+            "p95_ms": 846.7020690441132
+          },
+          "graph": {
+            "samples_ms": [
+              4574.159286916256,
+              4531.033908948302,
+              4551.1164125055075,
+              4602.922787889838,
+              4563.82343173027,
+              4574.392341077328,
+              4529.288688674569,
+              4497.502123937011,
+              4663.977663964033,
+              4663.134744390845
+            ],
+            "p50_ms": 4568.991359323263,
+            "p95_ms": 4663.977663964033
+          }
+        },
+        {
+          "eager": {
+            "samples_ms": [
+              862.6038283109665,
+              844.6707539260387,
+              848.6792165786028,
+              836.3924566656351,
+              846.7558361589909,
+              838.1323330104351,
+              861.6995476186275,
+              850.4545409232378,
+              846.6016463935375,
+              829.1015923023224
+            ],
+            "p50_ms": 846.6787412762642,
+            "p95_ms": 862.6038283109665
+          },
+          "graph": {
+            "samples_ms": [
+              4723.882611840963,
+              4644.455326721072,
+              4617.85982362926,
+              4649.272076785564,
+              4595.35026922822,
+              4647.638916969299,
+              4662.771634757519,
+              4656.326787546277,
+              4540.252448990941,
+              4518.037939444184
+            ],
+            "p50_ms": 4646.047121845186,
+            "p95_ms": 4723.882611840963
+          }
+        }
+      ],
+      "original_max_probability_difference": 0.0,
+      "changed_image_max_probability_difference": 0.0,
+      "changed_text_verb": "Open",
+      "changed_text_max_probability_difference": 0.0,
+      "stats_after_validation": {
+        "eager": 29,
+        "unsupported": 0,
+        "warmup": 7,
+        "disabled": 0,
+        "replays": 3,
+        "captures": 22,
+        "capture_ms": 9179.590914398432,
+        "evictions": 18,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_after_validation": 909000704,
+      "cache_shapes_after_validation": 4,
+      "stats_final": {
+        "eager": 183,
+        "unsupported": 0,
+        "warmup": 7,
+        "disabled": 0,
+        "replays": 25,
+        "captures": 176,
+        "capture_ms": 73297.84429073334,
+        "evictions": 172,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "cache_bytes_final": 909000704,
+      "cache_shapes_final": 4
+    }
+  ]
+}

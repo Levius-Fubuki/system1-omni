@@ -1,0 +1,55 @@
+Cloning into '/root/cua-review-20260930/repository'...
+START 17 cpu-tests
+END 17 cpu-tests 0 18.596
+START 18 cpu-tests
+END 18 cpu-tests 0 18.29
+START 22 cpu-tests
+END 22 cpu-tests 0 18.904
+START 33 cpu-tests
+END 33 cpu-tests 0 19.325
+START 37 cpu-tests
+END 37 cpu-tests 0 23.102
+START 38 cpu-tests
+END 38 cpu-tests 0 23.14
+START 22 streams.json
+END 22 streams.json 0 2.513
+START 22 pools.json
+END 22 pools.json 0 2.446
+START 22 eviction.json
+END 22 eviction.json 1 23.753
+HALTED: failed step
+START 22 eviction.json
+END 22 eviction.json 0 23.945
+START 33 eviction.json
+END 33 eviction.json 0 23.666
+START 37 eviction.json
+END 37 eviction.json 0 23.695
+START 38 shared-survivor.json
+END 38 shared-survivor.json 0 23.444
+START 17 image-reuse
+END 17 image-reuse 0 34.873
+START 18 last-logits
+END 18 last-logits 0 68.232
+START 22 graph-matrix
+END 22 graph-matrix 0 282.144
+START 22 cache.json
+END 22 cache.json 0 25.707
+START 33 admission-parity.json
+END 33 admission-parity.json 0 58.71
+START 37 bucket-parity.json
+END 37 bucket-parity.json 0 68.651
+START 37 boundaries.json
+END 37 boundaries.json 0 27.894
+START 37 http.json
+END 37 http.json 0 40.087
+START 37 bucket-matrix
+END 37 bucket-matrix 0 153.213
+START 38 auto-parity.json
+END 38 auto-parity.json 0 100.262
+START 38 shared.json
+END 38 shared.json 0 54.148
+START 38 http.json
+END 38 http.json 0 39.483
+START 38 auto-matrix
+END 38 auto-matrix 0 787.579
+COMPLETE

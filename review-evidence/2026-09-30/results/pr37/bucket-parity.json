@@ -1,0 +1,4711 @@
+{
+  "status": "complete",
+  "repository": {
+    "revision": "f5b65811b1fbb63614899d174d14ff664156f351",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "cases": [
+    {
+      "id": "320x240-short-q2",
+      "config": {
+        "max_shapes": 8,
+        "max_bytes": 4294967296,
+        "min_uses": 2,
+        "max_tokens": 4096,
+        "admission_window": 8,
+        "cooldown_requests": 32,
+        "capture_window": 32,
+        "max_captures": 16,
+        "capture_budget_ms": 10000,
+        "mode": "exact",
+        "bucket_width": 64
+      },
+      "records": [
+        {
+          "variant": "cold",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 2,
+            "unsupported": 0,
+            "warmup": 2,
+            "disabled": 0,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 0,
+            "padded_tokens": 0
+          }
+        },
+        {
+          "variant": "capture",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 1,
+            "capture_attempt_ms": 361.1280173063278,
+            "eager": 1,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 1,
+            "captures": 1,
+            "capture_ms": 282.19046257436275,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 472,
+            "padded_tokens": 40
+          }
+        },
+        {
+          "variant": "image",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 2,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 472,
+            "padded_tokens": 40
+          }
+        },
+        {
+          "variant": "text",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              }
+            },
+            "usage": {
+              "input_tokens": 472,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 2,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 472,
+            "padded_tokens": 40
+          }
+        }
+      ],
+      "logit_checks": [
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "id": "320x240-short-q8",
+      "config": {
+        "max_shapes": 8,
+        "max_bytes": 4294967296,
+        "min_uses": 2,
+        "max_tokens": 4096,
+        "admission_window": 8,
+        "cooldown_requests": 32,
+        "capture_window": 32,
+        "max_captures": 16,
+        "capture_budget_ms": 10000,
+        "mode": "exact",
+        "bucket_width": 64
+      },
+      "records": [
+        {
+          "variant": "cold",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 8,
+            "unsupported": 0,
+            "warmup": 8,
+            "disabled": 0,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 0,
+            "padded_tokens": 0
+          }
+        },
+        {
+          "variant": "capture",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 1,
+            "capture_attempt_ms": 346.74856811761856,
+            "eager": 1,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 7,
+            "captures": 1,
+            "capture_ms": 267.26467721164227,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 1888,
+            "padded_tokens": 160
+          }
+        },
+        {
+          "variant": "image",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9948427081108093,
+                  "cancel": 0.0005502319545485079,
+                  "wait": 0.004607035778462887
+                },
+                "confidence": 0.9689970758848754
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 1888,
+            "padded_tokens": 160
+          }
+        },
+        {
+          "variant": "text",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9190912842750549,
+                  "cancel": 0.00546511635184288,
+                  "wait": 0.07544361054897308
+                },
+                "confidence": 0.7260293010301584
+              }
+            },
+            "usage": {
+              "input_tokens": 1888,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 1888,
+            "padded_tokens": 160
+          }
+        }
+      ],
+      "logit_checks": [
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 236,
+          "equal": true,
+          "max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "id": "640x480-short-q8",
+      "config": {
+        "max_shapes": 8,
+        "max_bytes": 4294967296,
+        "min_uses": 2,
+        "max_tokens": 4096,
+        "admission_window": 8,
+        "cooldown_requests": 32,
+        "capture_window": 32,
+        "max_captures": 16,
+        "capture_budget_ms": 10000,
+        "mode": "exact",
+        "bucket_width": 64
+      },
+      "records": [
+        {
+          "variant": "cold",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 8,
+            "unsupported": 0,
+            "warmup": 8,
+            "disabled": 0,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 0,
+            "padded_tokens": 0
+          }
+        },
+        {
+          "variant": "capture",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9958575367927551,
+                  "cancel": 0.0005507932510226965,
+                  "wait": 0.003591623157262802
+                },
+                "confidence": 0.9740719299887141
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 1,
+            "capture_attempt_ms": 471.9335697591305,
+            "eager": 1,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 7,
+            "captures": 1,
+            "capture_ms": 377.0341780036688,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 3648,
+            "padded_tokens": 448
+          }
+        },
+        {
+          "variant": "image",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9926069974899292,
+                  "cancel": 0.0007049240521155298,
+                  "wait": 0.006688133347779512
+                },
+                "confidence": 0.9581546345308546
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 3648,
+            "padded_tokens": 448
+          }
+        },
+        {
+          "variant": "text",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.49049079418182373,
+                  "cancel": 0.019018391147255898,
+                  "wait": 0.49049079418182373
+                },
+                "confidence": 0.29533054213032894
+              }
+            },
+            "usage": {
+              "input_tokens": 3648,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 3648,
+            "padded_tokens": 448
+          }
+        }
+      ],
+      "logit_checks": [
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 456,
+          "equal": true,
+          "max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "id": "640x480-long-q8",
+      "config": {
+        "max_shapes": 8,
+        "max_bytes": 4294967296,
+        "min_uses": 2,
+        "max_tokens": 4096,
+        "admission_window": 8,
+        "cooldown_requests": 32,
+        "capture_window": 32,
+        "max_captures": 16,
+        "capture_budget_ms": 10000,
+        "mode": "exact",
+        "bucket_width": 64
+      },
+      "records": [
+        {
+          "variant": "cold",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 8,
+            "unsupported": 0,
+            "warmup": 8,
+            "disabled": 0,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 0,
+            "padded_tokens": 0
+          }
+        },
+        {
+          "variant": "capture",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9877169728279114,
+                  "cancel": 0.0013104835525155067,
+                  "wait": 0.010972544550895691
+                },
+                "confidence": 0.9359032375170542
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 1,
+            "capture_attempt_ms": 681.7958354949951,
+            "eager": 1,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 7,
+            "captures": 1,
+            "capture_ms": 564.1059912741184,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 6672,
+            "padded_tokens": 496
+          }
+        },
+        {
+          "variant": "image",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9865615963935852,
+                  "cancel": 0.0010194117203354836,
+                  "wait": 0.012418977916240692
+                },
+                "confidence": 0.93184947908733
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 6672,
+            "padded_tokens": 496
+          }
+        },
+        {
+          "variant": "text",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.7282647490501404,
+                  "cancel": 0.003821582766249776,
+                  "wait": 0.26791366934776306
+                },
+                "confidence": 0.44924376364556384
+              }
+            },
+            "usage": {
+              "input_tokens": 6672,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 6672,
+            "padded_tokens": 496
+          }
+        }
+      ],
+      "logit_checks": [
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 834,
+          "equal": true,
+          "max_abs": 0.0
+        }
+      ]
+    },
+    {
+      "id": "640x480-distinct-q8",
+      "config": {
+        "max_shapes": 8,
+        "max_bytes": 4294967296,
+        "min_uses": 2,
+        "max_tokens": 4096,
+        "admission_window": 8,
+        "cooldown_requests": 32,
+        "capture_window": 32,
+        "max_captures": 16,
+        "capture_budget_ms": 10000,
+        "mode": "exact",
+        "bucket_width": 64
+      },
+      "records": [
+        {
+          "variant": "cold",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.998498797416687,
+                  "cancel": 0.0015011822106316686
+                },
+                "confidence": 0.9837552323853659
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9995121955871582,
+                  "save": 0.00048785717808641493
+                },
+                "confidence": 0.9939293781678539
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.07546718418598175,
+                  "option-1": 0.00034948240499943495,
+                  "option-2": 0.263406366109848,
+                  "option-3": 0.557631254196167,
+                  "option-4": 0.009013270027935505,
+                  "option-5": 0.01908109337091446,
+                  "option-6": 0.007019542157649994,
+                  "option-7": 0.016839005053043365,
+                  "option-8": 0.009013270027935505,
+                  "option-9": 0.0025823453906923532,
+                  "option-10": 0.004824455827474594,
+                  "option-11": 0.003315796609967947,
+                  "option-12": 0.002011132426559925,
+                  "option-13": 0.0022789116483181715,
+                  "option-14": 0.00619472423568368,
+                  "option-15": 0.0010764816543087363,
+                  "option-16": 0.0037572900764644146,
+                  "option-17": 0.0006529190577566624,
+                  "option-18": 0.002011132426559925,
+                  "option-19": 0.0012198134791105986,
+                  "option-20": 0.00044874430750496686,
+                  "option-21": 0.0005084939184598625,
+                  "option-22": 0.003315796609967947,
+                  "option-23": 0.0013822298496961594,
+                  "option-24": 0.0017748181708157063,
+                  "option-25": 0.004824455827474594
+                },
+                "confidence": 0.5755459268738158
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.07443060725927353,
+                  "object": 0.9067503809928894,
+                  "array": 0.01881900243461132
+                },
+                "confidence": 0.6751463333759231
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.531209409236908,
+                  "second": 0.4687906503677368
+                },
+                "confidence": 0.002812297157495758
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9823379516601562,
+                  "no": 0.0035428637638688087,
+                  "wait": 0.006618940737098455,
+                  "help": 0.007500242441892624
+                },
+                "confidence": 0.9225223144825633
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.01798621006309986,
+                  "leave": 0.9820137619972229
+                },
+                "confidence": 0.8700206851739604
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.998498797416687,
+                  "cancel": 0.0015011822106316686
+                },
+                "confidence": 0.9837552323853659
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9995121955871582,
+                  "save": 0.00048785717808641493
+                },
+                "confidence": 0.9939293781678539
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.07546718418598175,
+                  "option-1": 0.00034948240499943495,
+                  "option-2": 0.263406366109848,
+                  "option-3": 0.557631254196167,
+                  "option-4": 0.009013270027935505,
+                  "option-5": 0.01908109337091446,
+                  "option-6": 0.007019542157649994,
+                  "option-7": 0.016839005053043365,
+                  "option-8": 0.009013270027935505,
+                  "option-9": 0.0025823453906923532,
+                  "option-10": 0.004824455827474594,
+                  "option-11": 0.003315796609967947,
+                  "option-12": 0.002011132426559925,
+                  "option-13": 0.0022789116483181715,
+                  "option-14": 0.00619472423568368,
+                  "option-15": 0.0010764816543087363,
+                  "option-16": 0.0037572900764644146,
+                  "option-17": 0.0006529190577566624,
+                  "option-18": 0.002011132426559925,
+                  "option-19": 0.0012198134791105986,
+                  "option-20": 0.00044874430750496686,
+                  "option-21": 0.0005084939184598625,
+                  "option-22": 0.003315796609967947,
+                  "option-23": 0.0013822298496961594,
+                  "option-24": 0.0017748181708157063,
+                  "option-25": 0.004824455827474594
+                },
+                "confidence": 0.5755459268738158
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.07443060725927353,
+                  "object": 0.9067503809928894,
+                  "array": 0.01881900243461132
+                },
+                "confidence": 0.6751463333759231
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.531209409236908,
+                  "second": 0.4687906503677368
+                },
+                "confidence": 0.002812297157495758
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9823379516601562,
+                  "no": 0.0035428637638688087,
+                  "wait": 0.006618940737098455,
+                  "help": 0.007500242441892624
+                },
+                "confidence": 0.9225223144825633
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.01798621006309986,
+                  "leave": 0.9820137619972229
+                },
+                "confidence": 0.8700206851739604
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 8,
+            "unsupported": 0,
+            "warmup": 8,
+            "disabled": 0,
+            "replays": 0,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 0,
+            "padded_tokens": 0
+          }
+        },
+        {
+          "variant": "capture",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.998498797416687,
+                  "cancel": 0.0015011822106316686
+                },
+                "confidence": 0.9837552323853659
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9995121955871582,
+                  "save": 0.00048785717808641493
+                },
+                "confidence": 0.9939293781678539
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.07546718418598175,
+                  "option-1": 0.00034948240499943495,
+                  "option-2": 0.263406366109848,
+                  "option-3": 0.557631254196167,
+                  "option-4": 0.009013270027935505,
+                  "option-5": 0.01908109337091446,
+                  "option-6": 0.007019542157649994,
+                  "option-7": 0.016839005053043365,
+                  "option-8": 0.009013270027935505,
+                  "option-9": 0.0025823453906923532,
+                  "option-10": 0.004824455827474594,
+                  "option-11": 0.003315796609967947,
+                  "option-12": 0.002011132426559925,
+                  "option-13": 0.0022789116483181715,
+                  "option-14": 0.00619472423568368,
+                  "option-15": 0.0010764816543087363,
+                  "option-16": 0.0037572900764644146,
+                  "option-17": 0.0006529190577566624,
+                  "option-18": 0.002011132426559925,
+                  "option-19": 0.0012198134791105986,
+                  "option-20": 0.00044874430750496686,
+                  "option-21": 0.0005084939184598625,
+                  "option-22": 0.003315796609967947,
+                  "option-23": 0.0013822298496961594,
+                  "option-24": 0.0017748181708157063,
+                  "option-25": 0.004824455827474594
+                },
+                "confidence": 0.5755459268738158
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.07443060725927353,
+                  "object": 0.9067503809928894,
+                  "array": 0.01881900243461132
+                },
+                "confidence": 0.6751463333759231
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.531209409236908,
+                  "second": 0.4687906503677368
+                },
+                "confidence": 0.002812297157495758
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9823379516601562,
+                  "no": 0.0035428637638688087,
+                  "wait": 0.006618940737098455,
+                  "help": 0.007500242441892624
+                },
+                "confidence": 0.9225223144825633
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.01798621006309986,
+                  "leave": 0.9820137619972229
+                },
+                "confidence": 0.8700206851739604
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.998498797416687,
+                  "cancel": 0.0015011822106316686
+                },
+                "confidence": 0.9837552323853659
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9995121955871582,
+                  "save": 0.00048785717808641493
+                },
+                "confidence": 0.9939293781678539
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.07546718418598175,
+                  "option-1": 0.00034948240499943495,
+                  "option-2": 0.263406366109848,
+                  "option-3": 0.557631254196167,
+                  "option-4": 0.009013270027935505,
+                  "option-5": 0.01908109337091446,
+                  "option-6": 0.007019542157649994,
+                  "option-7": 0.016839005053043365,
+                  "option-8": 0.009013270027935505,
+                  "option-9": 0.0025823453906923532,
+                  "option-10": 0.004824455827474594,
+                  "option-11": 0.003315796609967947,
+                  "option-12": 0.002011132426559925,
+                  "option-13": 0.0022789116483181715,
+                  "option-14": 0.00619472423568368,
+                  "option-15": 0.0010764816543087363,
+                  "option-16": 0.0037572900764644146,
+                  "option-17": 0.0006529190577566624,
+                  "option-18": 0.002011132426559925,
+                  "option-19": 0.0012198134791105986,
+                  "option-20": 0.00044874430750496686,
+                  "option-21": 0.0005084939184598625,
+                  "option-22": 0.003315796609967947,
+                  "option-23": 0.0013822298496961594,
+                  "option-24": 0.0017748181708157063,
+                  "option-25": 0.004824455827474594
+                },
+                "confidence": 0.5755459268738158
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.07443060725927353,
+                  "object": 0.9067503809928894,
+                  "array": 0.01881900243461132
+                },
+                "confidence": 0.6751463333759231
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.531209409236908,
+                  "second": 0.4687906503677368
+                },
+                "confidence": 0.002812297157495758
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9823379516601562,
+                  "no": 0.0035428637638688087,
+                  "wait": 0.006618940737098455,
+                  "help": 0.007500242441892624
+                },
+                "confidence": 0.9225223144825633
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.01798621006309986,
+                  "leave": 0.9820137619972229
+                },
+                "confidence": 0.8700206851739604
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 3,
+            "capture_attempt_ms": 1576.0762635618448,
+            "eager": 7,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 5,
+            "captures": 3,
+            "capture_ms": 1281.4485523849726,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 4,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 431.38669058680534,
+            "real_tokens": 3874,
+            "padded_tokens": 158
+          }
+        },
+        {
+          "variant": "image",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9924227595329285,
+                  "cancel": 0.007577240467071533
+                },
+                "confidence": 0.9357349450006811
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9975274205207825,
+                  "save": 0.0024726232513785362
+                },
+                "confidence": 0.9750249565060322
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.028980862349271774,
+                  "option-1": 2.9945858841529116e-05,
+                  "option-2": 0.00015207759861368686,
+                  "option-3": 0.9597143530845642,
+                  "option-4": 0.0007723138551227748,
+                  "option-5": 0.0020993666257709265,
+                  "option-6": 0.00041338981827721,
+                  "option-7": 0.0034612705931067467,
+                  "option-8": 0.0016349885845556855,
+                  "option-9": 0.00015207759861368686,
+                  "option-10": 0.0003648152342066169,
+                  "option-11": 0.0007723138551227748,
+                  "option-12": 0.0001342080213362351,
+                  "option-13": 0.0001342080213362351,
+                  "option-14": 0.00041338981827721,
+                  "option-15": 4.9372374633094296e-05,
+                  "option-16": 0.00041338981827721,
+                  "option-17": 4.357096622698009e-05,
+                  "option-18": 6.33953750366345e-05,
+                  "option-19": 2.642712752276566e-05,
+                  "option-20": 2.058146674244199e-05,
+                  "option-21": 1.1726965567504521e-05,
+                  "option-22": 3.845123865175992e-05,
+                  "option-23": 1.9334498574608006e-05,
+                  "option-24": 2.058146674244199e-05,
+                  "option-25": 6.33953750366345e-05
+                },
+                "confidence": 0.9331687988303864
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.010947893373668194,
+                  "object": 0.9854978322982788,
+                  "array": 0.0035542603582143784
+                },
+                "confidence": 0.923661344613341
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.5926666259765625,
+                  "second": 0.4073334336280823
+                },
+                "confidence": 0.02492098030275547
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9920607805252075,
+                  "no": 0.005899008829146624,
+                  "wait": 0.0005486932932399213,
+                  "help": 0.00149150297511369
+                },
+                "confidence": 0.962480340524983
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.004070138093084097,
+                  "leave": 0.9959298968315125
+                },
+                "confidence": 0.961820276064608
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.9924227595329285,
+                  "cancel": 0.007577240467071533
+                },
+                "confidence": 0.9357349450006811
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9975274205207825,
+                  "save": 0.0024726232513785362
+                },
+                "confidence": 0.9750249565060322
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.028980862349271774,
+                  "option-1": 2.9945858841529116e-05,
+                  "option-2": 0.00015207759861368686,
+                  "option-3": 0.9597143530845642,
+                  "option-4": 0.0007723138551227748,
+                  "option-5": 0.0020993666257709265,
+                  "option-6": 0.00041338981827721,
+                  "option-7": 0.0034612705931067467,
+                  "option-8": 0.0016349885845556855,
+                  "option-9": 0.00015207759861368686,
+                  "option-10": 0.0003648152342066169,
+                  "option-11": 0.0007723138551227748,
+                  "option-12": 0.0001342080213362351,
+                  "option-13": 0.0001342080213362351,
+                  "option-14": 0.00041338981827721,
+                  "option-15": 4.9372374633094296e-05,
+                  "option-16": 0.00041338981827721,
+                  "option-17": 4.357096622698009e-05,
+                  "option-18": 6.33953750366345e-05,
+                  "option-19": 2.642712752276566e-05,
+                  "option-20": 2.058146674244199e-05,
+                  "option-21": 1.1726965567504521e-05,
+                  "option-22": 3.845123865175992e-05,
+                  "option-23": 1.9334498574608006e-05,
+                  "option-24": 2.058146674244199e-05,
+                  "option-25": 6.33953750366345e-05
+                },
+                "confidence": 0.9331687988303864
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.010947893373668194,
+                  "object": 0.9854978322982788,
+                  "array": 0.0035542603582143784
+                },
+                "confidence": 0.923661344613341
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.5926666259765625,
+                  "second": 0.4073334336280823
+                },
+                "confidence": 0.02492098030275547
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9920607805252075,
+                  "no": 0.005899008829146624,
+                  "wait": 0.0005486932932399213,
+                  "help": 0.00149150297511369
+                },
+                "confidence": 0.962480340524983
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.004070138093084097,
+                  "leave": 0.9959298968315125
+                },
+                "confidence": 0.961820276064608
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 3874,
+            "padded_tokens": 158
+          }
+        },
+        {
+          "variant": "text",
+          "expected": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.851952850818634,
+                  "cancel": 0.14804719388484955
+                },
+                "confidence": 0.3950683001308064
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9995121955871582,
+                  "save": 0.00048785717808641493
+                },
+                "confidence": 0.9939293781678539
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.07546718418598175,
+                  "option-1": 0.00034948240499943495,
+                  "option-2": 0.263406366109848,
+                  "option-3": 0.557631254196167,
+                  "option-4": 0.009013270027935505,
+                  "option-5": 0.01908109337091446,
+                  "option-6": 0.007019542157649994,
+                  "option-7": 0.016839005053043365,
+                  "option-8": 0.009013270027935505,
+                  "option-9": 0.0025823453906923532,
+                  "option-10": 0.004824455827474594,
+                  "option-11": 0.003315796609967947,
+                  "option-12": 0.002011132426559925,
+                  "option-13": 0.0022789116483181715,
+                  "option-14": 0.00619472423568368,
+                  "option-15": 0.0010764816543087363,
+                  "option-16": 0.0037572900764644146,
+                  "option-17": 0.0006529190577566624,
+                  "option-18": 0.002011132426559925,
+                  "option-19": 0.0012198134791105986,
+                  "option-20": 0.00044874430750496686,
+                  "option-21": 0.0005084939184598625,
+                  "option-22": 0.003315796609967947,
+                  "option-23": 0.0013822298496961594,
+                  "option-24": 0.0017748181708157063,
+                  "option-25": 0.004824455827474594
+                },
+                "confidence": 0.5755459268738158
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.07443060725927353,
+                  "object": 0.9067503809928894,
+                  "array": 0.01881900243461132
+                },
+                "confidence": 0.6751463333759231
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.531209409236908,
+                  "second": 0.4687906503677368
+                },
+                "confidence": 0.002812297157495758
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9823379516601562,
+                  "no": 0.0035428637638688087,
+                  "wait": 0.006618940737098455,
+                  "help": 0.007500242441892624
+                },
+                "confidence": 0.9225223144825633
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.01798621006309986,
+                  "leave": 0.9820137619972229
+                },
+                "confidence": 0.8700206851739604
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "actual": {
+            "model": "cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:multimodal",
+            "answers": {
+              "q1": {
+                "type": "choice",
+                "choice": "save",
+                "probabilities": {
+                  "save": 0.851952850818634,
+                  "cancel": 0.14804719388484955
+                },
+                "confidence": 0.3950683001308064
+              },
+              "q2": {
+                "type": "choice",
+                "choice": "cancel",
+                "probabilities": {
+                  "cancel": 0.9995121955871582,
+                  "save": 0.00048785717808641493
+                },
+                "confidence": 0.9939293781678539
+              },
+              "q3": {
+                "type": "choice",
+                "choice": "only",
+                "probabilities": {
+                  "only": 1.0
+                },
+                "confidence": 1.0
+              },
+              "q4": {
+                "type": "choice",
+                "choice": "option-3",
+                "probabilities": {
+                  "option-0": 0.07546718418598175,
+                  "option-1": 0.00034948240499943495,
+                  "option-2": 0.263406366109848,
+                  "option-3": 0.557631254196167,
+                  "option-4": 0.009013270027935505,
+                  "option-5": 0.01908109337091446,
+                  "option-6": 0.007019542157649994,
+                  "option-7": 0.016839005053043365,
+                  "option-8": 0.009013270027935505,
+                  "option-9": 0.0025823453906923532,
+                  "option-10": 0.004824455827474594,
+                  "option-11": 0.003315796609967947,
+                  "option-12": 0.002011132426559925,
+                  "option-13": 0.0022789116483181715,
+                  "option-14": 0.00619472423568368,
+                  "option-15": 0.0010764816543087363,
+                  "option-16": 0.0037572900764644146,
+                  "option-17": 0.0006529190577566624,
+                  "option-18": 0.002011132426559925,
+                  "option-19": 0.0012198134791105986,
+                  "option-20": 0.00044874430750496686,
+                  "option-21": 0.0005084939184598625,
+                  "option-22": 0.003315796609967947,
+                  "option-23": 0.0013822298496961594,
+                  "option-24": 0.0017748181708157063,
+                  "option-25": 0.004824455827474594
+                },
+                "confidence": 0.5755459268738158
+              },
+              "q5": {
+                "type": "choice",
+                "choice": "object",
+                "probabilities": {
+                  "null": 0.07443060725927353,
+                  "object": 0.9067503809928894,
+                  "array": 0.01881900243461132
+                },
+                "confidence": 0.6751463333759231
+              },
+              "q6": {
+                "type": "choice",
+                "choice": "first",
+                "probabilities": {
+                  "first": 0.531209409236908,
+                  "second": 0.4687906503677368
+                },
+                "confidence": 0.002812297157495758
+              },
+              "q7": {
+                "type": "choice",
+                "choice": "yes",
+                "probabilities": {
+                  "yes": 0.9823379516601562,
+                  "no": 0.0035428637638688087,
+                  "wait": 0.006618940737098455,
+                  "help": 0.007500242441892624
+                },
+                "confidence": 0.9225223144825633
+              },
+              "q8": {
+                "type": "choice",
+                "choice": "leave",
+                "probabilities": {
+                  "stay": 0.01798621006309986,
+                  "leave": 0.9820137619972229
+                },
+                "confidence": 0.8700206851739604
+              }
+            },
+            "usage": {
+              "input_tokens": 3874,
+              "output_tokens": 0
+            }
+          },
+          "stats_delta": {
+            "requests": 1,
+            "no_request": 0,
+            "cooldown": 0,
+            "capture_budget": 0,
+            "capture_attempts": 0,
+            "capture_attempt_ms": 0.0,
+            "eager": 0,
+            "unsupported": 0,
+            "warmup": 0,
+            "disabled": 0,
+            "replays": 8,
+            "captures": 0,
+            "capture_ms": 0.0,
+            "evictions": 0,
+            "rejected": 0,
+            "memory_budget": 0,
+            "capture_oom": 0,
+            "capture_error": 0,
+            "numerical_mismatch": 0,
+            "length_checks": 0,
+            "length_rejections": 0,
+            "length_disabled": 0,
+            "length_check_ms": 0.0,
+            "real_tokens": 3874,
+            "padded_tokens": 158
+          }
+        }
+      ],
+      "logit_checks": [
+        {
+          "tokens": 443,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 442,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 426,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 752,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 469,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 460,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 443,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 442,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 426,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 752,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 469,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 460,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 443,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 442,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 426,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 752,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 469,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 460,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 443,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 442,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 426,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 752,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 469,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 460,
+          "equal": true,
+          "max_abs": 0.0
+        },
+        {
+          "tokens": 441,
+          "equal": true,
+          "max_abs": 0.0
+        }
+      ]
+    }
+  ],
+  "memory": {
+    "eager": {
+      "allocated_bytes": 9461323776,
+      "reserved_bytes": 10007609344,
+      "peak_reserved_bytes": 10007609344,
+      "cache_bytes": 0,
+      "stats": {}
+    },
+    "exact": {
+      "allocated_bytes": 9489741824,
+      "reserved_bytes": 10034872320,
+      "peak_reserved_bytes": 10101981184,
+      "cache_bytes": 120815616,
+      "stats": {
+        "requests": 3,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 1,
+        "capture_attempt_ms": 393.72499473392963,
+        "eager": 3,
+        "unsupported": 0,
+        "warmup": 2,
+        "disabled": 0,
+        "replays": 3,
+        "captures": 1,
+        "capture_ms": 314.1272012144327,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      }
+    },
+    "rule": {
+      "allocated_bytes": 9674315776,
+      "reserved_bytes": 10217324544,
+      "peak_reserved_bytes": 10259267584,
+      "cache_bytes": 284295168,
+      "stats": {
+        "requests": 3,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 1,
+        "capture_attempt_ms": 347.7367926388979,
+        "eager": 3,
+        "unsupported": 0,
+        "warmup": 2,
+        "disabled": 0,
+        "replays": 3,
+        "captures": 1,
+        "capture_ms": 268.18295381963253,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0,
+        "length_checks": 0,
+        "length_rejections": 0,
+        "length_disabled": 0,
+        "length_check_ms": 0.0,
+        "real_tokens": 944,
+        "padded_tokens": 80
+      }
+    }
+  },
+  "runtime": "worker"
+}

@@ -1,0 +1,228 @@
+{
+  "status": "running",
+  "repository": {
+    "revision": "370c14b35dcb1141395cc5a6d58285eca0055cf1",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "source_sha256": {
+    "src/models/cua_s1/multimodal/graph_runtime.py": "c0572ceb03dcb7f14364b4bdc697d0435c3cb739d387b72711501d6478e68e17",
+    "src/models/cua_s1/multimodal/model.py": "4cfe9d69d4083f502cf1b41971fdeb2115f5f1b4a00316e1f5a89d9e5a36ece0",
+    "src/models/cua_s1/multimodal/protocol.py": "eefc421dc485ab0a23d475a3a733b5d46f33cbe9febd6295e5d794e7fdfcec5f"
+  },
+  "shared": false,
+  "checks": [
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 330.06756752729416,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 319,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 351.6860082745552,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          319,
+          319,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "eager": 0,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 1,
+        "captures": 0,
+        "capture_ms": 0.0,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 385,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 390.5464168637991,
+        "evictions": 1,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          385,
+          385,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 312.8584045916796,
+        "evictions": 1,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          652800,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    }
+  ]
+}

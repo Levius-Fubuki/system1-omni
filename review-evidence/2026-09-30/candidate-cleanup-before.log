@@ -1,0 +1,412 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+__ test_rejected_candidate_closes_despite_retained_reference[oom-capture_oom] __
+
+runtime_module = <module 'review_candidate_cleanup.graph_runtime'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x103a25970>
+failure = 'oom', stat = 'capture_oom'
+
+    @pytest.mark.parametrize(
+        ("failure", "stat"),
+        [
+            ("oom", "capture_oom"),
+            ("runtime_error", "capture_error"),
+            ("numerical_mismatch", "numerical_mismatch"),
+            ("oversize", "memory_budget"),
+        ],
+    )
+    def test_rejected_candidate_closes_despite_retained_reference(
+        runtime_module, monkeypatch, failure, stat
+    ):
+        module = runtime_module
+        events = []
+    
+        class OutOfMemoryError(RuntimeError):
+            pass
+    
+        torch = SimpleNamespace(
+            cuda=SimpleNamespace(
+                OutOfMemoryError=OutOfMemoryError,
+                synchronize=lambda device: events.append("synchronize"),
+                empty_cache=lambda: events.append("empty_cache"),
+            ),
+            equal=lambda reference, output: failure != "numerical_mismatch",
+        )
+        monkeypatch.setitem(sys.modules, "torch", torch)
+    
+        class Block:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("block_close")
+    
+        class Pool:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("pool_close")
+    
+        retained = []
+        original_shape_entry = module._ShapeEntry
+    
+        def candidate_factory(**kwargs):
+            block, pool = Block(), Pool()
+            candidate = original_shape_entry(
+                **kwargs, blocks={0: block}, pool=pool, bytes=2
+            )
+            retained.append((candidate, block, pool))
+            return candidate
+    
+        monkeypatch.setattr(module, "_ShapeEntry", candidate_factory)
+        runtime = object.__new__(module.GraphRuntime)
+        runtime.stats = dict.fromkeys(
+            [
+                "capture_oom",
+                "capture_error",
+                "numerical_mismatch",
+                "memory_budget",
+                "rejected",
+            ],
+            0,
+        )
+        runtime.disabled = module.OrderedDict()
+        runtime.cache = module.GraphCache(max_shapes=2, max_bytes=1)
+        reference = object()
+        runtime._eager = lambda values: reference
+    
+        def run_segments(values, candidate):
+            if failure == "oom":
+                raise OutOfMemoryError("injected healthy-context allocation failure")
+            if failure == "runtime_error":
+                raise RuntimeError("injected recoverable capture failure")
+            return object()
+    
+        runtime._run_segments = run_segments
+        values = {"inputs_embeds": SimpleNamespace(device="cuda:0")}
+        key = ("candidate", failure)
+        try:
+            assert runtime._capture(values, key) is reference
+            candidate, block, pool = retained[0]
+            assert runtime.stats[stat] == 1
+            assert runtime.stats["rejected"] == 1
+            assert key in runtime.disabled
+            assert len(runtime.cache) == 0
+>           assert not candidate.blocks, (
+                "retained rejected candidate still owns graph blocks"
+            )
+E           AssertionError: retained rejected candidate still owns graph blocks
+E           assert not {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103a51730>}
+E            +  where {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103a51730>} = _ShapeEntry(key=('candidate', 'oom'), blocks={0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite...closes_despite_retained_reference.<locals>.Pool object at 0x103a51fd0>, verified_lengths=set(), rejected_lengths=set()).blocks
+
+../evidence/test_review_candidate_cleanup.py:130: AssertionError
+_ test_rejected_candidate_closes_despite_retained_reference[runtime_error-capture_error] _
+
+runtime_module = <module 'review_candidate_cleanup.graph_runtime'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x103aa4880>
+failure = 'runtime_error', stat = 'capture_error'
+
+    @pytest.mark.parametrize(
+        ("failure", "stat"),
+        [
+            ("oom", "capture_oom"),
+            ("runtime_error", "capture_error"),
+            ("numerical_mismatch", "numerical_mismatch"),
+            ("oversize", "memory_budget"),
+        ],
+    )
+    def test_rejected_candidate_closes_despite_retained_reference(
+        runtime_module, monkeypatch, failure, stat
+    ):
+        module = runtime_module
+        events = []
+    
+        class OutOfMemoryError(RuntimeError):
+            pass
+    
+        torch = SimpleNamespace(
+            cuda=SimpleNamespace(
+                OutOfMemoryError=OutOfMemoryError,
+                synchronize=lambda device: events.append("synchronize"),
+                empty_cache=lambda: events.append("empty_cache"),
+            ),
+            equal=lambda reference, output: failure != "numerical_mismatch",
+        )
+        monkeypatch.setitem(sys.modules, "torch", torch)
+    
+        class Block:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("block_close")
+    
+        class Pool:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("pool_close")
+    
+        retained = []
+        original_shape_entry = module._ShapeEntry
+    
+        def candidate_factory(**kwargs):
+            block, pool = Block(), Pool()
+            candidate = original_shape_entry(
+                **kwargs, blocks={0: block}, pool=pool, bytes=2
+            )
+            retained.append((candidate, block, pool))
+            return candidate
+    
+        monkeypatch.setattr(module, "_ShapeEntry", candidate_factory)
+        runtime = object.__new__(module.GraphRuntime)
+        runtime.stats = dict.fromkeys(
+            [
+                "capture_oom",
+                "capture_error",
+                "numerical_mismatch",
+                "memory_budget",
+                "rejected",
+            ],
+            0,
+        )
+        runtime.disabled = module.OrderedDict()
+        runtime.cache = module.GraphCache(max_shapes=2, max_bytes=1)
+        reference = object()
+        runtime._eager = lambda values: reference
+    
+        def run_segments(values, candidate):
+            if failure == "oom":
+                raise OutOfMemoryError("injected healthy-context allocation failure")
+            if failure == "runtime_error":
+                raise RuntimeError("injected recoverable capture failure")
+            return object()
+    
+        runtime._run_segments = run_segments
+        values = {"inputs_embeds": SimpleNamespace(device="cuda:0")}
+        key = ("candidate", failure)
+        try:
+            assert runtime._capture(values, key) is reference
+            candidate, block, pool = retained[0]
+            assert runtime.stats[stat] == 1
+            assert runtime.stats["rejected"] == 1
+            assert key in runtime.disabled
+            assert len(runtime.cache) == 0
+>           assert not candidate.blocks, (
+                "retained rejected candidate still owns graph blocks"
+            )
+E           AssertionError: retained rejected candidate still owns graph blocks
+E           assert not {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103a25a60>}
+E            +  where {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103a25a60>} = _ShapeEntry(key=('candidate', 'runtime_error'), blocks={0: <test_review_candidate_cleanup.test_rejected_candidate_clos...closes_despite_retained_reference.<locals>.Pool object at 0x103a25c70>, verified_lengths=set(), rejected_lengths=set()).blocks
+
+../evidence/test_review_candidate_cleanup.py:130: AssertionError
+_ test_rejected_candidate_closes_despite_retained_reference[numerical_mismatch-numerical_mismatch] _
+
+runtime_module = <module 'review_candidate_cleanup.graph_runtime'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x103a6d0a0>
+failure = 'numerical_mismatch', stat = 'numerical_mismatch'
+
+    @pytest.mark.parametrize(
+        ("failure", "stat"),
+        [
+            ("oom", "capture_oom"),
+            ("runtime_error", "capture_error"),
+            ("numerical_mismatch", "numerical_mismatch"),
+            ("oversize", "memory_budget"),
+        ],
+    )
+    def test_rejected_candidate_closes_despite_retained_reference(
+        runtime_module, monkeypatch, failure, stat
+    ):
+        module = runtime_module
+        events = []
+    
+        class OutOfMemoryError(RuntimeError):
+            pass
+    
+        torch = SimpleNamespace(
+            cuda=SimpleNamespace(
+                OutOfMemoryError=OutOfMemoryError,
+                synchronize=lambda device: events.append("synchronize"),
+                empty_cache=lambda: events.append("empty_cache"),
+            ),
+            equal=lambda reference, output: failure != "numerical_mismatch",
+        )
+        monkeypatch.setitem(sys.modules, "torch", torch)
+    
+        class Block:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("block_close")
+    
+        class Pool:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("pool_close")
+    
+        retained = []
+        original_shape_entry = module._ShapeEntry
+    
+        def candidate_factory(**kwargs):
+            block, pool = Block(), Pool()
+            candidate = original_shape_entry(
+                **kwargs, blocks={0: block}, pool=pool, bytes=2
+            )
+            retained.append((candidate, block, pool))
+            return candidate
+    
+        monkeypatch.setattr(module, "_ShapeEntry", candidate_factory)
+        runtime = object.__new__(module.GraphRuntime)
+        runtime.stats = dict.fromkeys(
+            [
+                "capture_oom",
+                "capture_error",
+                "numerical_mismatch",
+                "memory_budget",
+                "rejected",
+            ],
+            0,
+        )
+        runtime.disabled = module.OrderedDict()
+        runtime.cache = module.GraphCache(max_shapes=2, max_bytes=1)
+        reference = object()
+        runtime._eager = lambda values: reference
+    
+        def run_segments(values, candidate):
+            if failure == "oom":
+                raise OutOfMemoryError("injected healthy-context allocation failure")
+            if failure == "runtime_error":
+                raise RuntimeError("injected recoverable capture failure")
+            return object()
+    
+        runtime._run_segments = run_segments
+        values = {"inputs_embeds": SimpleNamespace(device="cuda:0")}
+        key = ("candidate", failure)
+        try:
+            assert runtime._capture(values, key) is reference
+            candidate, block, pool = retained[0]
+            assert runtime.stats[stat] == 1
+            assert runtime.stats["rejected"] == 1
+            assert key in runtime.disabled
+            assert len(runtime.cache) == 0
+>           assert not candidate.blocks, (
+                "retained rejected candidate still owns graph blocks"
+            )
+E           AssertionError: retained rejected candidate still owns graph blocks
+E           assert not {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103afafa0>}
+E            +  where {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103afafa0>} = _ShapeEntry(key=('candidate', 'numerical_mismatch'), blocks={0: <test_review_candidate_cleanup.test_rejected_candidate...closes_despite_retained_reference.<locals>.Pool object at 0x103afa5e0>, verified_lengths=set(), rejected_lengths=set()).blocks
+
+../evidence/test_review_candidate_cleanup.py:130: AssertionError
+_ test_rejected_candidate_closes_despite_retained_reference[oversize-memory_budget] _
+
+runtime_module = <module 'review_candidate_cleanup.graph_runtime'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x103a186a0>
+failure = 'oversize', stat = 'memory_budget'
+
+    @pytest.mark.parametrize(
+        ("failure", "stat"),
+        [
+            ("oom", "capture_oom"),
+            ("runtime_error", "capture_error"),
+            ("numerical_mismatch", "numerical_mismatch"),
+            ("oversize", "memory_budget"),
+        ],
+    )
+    def test_rejected_candidate_closes_despite_retained_reference(
+        runtime_module, monkeypatch, failure, stat
+    ):
+        module = runtime_module
+        events = []
+    
+        class OutOfMemoryError(RuntimeError):
+            pass
+    
+        torch = SimpleNamespace(
+            cuda=SimpleNamespace(
+                OutOfMemoryError=OutOfMemoryError,
+                synchronize=lambda device: events.append("synchronize"),
+                empty_cache=lambda: events.append("empty_cache"),
+            ),
+            equal=lambda reference, output: failure != "numerical_mismatch",
+        )
+        monkeypatch.setitem(sys.modules, "torch", torch)
+    
+        class Block:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("block_close")
+    
+        class Pool:
+            closed = False
+    
+            def close(self):
+                self.closed = True
+                events.append("pool_close")
+    
+        retained = []
+        original_shape_entry = module._ShapeEntry
+    
+        def candidate_factory(**kwargs):
+            block, pool = Block(), Pool()
+            candidate = original_shape_entry(
+                **kwargs, blocks={0: block}, pool=pool, bytes=2
+            )
+            retained.append((candidate, block, pool))
+            return candidate
+    
+        monkeypatch.setattr(module, "_ShapeEntry", candidate_factory)
+        runtime = object.__new__(module.GraphRuntime)
+        runtime.stats = dict.fromkeys(
+            [
+                "capture_oom",
+                "capture_error",
+                "numerical_mismatch",
+                "memory_budget",
+                "rejected",
+            ],
+            0,
+        )
+        runtime.disabled = module.OrderedDict()
+        runtime.cache = module.GraphCache(max_shapes=2, max_bytes=1)
+        reference = object()
+        runtime._eager = lambda values: reference
+    
+        def run_segments(values, candidate):
+            if failure == "oom":
+                raise OutOfMemoryError("injected healthy-context allocation failure")
+            if failure == "runtime_error":
+                raise RuntimeError("injected recoverable capture failure")
+            return object()
+    
+        runtime._run_segments = run_segments
+        values = {"inputs_embeds": SimpleNamespace(device="cuda:0")}
+        key = ("candidate", failure)
+        try:
+            assert runtime._capture(values, key) is reference
+            candidate, block, pool = retained[0]
+            assert runtime.stats[stat] == 1
+            assert runtime.stats["rejected"] == 1
+            assert key in runtime.disabled
+            assert len(runtime.cache) == 0
+>           assert not candidate.blocks, (
+                "retained rejected candidate still owns graph blocks"
+            )
+E           AssertionError: retained rejected candidate still owns graph blocks
+E           assert not {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103ad6af0>}
+E            +  where {0: <test_review_candidate_cleanup.test_rejected_candidate_closes_despite_retained_reference.<locals>.Block object at 0x103ad6af0>} = _ShapeEntry(key=('candidate', 'oversize'), blocks={0: <test_review_candidate_cleanup.test_rejected_candidate_closes_de...closes_despite_retained_reference.<locals>.Pool object at 0x103ad6a00>, verified_lengths=set(), rejected_lengths=set()).blocks
+
+../evidence/test_review_candidate_cleanup.py:130: AssertionError
+=========================== short test summary info ============================
+FAILED ../evidence/test_review_candidate_cleanup.py::test_rejected_candidate_closes_despite_retained_reference[oom-capture_oom]
+FAILED ../evidence/test_review_candidate_cleanup.py::test_rejected_candidate_closes_despite_retained_reference[runtime_error-capture_error]
+FAILED ../evidence/test_review_candidate_cleanup.py::test_rejected_candidate_closes_despite_retained_reference[numerical_mismatch-numerical_mismatch]
+FAILED ../evidence/test_review_candidate_cleanup.py::test_rejected_candidate_closes_despite_retained_reference[oversize-memory_budget]
+4 failed in 0.11s

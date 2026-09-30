@@ -1,0 +1,86 @@
+FFF.FFFF                                                                 [100%]
+=================================== FAILURES ===================================
+________ test_live_segments_own_unique_capture_streams_beyond_pool_size ________
+
+cuda = namespace(events=[], next_handle=100, captures=[None, None, None, None, None, None, None, None, None, None, None, None...ronize=<function cuda.<locals>.<lambda> at 0x7fde0970e2a0>)), make=<function cuda.<locals>.<lambda> at 0x7fde0970e340>)
+
+    def test_live_segments_own_unique_capture_streams_beyond_pool_size(cuda):
+        segments = [cuda.make() for _ in range(40)]
+>       assert all(stream is not None for stream in cuda.captures)
+E       assert False
+E        +  where False = all(<generator object test_live_segments_own_unique_capture_streams_beyond_pool_size.<locals>.<genexpr> at 0x7fde099098a0>)
+
+/tmp/test_review_graph_lifetime.py:94: AssertionError
+________ test_close_waits_for_replay_then_resets_releases_and_destroys _________
+
+cuda = namespace(events=[], next_handle=100, captures=[None], pools=[None], fail=False, torch=namespace(no_grad=<class 'conte...ronize=<function cuda.<locals>.<lambda> at 0x7fde096e0720>)), make=<function cuda.<locals>.<lambda> at 0x7fde096e07c0>)
+
+    def test_close_waits_for_replay_then_resets_releases_and_destroys(cuda):
+        segment = cuda.make()
+        tensors = [
+            weakref.ref(getattr(segment, name))
+            for name in ("static_hidden", "static_mask", "static_output")
+        ]
+>       handle = cuda.captures[0].cuda_stream
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'cuda_stream'
+
+/tmp/test_review_graph_lifetime.py:106: AttributeError
+_________ test_capture_exception_resets_graph_before_destroying_stream _________
+
+cuda = namespace(events=[], next_handle=100, captures=[None], pools=[None], fail=True, torch=namespace(no_grad=<class 'contex...ronize=<function cuda.<locals>.<lambda> at 0x7fde096e1620>)), make=<function cuda.<locals>.<lambda> at 0x7fde096e16c0>)
+
+    def test_capture_exception_resets_graph_before_destroying_stream(cuda):
+        cuda.fail = True
+        with pytest.raises(ValueError, match="capture failed"):
+            cuda.make()
+>       assert "reset" in cuda.events
+E       AssertionError: assert 'reset' in []
+E        +  where [] = namespace(events=[], next_handle=100, captures=[None], pools=[None], fail=True, torch=namespace(no_grad=<class 'contex...ronize=<function cuda.<locals>.<lambda> at 0x7fde096e1620>)), make=<function cuda.<locals>.<lambda> at 0x7fde096e16c0>).events
+
+/tmp/test_review_graph_lifetime.py:125: AssertionError
+_______________ test_destructor_tolerates_partial_initialization _______________
+
+    def test_destructor_tolerates_partial_initialization():
+        segment = object.__new__(_GraphSegment)
+>       segment.__del__()
+        ^^^^^^^^^^^^^^^
+E       AttributeError: '_GraphSegment' object has no attribute '__del__'. Did you mean: '__dir__'?
+
+/tmp/test_review_graph_lifetime.py:141: AttributeError
+______ test_shape_segments_share_pool_and_stream_but_shapes_are_isolated _______
+
+cuda = namespace(events=[], next_handle=100, captures=[], pools=[], fail=False, torch=namespace(no_grad=<class 'contextlib.nu...ronize=<function cuda.<locals>.<lambda> at 0x7fde096e2840>)), make=<function cuda.<locals>.<lambda> at 0x7fde096e28e0>)
+
+    def test_shape_segments_share_pool_and_stream_but_shapes_are_isolated(cuda):
+>       from models.cua_s1.multimodal.graph_runtime import _GraphPool, _ShapeEntry
+E       ImportError: cannot import name '_GraphPool' from 'models.cua_s1.multimodal.graph_runtime' (/root/cua-review-20260930/before22/src/models/cua_s1/multimodal/graph_runtime.py)
+
+/tmp/test_review_graph_lifetime.py:145: ImportError
+______ test_shape_counts_all_reserved_pool_bytes_and_external_inputs_once ______
+
+cuda = namespace(events=[], next_handle=100, captures=[], pools=[], fail=False, torch=namespace(no_grad=<class 'contextlib.nu...ronize=<function cuda.<locals>.<lambda> at 0x7fde096e3740>)), make=<function cuda.<locals>.<lambda> at 0x7fde096e37e0>)
+
+    def test_shape_counts_all_reserved_pool_bytes_and_external_inputs_once(cuda):
+>       from models.cua_s1.multimodal.graph_runtime import _GraphPool, _ShapeEntry
+E       ImportError: cannot import name '_GraphPool' from 'models.cua_s1.multimodal.graph_runtime' (/root/cua-review-20260930/before22/src/models/cua_s1/multimodal/graph_runtime.py)
+
+/tmp/test_review_graph_lifetime.py:167: ImportError
+_____ test_unsupported_allocator_fails_before_allocating_unaccounted_pool ______
+
+cuda = namespace(events=[], next_handle=100, captures=[], pools=[], fail=False, torch=namespace(no_grad=<class 'contextlib.nu...ronize=<function cuda.<locals>.<lambda> at 0x7fde096d8720>)), make=<function cuda.<locals>.<lambda> at 0x7fde096d87c0>)
+
+    def test_unsupported_allocator_fails_before_allocating_unaccounted_pool(cuda):
+>       from models.cua_s1.multimodal.graph_runtime import _GraphPool
+E       ImportError: cannot import name '_GraphPool' from 'models.cua_s1.multimodal.graph_runtime' (/root/cua-review-20260930/before22/src/models/cua_s1/multimodal/graph_runtime.py)
+
+/tmp/test_review_graph_lifetime.py:190: ImportError
+=========================== short test summary info ============================
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_live_segments_own_unique_capture_streams_beyond_pool_size
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_close_waits_for_replay_then_resets_releases_and_destroys
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_capture_exception_resets_graph_before_destroying_stream
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_destructor_tolerates_partial_initialization
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_shape_segments_share_pool_and_stream_but_shapes_are_isolated
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_shape_counts_all_reserved_pool_bytes_and_external_inputs_once
+FAILED ../../../tmp/test_review_graph_lifetime.py::test_unsupported_allocator_fails_before_allocating_unaccounted_pool
+7 failed, 1 passed in 0.09s

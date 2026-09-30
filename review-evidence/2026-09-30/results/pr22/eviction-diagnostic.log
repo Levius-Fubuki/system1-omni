@@ -1,0 +1,11 @@
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/723 [00:00<?, ?it/s]Loading weights:   0%|          | 1/723 [00:00<01:46,  6.80it/s]Loading weights:   5%|▌         | 39/723 [00:00<00:03, 188.70it/s]Loading weights:   9%|▉         | 67/723 [00:00<00:02, 219.75it/s]Loading weights:  14%|█▍        | 100/723 [00:00<00:02, 254.43it/s]Loading weights:  20%|█▉        | 142/723 [00:00<00:01, 303.56it/s]Loading weights:  24%|██▍       | 174/723 [00:00<00:01, 289.66it/s]Loading weights:  28%|██▊       | 205/723 [00:00<00:01, 281.03it/s]Loading weights:  34%|███▍      | 246/723 [00:00<00:01, 318.27it/s]Loading weights:  39%|███▊      | 279/723 [00:01<00:01, 304.10it/s]Loading weights:  43%|████▎     | 311/723 [00:01<00:01, 304.70it/s]Loading weights:  49%|████▉     | 353/723 [00:01<00:01, 337.55it/s]Loading weights:  54%|█████▎    | 388/723 [00:01<00:01, 322.89it/s]Loading weights:  58%|█████▊    | 421/723 [00:01<00:00, 319.18it/s]Loading weights:  89%|████████▉ | 643/723 [00:01<00:00, 856.91it/s]Loading weights: 100%|██████████| 723/723 [00:01<00:00, 452.92it/s]
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+Traceback (most recent call last):
+  File "/root/cua-review-20260930/pr22/recipe/cua_s1/check_review_eviction.py", line 100, in <module>
+    main()
+  File "/root/cua-review-20260930/pr22/recipe/cua_s1/check_review_eviction.py", line 77, in main
+    assert check(changed)['stats_delta']['replays'] == 1
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

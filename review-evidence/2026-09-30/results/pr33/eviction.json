@@ -1,0 +1,383 @@
+{
+  "status": "complete",
+  "repository": {
+    "revision": "2fa3e7c895b0f5cbbd087ecc9f1edec3d1a82f87",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "source_sha256": {
+    "src/models/cua_s1/multimodal/graph_admission.py": "3a7d8910938eb68dbe5b4d0abf71a4e538407c3d2b6fd415a454f5fe02230539",
+    "src/models/cua_s1/multimodal/graph_runtime.py": "75a9e52a5a98552639076e8c0fcf9deb9de5ec4ad3c6085b67654aadef94afdc",
+    "src/models/cua_s1/multimodal/model.py": "a5d0d8ed365b971f54cfc606bc8ae71d2bc1b96314f6fff20cf13888545de894",
+    "src/models/cua_s1/multimodal/protocol.py": "eefc421dc485ab0a23d475a3a733b5d46f33cbe9febd6295e5d794e7fdfcec5f"
+  },
+  "shared": false,
+  "checks": [
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 1,
+        "capture_attempt_ms": 416.48914478719234,
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 336.9083311408758,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 319,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 1,
+        "capture_attempt_ms": 444.05472464859486,
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 355.3925510495901,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          319,
+          319,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 0,
+        "capture_attempt_ms": 0.0,
+        "eager": 0,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 1,
+        "captures": 0,
+        "capture_ms": 0.0,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 385,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 1,
+        "capture_attempt_ms": 645.387189462781,
+        "eager": 1,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 0,
+        "captures": 1,
+        "capture_ms": 387.82223500311375,
+        "evictions": 1,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          385,
+          385,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 0,
+        "capture_attempt_ms": 0.0,
+        "eager": 0,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 1,
+        "captures": 0,
+        "capture_ms": 0.0,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 0,
+        "capture_attempt_ms": 0.0,
+        "eager": 0,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 1,
+        "captures": 0,
+        "capture_ms": 0.0,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    },
+    {
+      "mode": "exact",
+      "tokens": 255,
+      "equal": true,
+      "max_abs": 0.0,
+      "stats_delta": {
+        "requests": 1,
+        "no_request": 0,
+        "cooldown": 0,
+        "capture_budget": 0,
+        "capture_attempts": 0,
+        "capture_attempt_ms": 0.0,
+        "eager": 0,
+        "unsupported": 0,
+        "warmup": 0,
+        "disabled": 0,
+        "replays": 1,
+        "captures": 0,
+        "capture_ms": 0.0,
+        "evictions": 0,
+        "rejected": 0,
+        "memory_budget": 0,
+        "capture_oom": 0,
+        "capture_error": 0,
+        "numerical_mismatch": 0
+      },
+      "strides": {
+        "inputs_embeds": [
+          1049600,
+          2560,
+          1
+        ],
+        "position_ids": [
+          255,
+          255,
+          1
+        ],
+        "attention_mask": [
+          410,
+          1
+        ]
+      }
+    }
+  ],
+  "stats": {
+    "requests": 7,
+    "no_request": 0,
+    "cooldown": 0,
+    "capture_budget": 0,
+    "capture_attempts": 3,
+    "capture_attempt_ms": 1505.9310588985682,
+    "eager": 3,
+    "unsupported": 0,
+    "warmup": 0,
+    "disabled": 0,
+    "replays": 4,
+    "captures": 3,
+    "capture_ms": 1080.1231171935797,
+    "evictions": 1,
+    "rejected": 0,
+    "memory_budget": 0,
+    "capture_oom": 0,
+    "capture_error": 0,
+    "numerical_mismatch": 0
+  },
+  "pools": [
+    {
+      "reserved": 174063616,
+      "allocated": 24913920,
+      "external": 15769600,
+      "accounted": 189833216
+    },
+    {
+      "reserved": 111149056,
+      "allocated": 19404800,
+      "external": 10444800,
+      "accounted": 121593856
+    }
+  ],
+  "victim_released": true,
+  "surviving_graph_replays_after_eviction": 3,
+  "referenced_entries_explicitly_retired": true
+}

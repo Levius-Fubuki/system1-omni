@@ -1,0 +1,509 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "repository": {
+    "revision": "cbd92b626c08374018efdbfbddceb73f639474b7",
+    "dirty": false,
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untracked_files": []
+  },
+  "environment": {
+    "python": "3.12.3",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "compute_capability": [
+      8,
+      9
+    ],
+    "cuda": "13.0",
+    "driver": "595.71.05",
+    "torch_num_threads": 64,
+    "torch_num_interop_threads": 64,
+    "packages": {
+      "torch": "2.14.0",
+      "torchvision": "0.29.0",
+      "transformers": "5.17.0",
+      "peft": "0.21.0",
+      "pillow": "11.3.0",
+      "safetensors": "0.8.0",
+      "triton": "3.8.0"
+    },
+    "reference_revision": "0e75660ce4c2edda519e0c795fa3ad98abf4e76f",
+    "base_revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+    "adapter_revision": "16818868b0cc7813808aae4e87b417657046ab79",
+    "dtype": "bfloat16",
+    "adapter_merged": false
+  },
+  "config": {
+    "warmup": 2,
+    "runs": 2,
+    "iterations": 10,
+    "case": [
+      "320x240-short-q2",
+      "640x480-distinct-q8"
+    ],
+    "concurrency": 1,
+    "timed_scope": "synchronized engine.predict with only logits_to_keep changed; excludes parsing, fixture creation, validation, and hooks"
+  },
+  "cases": [
+    {
+      "id": "320x240-short-q2",
+      "questions": 2,
+      "fixture_sha256": "d32998f61c3f875804c0161fe9eaca360d5eae5eb6e8adebde55b969ebbf666c",
+      "status": "complete",
+      "full_head_shapes": [
+        [
+          1,
+          236,
+          2560
+        ],
+        [
+          1,
+          236,
+          2560
+        ]
+      ],
+      "last_head_shapes": [
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ]
+      ],
+      "exact_response_parity": true,
+      "runs": [
+        {
+          "run": 1,
+          "orders": [
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ]
+          ],
+          "full_projection": {
+            "latencies_ms": [
+              196.32899202406406,
+              196.88260182738304,
+              194.0463874489069,
+              193.448418751359,
+              193.63208301365376,
+              193.3727953583002,
+              193.36601346731186,
+              193.8186138868332,
+              192.9305847734213,
+              193.08069348335266
+            ],
+            "p50_ms": 193.54025088250637,
+            "p95_ms": 196.88260182738304,
+            "requests_per_second_serial": 5.152229886239529,
+            "peak_allocated_bytes": 9369592832,
+            "peak_reserved_bytes": 9550430208
+          },
+          "last_token_projection": {
+            "latencies_ms": [
+              191.0515148192644,
+              191.63528829813004,
+              192.05723144114017,
+              191.76287949085236,
+              191.2278514355421,
+              191.63540564477444,
+              191.17842055857182,
+              195.17486356198788,
+              191.5450468659401,
+              191.64139218628407
+            ],
+            "p50_ms": 191.63534697145224,
+            "p95_ms": 195.17486356198788,
+            "requests_per_second_serial": 5.211292114179724,
+            "peak_allocated_bytes": 9316641792,
+            "peak_reserved_bytes": 9550430208
+          }
+        },
+        {
+          "run": 2,
+          "orders": [
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ]
+          ],
+          "full_projection": {
+            "latencies_ms": [
+              193.24113242328167,
+              192.84652546048164,
+              192.9064616560936,
+              193.36078315973282,
+              193.19497048854828,
+              193.56674328446388,
+              192.73643754422665,
+              192.9381638765335,
+              195.5212727189064,
+              193.6622764915228
+            ],
+            "p50_ms": 193.21805145591497,
+            "p95_ms": 195.5212727189064,
+            "requests_per_second_serial": 5.170698279055327,
+            "peak_allocated_bytes": 9369592832,
+            "peak_reserved_bytes": 9550430208
+          },
+          "last_token_projection": {
+            "latencies_ms": [
+              191.4117895066738,
+              191.60201773047447,
+              191.71387143433094,
+              191.3714874535799,
+              190.8590216189623,
+              191.25852175056934,
+              191.54297560453415,
+              191.26218743622303,
+              191.38081930577755,
+              191.1595892161131
+            ],
+            "p50_ms": 191.37615337967873,
+            "p95_ms": 191.71387143433094,
+            "requests_per_second_serial": 5.225855515125969,
+            "peak_allocated_bytes": 9316641792,
+            "peak_reserved_bytes": 9550430208
+          }
+        }
+      ]
+    },
+    {
+      "id": "640x480-distinct-q8",
+      "questions": 8,
+      "fixture_sha256": "2f508d5412387edbd4f85e216568095990a63d1909a12e5c0635373116c7b7b2",
+      "status": "complete",
+      "full_head_shapes": [
+        [
+          1,
+          443,
+          2560
+        ],
+        [
+          1,
+          442,
+          2560
+        ],
+        [
+          1,
+          426,
+          2560
+        ],
+        [
+          1,
+          752,
+          2560
+        ],
+        [
+          1,
+          469,
+          2560
+        ],
+        [
+          1,
+          441,
+          2560
+        ],
+        [
+          1,
+          460,
+          2560
+        ],
+        [
+          1,
+          441,
+          2560
+        ]
+      ],
+      "last_head_shapes": [
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ],
+        [
+          1,
+          1,
+          2560
+        ]
+      ],
+      "exact_response_parity": true,
+      "runs": [
+        {
+          "run": 1,
+          "orders": [
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ]
+          ],
+          "full_projection": {
+            "latencies_ms": [
+              843.3201890438795,
+              848.9360809326172,
+              847.9790408164263,
+              849.4368679821491,
+              849.9526679515839,
+              849.7768510133028,
+              848.6248981207609,
+              849.5012149214745,
+              850.7001642137766,
+              851.227667182684
+            ],
+            "p50_ms": 849.4690414518118,
+            "p95_ms": 851.227667182684,
+            "requests_per_second_serial": 1.1779318276093487,
+            "peak_allocated_bytes": 9655113216,
+            "peak_reserved_bytes": 10146021376
+          },
+          "last_token_projection": {
+            "latencies_ms": [
+              825.5195878446102,
+              828.349731862545,
+              823.5606271773577,
+              826.6394920647144,
+              828.4087311476469,
+              824.9601293355227,
+              825.251929461956,
+              825.2611346542835,
+              830.2773516625166,
+              827.6021871715784
+            ],
+            "p50_ms": 826.0795399546623,
+            "p95_ms": 830.2773516625166,
+            "requests_per_second_serial": 1.209799730734556,
+            "peak_allocated_bytes": 9461565440,
+            "peak_reserved_bytes": 10146021376
+          }
+        },
+        {
+          "run": 2,
+          "orders": [
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ],
+            [
+              "last_token_projection",
+              "full_projection"
+            ],
+            [
+              "full_projection",
+              "last_token_projection"
+            ]
+          ],
+          "full_projection": {
+            "latencies_ms": [
+              851.94425098598,
+              858.4410343319178,
+              851.0022088885307,
+              852.1757833659649,
+              854.1536629199982,
+              855.2910648286343,
+              851.5974804759026,
+              852.6643887162209,
+              857.4059642851353,
+              857.8882031142712
+            ],
+            "p50_ms": 853.4090258181095,
+            "p95_ms": 858.4410343319178,
+            "requests_per_second_serial": 1.1706087248438286,
+            "peak_allocated_bytes": 9655113216,
+            "peak_reserved_bytes": 10146021376
+          },
+          "last_token_projection": {
+            "latencies_ms": [
+              828.7677578628063,
+              831.1620894819498,
+              828.3212259411812,
+              834.0253289788961,
+              831.2962278723717,
+              827.8726488351822,
+              831.1740420758724,
+              828.3730894327164,
+              831.7737393081188,
+              834.4092480838299
+            ],
+            "p50_ms": 831.1680657789111,
+            "p95_ms": 834.4092480838299,
+            "requests_per_second_serial": 1.203778603562473,
+            "peak_allocated_bytes": 9461565440,
+            "peak_reserved_bytes": 10146021376
+          }
+        }
+      ]
+    }
+  ],
+  "load_ms": 16616.3094881922,
+  "adapter_modules": 178
+}

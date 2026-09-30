@@ -1,0 +1,455 @@
+[
+  {
+    "pr": 17,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 18.596
+  },
+  {
+    "pr": 18,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 18.29
+  },
+  {
+    "pr": 22,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 18.904
+  },
+  {
+    "pr": 33,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 19.325
+  },
+  {
+    "pr": 37,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 23.102
+  },
+  {
+    "pr": 38,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 23.14
+  },
+  {
+    "pr": 22,
+    "name": "streams.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_graph_capture_stream.py",
+      "--output",
+      "/root/cua-review-20260930/results/pr22/streams.json"
+    ],
+    "exit": 0,
+    "seconds": 2.513
+  },
+  {
+    "pr": 22,
+    "name": "pools.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_graph_pool.py",
+      "--output",
+      "/root/cua-review-20260930/results/pr22/pools.json"
+    ],
+    "exit": 0,
+    "seconds": 2.446
+  },
+  {
+    "pr": 22,
+    "name": "eviction.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_review_eviction.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr22/eviction.json"
+    ],
+    "exit": 1,
+    "seconds": 23.753
+  },
+  {
+    "pr": 22,
+    "name": "eviction.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_review_eviction.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr22/eviction.json"
+    ],
+    "exit": 0,
+    "seconds": 23.945
+  },
+  {
+    "pr": 33,
+    "name": "eviction.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_review_eviction.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr33/eviction.json"
+    ],
+    "exit": 0,
+    "seconds": 23.666
+  },
+  {
+    "pr": 37,
+    "name": "eviction.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_review_eviction.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr37/eviction.json"
+    ],
+    "exit": 0,
+    "seconds": 23.695
+  },
+  {
+    "pr": 38,
+    "name": "shared-survivor.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_review_eviction.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr38/shared-survivor.json",
+      "--shared"
+    ],
+    "exit": 0,
+    "seconds": 23.444
+  },
+  {
+    "pr": 17,
+    "name": "image-reuse",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/benchmark_image_reuse.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr17/image-reuse",
+      "--correctness-only"
+    ],
+    "exit": 0,
+    "seconds": 34.873
+  },
+  {
+    "pr": 18,
+    "name": "last-logits",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/benchmark_last_logits.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr18/last-logits",
+      "--warmup",
+      "2",
+      "--runs",
+      "2",
+      "--iterations",
+      "10",
+      "--case",
+      "320x240-short-q2",
+      "--case",
+      "640x480-distinct-q8"
+    ],
+    "exit": 0,
+    "seconds": 68.232
+  },
+  {
+    "pr": 22,
+    "name": "graph-matrix",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/benchmark_graph_runtime.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr22/graph-matrix",
+      "--warmup",
+      "2",
+      "--runs",
+      "2",
+      "--iterations",
+      "10",
+      "--graph-max-tokens",
+      "4096",
+      "--case",
+      "320x240-short-q2",
+      "--case",
+      "320x240-short-q8",
+      "--case",
+      "640x480-short-q8",
+      "--case",
+      "640x480-long-q8",
+      "--case",
+      "640x480-distinct-q8"
+    ],
+    "exit": 0,
+    "seconds": 282.144
+  },
+  {
+    "pr": 22,
+    "name": "cache.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_graph_cache.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr22/cache.json"
+    ],
+    "exit": 0,
+    "seconds": 25.707
+  },
+  {
+    "pr": 33,
+    "name": "admission-parity.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_graph_admission_runtime.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr33/admission-parity.json"
+    ],
+    "exit": 0,
+    "seconds": 58.71
+  },
+  {
+    "pr": 37,
+    "name": "bucket-parity.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_graph_buckets.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr37/bucket-parity.json",
+      "--worker"
+    ],
+    "exit": 0,
+    "seconds": 68.651
+  },
+  {
+    "pr": 37,
+    "name": "boundaries.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_graph_buckets.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr37/boundaries.json",
+      "--worker",
+      "--boundaries-only"
+    ],
+    "exit": 0,
+    "seconds": 27.894
+  },
+  {
+    "pr": 37,
+    "name": "http.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_bucket_worker_http.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr37/http.json"
+    ],
+    "exit": 0,
+    "seconds": 40.087
+  },
+  {
+    "pr": 37,
+    "name": "bucket-matrix",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/benchmark_graph_buckets.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr37/bucket-matrix",
+      "--kind",
+      "worker",
+      "--runs",
+      "2",
+      "--case",
+      "hot_four",
+      "--case",
+      "churn_twelve"
+    ],
+    "exit": 0,
+    "seconds": 153.213
+  },
+  {
+    "pr": 38,
+    "name": "auto-parity.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_auto_worker.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr38/auto-parity.json"
+    ],
+    "exit": 0,
+    "seconds": 100.262
+  },
+  {
+    "pr": 38,
+    "name": "shared.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_shared_graph_policy.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr38/shared.json"
+    ],
+    "exit": 0,
+    "seconds": 54.148
+  },
+  {
+    "pr": 38,
+    "name": "http.json",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/check_bucket_worker_http.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr38/http.json",
+      "--mode",
+      "auto"
+    ],
+    "exit": 0,
+    "seconds": 39.483
+  },
+  {
+    "pr": 38,
+    "name": "auto-matrix",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "recipe/cua_s1/benchmark_graph_buckets.py",
+      "--weights",
+      "/root/autodl-tmp/system1-chain-validation-20260929/weights",
+      "--output",
+      "/root/cua-review-20260930/results/pr38/auto-matrix",
+      "--kind",
+      "worker",
+      "--tuned-exact-window",
+      "32",
+      "--include-auto",
+      "--runs",
+      "2",
+      "--case",
+      "hot_four",
+      "--case",
+      "churn_twelve",
+      "--case",
+      "hot_cold",
+      "--case",
+      "shifting_hot",
+      "--case",
+      "mixed_holdout"
+    ],
+    "exit": 0,
+    "seconds": 787.579
+  },
+  {
+    "pr": 33,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 19.043
+  },
+  {
+    "pr": 37,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 23.004
+  },
+  {
+    "pr": 38,
+    "name": "cpu-tests",
+    "command": [
+      "/root/autodl-tmp/system1-chain-validation-20260929/venv/bin/python",
+      "-m",
+      "pytest",
+      "tests/cua_s1",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 23.015
+  }
+]
