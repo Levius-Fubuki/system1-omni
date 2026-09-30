@@ -114,9 +114,47 @@ request errors or exceeded tolerances, reporting probability/Score drift and
 Choice/Noul flips separately from ground-truth quality. This is an output-fidelity
 check, not automatic proof of equivalent hardware or a performance winner.
 
+## Self-review and A/B evidence
+
+Use the repository's [self-review skill](../.agents/skills/self-review/SKILL.md)
+with its contribution guide and PR template. Decide whether measurements are
+needed before starting GPU work:
+
+- Performance or accuracy improvement claims require reproducible comparison
+  evidence against a relevant reference.
+- For scheduler, batching, cache, kernel, precision, model or serving changes,
+  identify a concrete performance/numerical risk and choose a focused comparison
+  when it can resolve that risk. Output-affecting changes need reference-output
+  checks and applicable labelled quality; equal accuracy alone is not parity.
+- Documentation, unrelated changes and benchmark tooling without performance
+  claims do not automatically need GPU experiments. Run the applicable checks
+  and state why an A/B test is unnecessary.
+
+Freeze revisions, the isolated variable, controls, success criteria and stop
+condition before execution. Follow the run budget above: one feasibility run,
+then two measured repetitions per configuration unless a different budget was
+predeclared. Preserve every result and report variation. Reuse prior evidence
+only if its revisions, inputs and controls cover the reviewed change.
+
+Review errors and metric denominators alongside latency and throughput. Keep
+SDK batch timing separate from HTTP latency and frontend overhead separate from
+native acceleration. Report missing measurements as unverified, and remove or
+qualify unsupported claims. Stop at the declared error/run limit; do not silently
+relax tolerances, discard failures or add runs to obtain a preferred outcome.
+
+### Known validator limitation
+
+The initial GPU run at `9ae70ce` rejected two rounded probability distributions
+summing to `0.9998999999999999`: floating-point roundoff put their deviation just
+outside `abs_tol=1e-4`. See the [run report on PR #40](https://github.com/ThinkFlowLab/system1-omni/pull/40#issuecomment-5894999739).
+That run stopped before completing the A/B comparison. Check for a fix and
+regression tests before relying on this runner for full measurements. A validator
+change needs a recorded revised protocol; partial results are not a validated
+performance baseline.
+
 ## Remaining work in #39
 
-Actual GPU runs, a frozen MMLU manifest, automated memory collection, NLL/Brier
+Completed GPU comparisons, a checked-in frozen MMLU manifest, automated memory collection, NLL/Brier
 metrics, aggregated repeated-run reports and a separate offline SDK comparison
 remain to be delivered. Reuse the upstream [Laya batch benchmark] and
 [evaluation harness]. SDK batch time must not be mixed with HTTP latency, and
