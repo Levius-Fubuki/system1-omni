@@ -2,7 +2,7 @@
 
 This directory owns Cua-S1 4B 0.2 ([#10](https://github.com/ThinkFlowLab/system1-omni/issues/10)): request mapping, prompt construction, adapter selection, execution, and the answer-letter readout. This page records the pinned upstream revisions, the inference contract an implementation must match, and how its outputs will be compared with the upstream reference.
 
-Status: a reference worker for the `text` adapter loads the model directly through Hugging Face Transformers and PEFT and serves `/v1/systemone`. The model is in [`text/`](text/) (`contract.py` for request mapping, prompts and answers; `model.py` for loading and the answer-letter readout), the HTTP worker is [`src/frontend/cua_s1_text.py`](../../frontend/cua_s1_text.py), and setup is in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). A native worker for the `text` adapter is in [`native/`](native/): Rust, with the Qwen3.5 forward pass on the CUDA kernels in [`src/backends/cuda/qwen3_5/`](../../backends/cuda/qwen3_5/); see [`recipe/cua_s1/native.md`](../../../recipe/cua_s1/native.md). A worker for the `multimodal` adapter is proposed in [#12](https://github.com/ThinkFlowLab/system1-omni/pull/12).
+Status: a reference worker for the `text` adapter loads the model through Hugging Face Transformers and PEFT: [`text/`](text/), served by [`src/frontend/cua_s1_text.py`](../../frontend/cua_s1_text.py), with setup in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). It is the correctness reference for the native worker in [`native/`](native/): Rust, with the Qwen3.5 forward pass on the CUDA kernels in [`src/backends/cuda/qwen3_5/`](../../backends/cuda/qwen3_5/), set up as in [`recipe/cua_s1/native.md`](../../../recipe/cua_s1/native.md). The `multimodal` adapter is deferred; see [Not covered yet](#not-covered-yet).
 
 ## Pinned revisions
 
@@ -88,7 +88,7 @@ The status is `422` when a well-formed request cannot be answered:
 
 ## Validation
 
-**Inputs.** The fixed input set is upstream's two checked-in fixtures, converted to `/v1/systemone` requests with the chooser's rendered regions as `state`, plus `/v1/systemone` choice requests, in `tests/cua_s1/data/text_inputs.json`. These cover 1 to 26 options, short and long states, string and structured `state`, `instructions` and `criteria`, `null` criteria, non-ASCII text, and text that spells a special token. Each input is scored once per configuration.
+**Inputs.** The fixed input set is upstream's two checked-in fixtures, converted to `/v1/systemone` requests with the chooser's rendered regions as `state`, plus `/v1/systemone` choice requests. These cover 1 to 26 options, short and long states, string and structured `state`, `instructions` and `criteria`, `null` criteria, non-ASCII text, and text that spells a special token. Each input is scored once per configuration.
 
 **Tolerances.** These are declared before any comparison is run:
 
