@@ -1,0 +1,190 @@
+"""Prefix packing and strict per-length gates for experimental Graph buckets."""
+
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "recipe/cua_s1"))
+
+
+def test_bucket_boundaries():
+    from graph_buckets import bucket_length
+
+    assert [bucket_length(n, 64) for n in (1, 63, 64, 65, 127, 128, 129)] == [
+        64,
+        64,
+        64,
+        128,
+        128,
+        128,
+        192,
+    ]
+
+
+@pytest.mark.parametrize("width", [0, -64, 32, 65, 64.0, True])
+def test_bucket_width_must_be_a_positive_chunk_multiple(width):
+    from graph_buckets import bucket_length
+
+    with pytest.raises(ValueError, match="multiple of 64"):
+        bucket_length(65, width)
+
+
+def runtime():
+    from graph_buckets import BucketRuntime
+
+    model = SimpleNamespace(
+        get_base_model=lambda: SimpleNamespace(
+            model=SimpleNamespace(
+                language_model=SimpleNamespace(
+                    config=SimpleNamespace(_attn_implementation="sdpa")
+                )
+            )
+        )
+    )
+    return BucketRuntime(model)
+
+
+def values(length, dim=4):
+    torch = pytest.importorskip("torch")
+    return {
+        "inputs_embeds": torch.ones(1, length, dim),
+        "position_ids": torch.zeros(3, 1, length, dtype=torch.long),
+        "attention_mask": torch.ones(1, length, dtype=torch.long),
+    }
+
+
+def test_pack_preserves_prefix_and_clears_tail_after_input_changes():
+    from graph_buckets import pack_hidden
+
+    torch = pytest.importorskip("torch")
+    long = pack_hidden(torch.full((1, 63, 4), 7.0), 64)
+    short = pack_hidden(torch.full((1, 2, 4), 3.0), 64)
+    assert long.shape == short.shape == (1, 64, 4)
+    assert torch.equal(short[:, :2], torch.full((1, 2, 4), 3.0))
+    assert torch.count_nonzero(short[:, 2:]) == 0
+    assert torch.all(long[:, :63] == 7)
+
+
+def test_keys_share_only_compatible_padded_segment_layouts():
+    r = runtime()
+    assert r._key(values(63)) == r._key(values(64))
+    assert r._key(values(64)) != r._key(values(65))
+    assert r._key(values(63)) != r._key(values(63, dim=8))
+    assert r._key(values(63)) != runtime()._key(values(63))
+
+
+def test_new_real_length_validated_and_rejected_without_poisoning_bucket():
+    torch = pytest.importorskip("torch")
+    r = runtime()
+    entry = SimpleNamespace(verified_lengths=set(), rejected_lengths=set())
+    calls = []
+    reference = torch.tensor([1.0, 2.0])
+    r._eager = lambda v: calls.append(v["inputs_embeds"].shape[1]) or reference
+    assert torch.equal(
+        r._validate_replay(values(63), entry, reference.clone()), reference
+    )
+    r._validate_replay(values(63), entry, reference.clone())
+    assert calls == [63]
+    wrong = torch.tensor([1.0, 3.0])
+    assert torch.equal(r._validate_replay(values(64), entry, wrong), reference)
+    assert entry.verified_lengths == {63}
+    assert entry.rejected_lengths == {64}
+    assert r.stats["length_checks"] == 2
+    assert r.stats["length_rejections"] == 1
+
+
+def test_original_padding_is_not_supported():
+    torch = pytest.importorskip("torch")
+    r = runtime()
+    v = values(63)
+    assert r._dense(v)
+    v["attention_mask"][0, -1] = 0
+    assert not r._dense(v)
+    v["attention_mask"] = torch.ones(1, 63, 1)
+    assert not r._dense(v)
+
+
+def test_rule_packing_zeros_future_decay_and_updates():
+    from graph_buckets import pack_rule_inputs
+
+    torch = pytest.importorskip("torch")
+    original = {k: torch.ones(1, 63, 2, 4) for k in ("query", "key", "value")}
+    original.update(g=torch.full((1, 63, 2), -0.5), beta=torch.ones(1, 63, 2))
+    packed = pack_rule_inputs(original, 64)
+    for name, tensor in packed.items():
+        assert tensor.shape[1] == 64
+        assert torch.equal(tensor[:, :63], original[name])
+        assert torch.count_nonzero(tensor[:, 63:]) == 0
+
+
+def test_benchmark_summary_uses_nearest_rank_p95_and_total_cost():
+    from benchmark_graph_buckets import summary
+
+    events = [
+        {"variants": {"eager": {"latency_ms": 10}, "bucket": {"latency_ms": v}}}
+        for v in [2, 4, 6, 20]
+    ]
+    result = summary(events, "bucket")
+    assert result["p50_ms"] == 5
+    assert result["p95_ms"] == 20
+    assert result["total_ms"] == 32
+    assert result["total_reduction_vs_eager_pct"] == pytest.approx(20)
+
+
+def test_rule_call_accepts_transformers_cache_free_metadata_only():
+    from graph_buckets import validate_rule_call
+
+    validate_rule_call(
+        None,
+        False,
+        True,
+        {
+            "cu_seqlens": None,
+            "use_cache": False,
+            "output_attentions": None,
+            "output_hidden_states": None,
+        },
+    )
+    for kwargs in (
+        {"use_cache": True},
+        {"chunk_size": 32},
+        {"cu_seqlens": [0, 63]},
+        {"unknown": False},
+    ):
+        with pytest.raises(RuntimeError, match="unsupported rule"):
+            validate_rule_call(None, False, True, kwargs)
+    with pytest.raises(RuntimeError, match="unsupported rule"):
+        validate_rule_call(object(), False, True, {})
+
+
+def test_rule_dispatch_restores_global_function_after_failure(monkeypatch):
+    import types
+
+    from graph_buckets import RuleBucketRuntime
+
+    module = types.ModuleType("_cua_rule_test_module")
+
+    def original(*args, **kwargs):
+        return None
+
+    module.torch_chunk_gated_delta_rule = original
+    attention_type = type("Attention", (), {"__module__": module.__name__})
+    monkeypatch.setitem(sys.modules, module.__name__, module)
+    text = SimpleNamespace(layers=[SimpleNamespace(linear_attn=attention_type())])
+
+    class FailingModel:
+        def get_base_model(self):
+            return SimpleNamespace(model=SimpleNamespace(language_model=text))
+
+        def __call__(self, **kwargs):
+            assert module.torch_chunk_gated_delta_rule is not original
+            raise ValueError("interrupted forward")
+
+    r = RuleBucketRuntime(FailingModel())
+    with pytest.raises(ValueError, match="interrupted"):
+        r._run_segments(
+            {"inputs_embeds": SimpleNamespace(shape=(1, 63, 4))}, SimpleNamespace()
+        )
+    assert module.torch_chunk_gated_delta_rule is original
