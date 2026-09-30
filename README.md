@@ -2,7 +2,7 @@
 
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
-The Rust frontend forwards requests to a separately running model worker. The Cua-S1 multimodal worker has been validated on CUDA through Transformers and PEFT; native GPU backends remain planned.
+The Rust frontend forwards requests to a separately running model worker. In-repository model engines and GPU backends are not implemented yet.
 
 ## Run the frontend
 
@@ -17,8 +17,7 @@ OMNI_JEV_BACKEND_URL=http://127.0.0.1:8000 \
 
 Start the worker separately. See the [frontend documentation](src/frontend/README.md)
 for the HTTP interface and configuration, or the [Laya recipe](recipe/laya/README.md)
-for a CPU text worker and response checks. The [Cua-S1 recipe](recipe/cua_s1/README.md)
-provides a CUDA worker for screenshot-conditioned choices.
+for a CPU text worker and response checks.
 
 ## Architecture
 
@@ -41,23 +40,22 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 
 | Directory | Responsibility |
 | --- | --- |
-| [`src/frontend/`](src/frontend/) | Rust serving code, Python worker adapters, and the small engine interface. |
+| [`src/frontend/`](src/frontend/) | Rust serving code and the small engine interface. |
 | [`src/models/`](src/models/) | Model implementations, one directory per model: preprocessing, batching, state, execution, and output processing. |
 | [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
 | [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend is a Cargo workspace member. Model and backend directories document ownership, with implementations added incrementally; they do not prescribe process boundaries.
+The frontend is a Cargo workspace member. Model and backend directories currently document planned work; they do not prescribe process boundaries.
 
 ## Supported models
 
-Validated coverage is listed by modality and execution path:
+LAYA can run as an external Python worker for text requests. Its in-repository model engine is still planned:
 
 | Model | Status |
 | --- | --- |
 | LAYA | [External worker](recipe/laya/README.md); model engine planned |
-| [Cua-S1 4B 0.2](recipe/cua_s1/README.md) | Multimodal screenshot choices via Transformers/PEFT on RTX 4090 CUDA; [parity and measurements](https://github.com/Levius-Fubuki/system1-omni/blob/683d470669f19d5e9530cd8233727a0d4f1f8d29/recipe/cua_s1/experiments/README.md). Text serving, native CUDA kernels and Metal deferred. |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
