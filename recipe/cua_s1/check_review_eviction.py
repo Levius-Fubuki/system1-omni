@@ -48,7 +48,9 @@ def main():
         equal = torch.equal(expected, actual)
         report['checks'].append({'mode': mode, 'tokens': values['inputs_embeds'].shape[1],
                                  'equal': equal, 'max_abs': (expected.float()-actual.float()).abs().max().item(),
-                                 'stats_delta': {k: v-before[k] for k,v in runtime.stats.items()}})
+                                 'stats_delta': {k: v-before[k] for k,v in runtime.stats.items()},
+                                 'strides': {k: list(v.stride()) for k,v in values.items()}})
+        write_json(args.output, report)
         assert equal, report['checks'][-1]
         return report['checks'][-1]
 
@@ -71,7 +73,9 @@ def main():
         assert victim.pool is None and not victim.blocks
         assert survivor in runtime.cache.entries.values()
         for offset in (0.0, 0.01, -0.02):
-            changed = dict(values[255], inputs_embeds=values[255]['inputs_embeds'] + offset)
+            changed = dict(values[255])
+            # Keep the captured strides, including singleton batch strides.
+            changed['inputs_embeds'].add_(offset)
             assert check(changed)['stats_delta']['replays'] == 1
         pools = []
         for entry in runtime.cache.entries.values():
