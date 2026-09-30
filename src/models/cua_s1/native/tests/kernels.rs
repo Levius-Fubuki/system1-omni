@@ -91,6 +91,19 @@ fn graph_replay_reads_updated_inputs_after_failed_capture() {
     for rows in [[0i32, 1], [2, 0], [1, 2]] {
         assert_replay(&graph, rows);
     }
+    // SAFETY: zero is CUDA's valid legacy default stream handle. Capturing it
+    // is unsupported and must report an error without poisoning this thread.
+    let default_stream: Stream = unsafe { std::mem::zeroed() };
+    assert_ne!(unsafe { (api().cs1_graph_begin)(default_stream) }, 0);
+    let recovered = cuda::Graph::capture(st, embed).unwrap();
+    assert_replay(&recovered, [0, 1]);
+    // SAFETY: a null graph handle deliberately exercises CUDA's argument error.
+    assert_ne!(
+        unsafe { (api().cs1_graph_launch)(std::ptr::null_mut(), st) },
+        0
+    );
+    let recovered = cuda::Graph::capture(st, embed).unwrap();
+    assert_replay(&recovered, [2, 0]);
     for propagate in [true, false] {
         let error = cuda::Graph::capture(st, || {
             embed()?;

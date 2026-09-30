@@ -35,7 +35,9 @@ int cs1_download(void* dst, const void* src, size_t bytes, void* stream) {
 }
 
 int cs1_graph_begin(void* stream) {
-    return cudaStreamBeginCapture(static_cast<cudaStream_t>(stream), cudaStreamCaptureModeThreadLocal);
+    const cudaError_t e = cudaStreamBeginCapture(static_cast<cudaStream_t>(stream), cudaStreamCaptureModeThreadLocal);
+    if (e != cudaSuccess) (void)cudaGetLastError();
+    return e;
 }
 
 int cs1_graph_end(void* stream, void** exec) {
@@ -49,7 +51,9 @@ int cs1_graph_end(void* stream, void** exec) {
 }
 
 int cs1_graph_launch(void* exec, void* stream) {
-    return cudaGraphLaunch(static_cast<cudaGraphExec_t>(exec), static_cast<cudaStream_t>(stream));
+    const cudaError_t e = cudaGraphLaunch(static_cast<cudaGraphExec_t>(exec), static_cast<cudaStream_t>(stream));
+    if (e != cudaSuccess) (void)cudaGetLastError();
+    return e;
 }
 
 int cs1_graph_destroy(void* exec) { return cudaGraphExecDestroy(static_cast<cudaGraphExec_t>(exec)); }

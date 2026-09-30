@@ -660,18 +660,30 @@ impl Model {
                 // Initialize every cuBLASLt plan before stream capture.
                 self.run(s, t)?;
                 cuda::synchronize(self.stream)?;
-                let graph = cuda::Graph::capture(self.stream, || self.run(s, t))?;
-                if self.graphs.len() == 8 {
-                    self.graphs.pop_front();
+                match cuda::Graph::capture(self.stream, || self.run(s, t)) {
+                    Ok(graph) => {
+                        if self.graphs.len() == 8 {
+                            self.graphs.pop_front();
+                        }
+                        self.graphs.push_back((t, graph));
+                    }
+                    Err(error) => {
+                        // Capture records without executing: the eager result is valid.
+                        // Disable graphs for this worker rather than retrying failures.
+                        eprintln!("CUDA Graph capture failed; using eager execution: {error:#}");
+                        self.graph_enabled = false;
+                        self.graphs.clear();
+                    }
                 }
-                self.graphs.push_back((t, graph));
             }
-            self.graphs
-                .iter()
-                .find(|(length, _)| *length == t)
-                .unwrap()
-                .1
-                .launch(self.stream)?;
+            if self.graph_enabled {
+                self.graphs
+                    .iter()
+                    .find(|(length, _)| *length == t)
+                    .unwrap()
+                    .1
+                    .launch(self.stream)?;
+            }
         } else {
             self.run(s, t)?;
         }

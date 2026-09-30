@@ -33,7 +33,8 @@ were added after inspecting results.
 - Seventeen correctness requests: fourteen fixtures followed by the positive
   fixture with `Submit` replaced by `Cancel` in its state, the one-option
   fixture, then the changed fixture again. This exercises changed token ids,
-  scratch growth/shrink, eviction and recapture. All seventeen response bodies
+  scratch growth and later shorter prompts, eviction and recapture. Scratch
+  capacity only grows; shorter prompts reuse that allocation. All seventeen response bodies
   matched exactly, including probabilities and choices.
 
 ## Reproduction
