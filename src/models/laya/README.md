@@ -40,9 +40,9 @@ validated on an M1 Pro). No native CUDA or Metal backend yet.
   warning. `LAYA_REQUIRE_DEVICE=1` makes the worker exit instead.
 
 Configuration is laya-serve's (`LAYA_HOST`, `LAYA_PORT`, `LAYA_DEVICE`, `LAYA_MODELS`, `LAYA_API_KEY`, ...),
-plus `LAYA_WORKER_COMPILE=off|single|all`: `single` sends one-question requests through a
-`torch.compile(dynamic=True)` graph compiled during warmup and runs the rest eagerly; `/health` reports
-compiled graphs at readiness and now, and `LAYA_WORKER_WEIGHTS=fp32|fp16`: `fp16` keeps the checkpoint's
+plus `LAYA_WORKER_COMPILE=off|on` and `LAYA_WORKER_WEIGHTS=fp32|fp16`. `on` compiles one-question
+requests end to end and, for several questions, only the encoder (Laya's decision head is slower
+compiled on MPS); `/health` reports compiled graphs at readiness and now. `fp16` keeps the checkpoint's
 fp16 weights (except `act_head`, which Laya feeds fp32 features) instead of the fp32 upcast. See the
 [Apple Silicon recipe](../../../recipe/laya/apple-silicon.md).
 

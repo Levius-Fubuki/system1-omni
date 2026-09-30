@@ -144,9 +144,9 @@ def test_main_exits_non_zero_when_warmup_fails(monkeypatch):
 def test_compile_wraps_the_model_before_warmup(monkeypatch):
     router = FakeRouter()
     order = []
-    monkeypatch.setattr(worker, "compile_agent", lambda agent, mode: order.append((mode, len(router.calls))))
-    worker.create_worker_app(router, "english", "mps", compile="single", graph_counter=lambda: 3)
-    assert order == [("single", 0)]  # before the first warmup request
+    monkeypatch.setattr(worker, "compile_agent", lambda agent: order.append((agent, len(router.calls))))
+    worker.create_worker_app(router, "english", "mps", compile="on", graph_counter=lambda: 3)
+    assert order == [(router.agent, 0)]  # before the first warmup request
 
 
 def test_health_reports_compile_off_by_default():
@@ -155,48 +155,67 @@ def test_health_reports_compile_off_by_default():
 
 
 def test_health_flags_graphs_compiled_after_ready(monkeypatch):
-    monkeypatch.setattr(worker, "compile_agent", lambda agent, mode: None)
+    monkeypatch.setattr(worker, "compile_agent", lambda agent: None)
     graphs = iter([4, 4, 5])  # at readiness, first /health, second /health after a new shape compiled
     client = TestClient(
-        worker.create_worker_app(FakeRouter(), "english", "mps", compile="all", graph_counter=lambda: next(graphs))
+        worker.create_worker_app(FakeRouter(), "english", "mps", compile="on", graph_counter=lambda: next(graphs))
     )
     first = client.get("/health").json()["compile"]
-    assert first == {"mode": "all", "graphs_at_ready": 4, "graphs_now": 4, "recompiled_after_ready": False}
+    assert first == {"mode": "on", "graphs_at_ready": 4, "graphs_now": 4, "recompiled_after_ready": False}
     assert client.get("/health").json()["compile"]["recompiled_after_ready"] is True
 
 
 def test_compile_failure_means_no_app(monkeypatch):
-    def broken(agent, mode):
+    def broken(agent):
         raise RuntimeError("inductor: unsupported op on mps")
 
     monkeypatch.setattr(worker, "compile_agent", broken)
     with pytest.raises(RuntimeError, match="unsupported op"):
-        worker.create_worker_app(FakeRouter(), "english", "mps", compile="all")
+        worker.create_worker_app(FakeRouter(), "english", "mps", compile="on")
 
 
 def test_unknown_compile_mode_is_refused():
-    with pytest.raises(ValueError, match="off, all or single"):
+    with pytest.raises(ValueError, match="off or on"):
         worker.create_worker_app(FakeRouter(), "english", "mps", compile="invalid")
 
 
-def test_single_row_batches_use_the_compiled_model(monkeypatch):
+def test_compiled_paths_by_batch_rows(monkeypatch):
     import torch
 
-    class Echo(torch.nn.Module):
+    class Encoder(torch.nn.Module):
+        def forward(self, input_ids):
+            return "eager encoder"
+
+    class Model(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            self.weight = torch.nn.Parameter(torch.ones(1))
+            self.encoder = Encoder()
+            self.head = torch.nn.Linear(2, 2)
 
         def forward(self, input_ids):
-            return "eager"
+            return ("head", self.encoder(input_ids))
 
-    monkeypatch.setattr(torch, "compile", lambda model, dynamic: lambda input_ids: "compiled")
+    class Stub(torch.nn.Module):
+        def __init__(self, kind):
+            super().__init__()
+            self.kind = kind
+
+        def forward(self, *args):
+            return self.kind
+
+    def fake_compile(module, dynamic):
+        assert dynamic is True
+        return Stub("compiled encoder" if isinstance(module, Encoder) else "whole model compiled")
+
+    monkeypatch.setattr(torch, "compile", fake_compile)
     agent = FakeAgent()
-    agent.model = Echo()
-    worker.compile_agent(agent, "single")
-    assert agent.model(torch.zeros(1, 7)) == "compiled"
-    assert agent.model(torch.zeros(3, 7)) == "eager"
-    assert [p.shape for p in agent.model.parameters()] == [torch.Size([1])]  # one set of weights
+    model = Model()
+    agent.model = model
+    worker.compile_agent(agent)
+    assert agent.model(torch.zeros(1, 7)) == "whole model compiled"  # one question
+    assert agent.model(torch.zeros(3, 7)) == ("head", "compiled encoder")  # several: eager head, compiled encoder
+    assert model.encoder(torch.zeros(1, 7)) == "eager encoder"  # the original model is left as it was
+    assert len(list(agent.model.parameters())) == len(list(model.parameters()))  # one set of weights
 
 
 def test_every_loaded_model_is_warmed_and_described():

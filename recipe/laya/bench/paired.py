@@ -1,8 +1,8 @@
 """Paired comparison of two worker configurations: both run at once, and every request goes to A and to B
 back to back, alternating which goes first, so background load that shifts both cancels out.
 
-    python recipe/laya/bench/paired.py --run e4a \
-        --a "LAYA_WORKER_COMPILE=single" --b "LAYA_WORKER_COMPILE=single LAYA_WORKER_WEIGHTS=fp16"
+    python recipe/laya/bench/paired.py --run p1 \
+        --a "LAYA_WORKER_COMPILE=off" --b "LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16"
     python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_e4*.jsonl
 
 Each side is src/models/laya/worker.py started with the given environment. The summary reports, per
@@ -185,8 +185,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--summarize", nargs="+", metavar="JSONL")
     parser.add_argument("--run")
-    parser.add_argument("--a", default="LAYA_WORKER_COMPILE=single", help="environment of side A")
-    parser.add_argument("--b", default="LAYA_WORKER_COMPILE=single LAYA_WORKER_WEIGHTS=fp16")
+    parser.add_argument("--a", default="LAYA_WORKER_COMPILE=off", help="environment of side A")
+    parser.add_argument("--b", default="LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16", help="environment of side B")
     parser.add_argument("--port-a", type=int, default=8000)
     parser.add_argument("--port-b", type=int, default=8001)
     parser.add_argument("--python", default=sys.executable)

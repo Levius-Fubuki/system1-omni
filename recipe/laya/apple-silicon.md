@@ -46,34 +46,26 @@ curl -s http://127.0.0.1:8000/health
 revision, the weight dtype (`torch.float32`; Laya upcasts the fp16 checkpoint on MPS), the autocast
 dtype Laya uses for requests with at least `mps_amp_min_rows` questions, and the warmup time.
 
-### Compiled one-question path
+### Faster: compile and fp16 weights
 
 ```sh
-LAYA_WORKER_COMPILE=single LAYA_HOST=127.0.0.1 LAYA_PORT=8000 LAYA_DEVICE=mps \
+LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16 LAYA_HOST=127.0.0.1 LAYA_PORT=8000 LAYA_DEVICE=mps \
 LAYA_MODELS=english LAYA_REQUIRE_DEVICE=1 \
   .venv/bin/python src/models/laya/worker.py
 ```
 
-`single` sends requests with one question through a `torch.compile` graph and runs the rest eagerly.
-In two measured runs on the M1 Pro it cut warm p50 for a 68-token one-question request from about
-46 ms to 33 ms (−29%) and for a 47-token one from about 39 ms to 26 ms, left three- and six-question
-requests within about 3%, and gave the same answers as CPU within the benchmark tolerances. The price is
-startup: the worker was ready after about 22 s instead of 8 s while the warmup compiles, and the
-gain shrinks with length (−7% to −13% at 484 tokens).
+`LAYA_WORKER_COMPILE=on` compiles the model during warmup: one-question requests run the whole model
+compiled, requests with several questions run the encoder compiled and Laya's decision head as it is.
+`LAYA_WORKER_WEIGHTS=fp16` keeps the checkpoint's fp16 weights instead of Laya's fp32 upcast on MPS.
+
+On the M1 Pro, with both workers running and every request sent to each back to back, the two options
+together lowered warm p50 against the worker without them by 37–38% for a 68-token one-question
+request (about 57 → 35 ms in those runs), 17–20% at 198–484 tokens, 14% for three questions and 18% for
+six, and cut the worker's memory from 3.5 GB to 2.8 GB. Answers stayed within 0.0031 of the fp32
+worker's. The price is startup: the worker becomes ready after 20–30 s instead of about 8 s.
 
 `/health` reports under `compile` how many graphs existed when the worker became ready and how many
-exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup. `all`
-compiles every path; in feasibility runs it made multi-question requests up to 65% slower and took
-over a minute to start, so it is not recommended.
-
-### fp16 weights
-
-Add `LAYA_WORKER_WEIGHTS=fp16` to the command above to keep the checkpoint's fp16 weights instead of
-Laya's fp32 upcast on MPS. With `single`, in two paired runs (both workers alive, every request sent to
-each back to back) it lowered warm p50 by about 14% for one-question requests (median ratio 0.855–0.857
-at 68 tokens), about 10% at 198–484 tokens and 11% for six questions, and raised it by 4% for three
-questions. The worker's memory dropped from 3.6 GB to 2.7 GB. Answers stayed within 0.0031 of the
-fp32 worker's. Without compile, fp16 weights did not make one-question requests faster.
+exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup.
 
 ## Start the frontend
 

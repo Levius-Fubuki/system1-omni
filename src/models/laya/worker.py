@@ -17,18 +17,15 @@ Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, L
                                preloaded (LAYA_PRELOAD=0)
     LAYA_REQUIRE_DEVICE        exit instead of serving on another     0
                                device than LAYA_DEVICE asked for
-    LAYA_WORKER_COMPILE        off, all, or single: torch.compile      off
-                               (dynamic=True) the model before warmup,
-                               for every batch or one-row batches only
+    LAYA_WORKER_COMPILE        off or on: torch.compile (dynamic=True)  off
+                               before warmup; see compile_agent
     LAYA_WORKER_WEIGHTS        fp32 or fp16: keep the checkpoint's     fp32
                                fp16 weights instead of laya's fp32
                                upcast on MPS and CPU
 
-The warmup also compiles every shape class it sends through the compiled model: in measured runs on an
-M1 Pro the worker with `single` was ready after about 22 s instead of 8 s (`all` took over a minute).
-/health counts compiled graphs at readiness and now; `recompiled_after_ready` means a request hit a
-shape class the warmup did not cover. `single` exists because on MPS compiling cut one-question
-latency by about 29% while compiling everything made multi-question requests slower (recipe/laya/bench).
+The warmup also compiles the graphs, so the worker takes longer to become ready (20–30 s instead of
+about 8 s on an M1 Pro). /health counts compiled graphs at readiness and now; `recompiled_after_ready` means
+a request hit a shape class the warmup did not cover.
 """
 
 import logging
@@ -82,7 +79,7 @@ def compiled_graphs() -> int:
     return int(counters["stats"]["unique_graphs"])
 
 
-COMPILE_MODES = {"0": "off", "off": "off", "": "off", "1": "all", "all": "all", "single": "single"}
+COMPILE_MODES = {"": "off", "0": "off", "off": "off", "1": "on", "on": "on"}
 
 
 WEIGHT_MODES = {"": "fp32", "fp32": "fp32", "fp16": "fp16"}
@@ -97,27 +94,34 @@ def use_fp16_weights(agent: Any) -> None:
         act_head.float()
 
 
-def compile_agent(agent: Any, mode: str) -> None:
-    """`all`: every forward goes through the compiled model. `single`: batches of one row (one question)
-    do, everything else runs eager. Both paths share the same parameters."""
+def compile_agent(agent: Any) -> None:
+    """Compile the model for the batches where it pays off on MPS, sharing the same parameters.
+
+    A batch of one row (one question) runs the whole model compiled. A batch of several rows runs only
+    the encoder compiled and laya's decision head eagerly: the head is two nn.TransformerEncoderLayer
+    with a key padding mask, which lose PyTorch's fused fast path when compiled and were about 50 ms
+    slower on padded multi-row batches.
+    """
+    import copy
+
     import torch
 
     eager = agent.model
-    compiled = torch.compile(eager, dynamic=True)
-    if mode == "all":
-        agent.model = compiled
-        return
+    whole = torch.compile(eager, dynamic=True)
+    encoder_only = copy.copy(eager)  # same parameters and submodules ...
+    encoder_only._modules = dict(eager._modules)  # ... except the encoder slot
+    encoder_only._modules["encoder"] = torch.compile(eager.encoder, dynamic=True)
 
-    class SingleRowCompiled(torch.nn.Module):
+    class Compiled(torch.nn.Module):
         def __init__(self):
             super().__init__()
             self.eager = eager
 
         def forward(self, input_ids, *args, **kwargs):
-            model = compiled if input_ids.shape[0] == 1 else self.eager
+            model = whole if input_ids.shape[0] == 1 else encoder_only
             return model(input_ids, *args, **kwargs)
 
-    agent.model = SingleRowCompiled()
+    agent.model = Compiled()
 
 
 def record_snapshot_revisions() -> dict[str, str]:
@@ -182,8 +186,8 @@ def create_worker_app(
     Raises if compiling or warmup fails."""
     from laya.serve import create_app
 
-    if compile not in ("off", "all", "single"):
-        raise ValueError(f"compile mode must be off, all or single, not {compile!r}")
+    if compile not in ("off", "on"):
+        raise ValueError(f"compile must be off or on, not {compile!r}")
     if weights not in ("fp32", "fp16"):
         raise ValueError(f"weights must be fp32 or fp16, not {weights!r}")
     names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
@@ -192,7 +196,7 @@ def create_worker_app(
             use_fp16_weights(router.load(name))
     if compile != "off":
         for name in names:
-            compile_agent(router.load(name), compile)
+            compile_agent(router.load(name))
     models = {}
     for name in names:
         warm = warmup(router, name)

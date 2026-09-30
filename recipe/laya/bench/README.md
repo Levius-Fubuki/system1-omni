@@ -29,7 +29,7 @@ python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0
   --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
 LAYA_WORKER_COMPILE=off python recipe/laya/bench/bench_http.py --config C3w --run m1 \
   --spawn .venv/bin/python src/models/laya/worker.py
-LAYA_WORKER_COMPILE=single python recipe/laya/bench/bench_http.py --config C3s --run m1 \
+LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16 python recipe/laya/bench/bench_http.py --config C3o --run m1 \
   --spawn .venv/bin/python src/models/laya/worker.py
 python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl
 python recipe/laya/bench/parity.py recipe/laya/bench/results/*_m[0-9].jsonl --ref C1
@@ -43,15 +43,17 @@ Two worker configurations can also be compared request by request, which holds u
 load better than separate runs:
 
 ```sh
-python recipe/laya/bench/paired.py --run p1 --a "LAYA_WORKER_COMPILE=single" \
-  --b "LAYA_WORKER_COMPILE=single LAYA_WORKER_WEIGHTS=fp16"
+python recipe/laya/bench/paired.py --run p1 --a "LAYA_WORKER_COMPILE=off" \
+  --b "LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16"
 python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_p1.jsonl
 ```
 
 ## Results
 
 `results/` holds the reports from the measured runs on an M1 Pro: `measured-report.md`,
-`measured-parity.md`, `frontend_overhead_m1.md` and `paired-fp16.md`. The raw JSONL is published as
+`measured-parity.md`, `frontend_overhead_m1.md`, `paired-fp16.md` and `paired-all-optimizations.md`.
+`C3s` in `measured-report.md` and side B of `paired-fp16.md` ran an earlier compile mode that compiled
+one-question requests only; `on` compiles them the same way and adds the encoder for several questions. The raw JSONL is published as
 release assets:
 
 ```sh
@@ -64,3 +66,6 @@ python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl
 The paired fp16 runs (`paired_e4a.jsonl`, `paired_e4b.jsonl`) are in
 `laya-mps-paired-fp16-2026-09-30.tar.gz` on the same release (sha256 `cc0d6f5bda6e3e0ee1f40c6966f84429e902a2f585b8e1ee33658a9be139326e`); rebuild the summary with
 `paired.py --summarize`.
+
+The runs behind `paired-all-optimizations.md` (`paired_e5a.jsonl`, `paired_e5b.jsonl`) are in
+`laya-mps-paired-all-2026-09-30.tar.gz` on the same release (sha256 `25d1b7bc9d6dff7173f9b972ebd0204f8fb4e2089fe2d27924d48ba6e589780c`).

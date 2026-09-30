@@ -1,4 +1,4 @@
-Paired comparison of the worker with LAYA_WORKER_COMPILE=single, fp32 weights (A) and fp16 weights (B), both alive at once; built with `paired.py --summarize`. M1 Pro, AC power, checkpoint 55cf4c4.
+Paired comparison of fp32 (A) and fp16 (B) weights with the one-question path compiled (then `LAYA_WORKER_COMPILE=single`, now the one-question part of `on`), both alive at once; built with `paired.py --summarize`. M1 Pro, AC power, checkpoint 55cf4c4.
 
 ## e4a: A = `LAYA_WORKER_COMPILE=single`, B = `LAYA_WORKER_COMPILE=single LAYA_WORKER_WEIGHTS=fp16`, load at start 31.32
 
