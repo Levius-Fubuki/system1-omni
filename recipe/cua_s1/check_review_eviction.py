@@ -48,7 +48,9 @@ def main():
         equal = torch.equal(expected, actual)
         report['checks'].append({'mode': mode, 'tokens': values['inputs_embeds'].shape[1],
                                  'equal': equal, 'max_abs': (expected.float()-actual.float()).abs().max().item(),
-                                 'stats_delta': {k: v-before[k] for k,v in runtime.stats.items()}})
+                                 'stats_delta': {k: v-before[k] for k,v in runtime.stats.items()},
+                                 'strides': {k: list(v.stride()) for k,v in values.items()}})
+        write_json(args.output, report)
         assert equal, report['checks'][-1]
         return report['checks'][-1]
 
