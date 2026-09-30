@@ -24,8 +24,6 @@ extern "C" {
 uint32_t cs1_abi_version(void);
 const char* cs1_error_string(int code);
 int cs1_set_device(int device);
-// Name, compute capability (major * 10 + minor) and SM count of the current device.
-int cs1_device_info(char* name, size_t cap, int* compute_capability, int* sms);
 int cs1_malloc(void** ptr, size_t bytes);
 int cs1_free(void* ptr);
 int cs1_stream_create(void** stream);
@@ -33,11 +31,6 @@ int cs1_stream_sync(void* stream);
 // Copy and wait for the copy.
 int cs1_upload(void* dst, const void* src, size_t bytes, void* stream);
 int cs1_download(void* dst, const void* src, size_t bytes, void* stream);
-// Capture the work queued on `stream` between begin and end into an executable graph.
-int cs1_graph_begin(void* stream);
-int cs1_graph_end(void* stream, void** exec);
-int cs1_graph_launch(void* exec, void* stream);
-int cs1_graph_destroy(void* exec);
 
 // ---- operations ----
 
@@ -83,9 +76,6 @@ int cs1_attn_prep(const void* qg, const void* kr, int ld, const void* qw, const 
 // [T, Hk, Dh] in rows of ldv; out [T, Hq, Dh].
 int cs1_attention(const void* q, const void* k, const void* v, int ldv, void* out, int T, int Hq,
                   int Hk, int Dh, float scale, void* stream);
-// The same in float32 on CUDA cores, two queries per warp: slow, kept for checks.
-int cs1_attention_simple(const void* q, const void* k, const void* v, int ldv, void* out, int T,
-                         int Hq, int Hk, int Dh, float scale, void* stream);
 
 // x = x * sigmoid(gate), n elements.
 int cs1_sigmoid_gate(void* x, const void* gate, size_t n, void* stream);
@@ -93,32 +83,10 @@ int cs1_sigmoid_gate(void* x, const void* gate, size_t n, void* stream);
 // out [T, I] = silu(gate) * up, from gate_up [T, 2*I] (gate first) in rows of ld.
 int cs1_silu_mul(const void* gate_up, int ld, void* out, int T, int I, void* stream);
 
-// y [M, N] (rows of ldy) = x [M, K] * w [N, K]^T through cuBLASLt, float32 accumulation.
-// cs1_gemm_tune picks the algorithm for one shape by timing, among the heuristic's
-// shortlist or (exhaustive) a wider enumeration (see gemm.cu); it must not
-// run during stream capture. cs1_gemm_tune_done frees the buffers tuning used.
-// A tuned algorithm for one shape: `algo` holds a cublasLtMatmulAlgo_t, valid for the
-// cuBLASLt version (cublasLtGetVersion) it was tuned with.
-typedef struct {
-    int32_t m, n, k, ldy;
-    uint64_t cublaslt_version;
-    uint64_t algo[8];
-} Cs1GemmPlan;
-
+// y [M, N] (rows of ldy) = x [M, K] * w [N, K]^T through cuBLASLt, float32 accumulation,
+// with cuBLASLt's first heuristic choice for each shape (see gemm.cu).
 void* cs1_gemm_create(size_t workspace_bytes);
 void cs1_gemm_destroy(void* gemm);
-int cs1_gemm_tune(void* gemm, const void* x, const void* w, void* y, int M, int N, int K, int ldy,
-                  int exhaustive, void* stream);
-void cs1_gemm_tune_done(void* gemm);
-// Copy up to `cap` tuned plans to `out`; returns how many there are.
-size_t cs1_gemm_export(void* gemm, Cs1GemmPlan* out, size_t cap);
-// Use these plans (from cs1_gemm_export, possibly of an earlier run): all of them, or
-// none if one was tuned with another cuBLASLt version, fails cuBLASLt's check on this
-// device, or reduces split-K in place. Whether a plan was tuned on this GPU model is
-// not checked; the caller keeps that with the plans.
-int cs1_gemm_import(void* gemm, const Cs1GemmPlan* plans, size_t n);
-// cublasLtGetVersion().
-size_t cs1_gemm_version(void);
 int cs1_gemm(void* gemm, const void* x, const void* w, void* y, int M, int N, int K, int ldy,
              void* stream);
 

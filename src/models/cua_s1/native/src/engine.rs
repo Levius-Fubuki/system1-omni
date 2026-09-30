@@ -1,217 +1,60 @@
-//! The model side: prompt tokenization, and one prefill-only forward pass per
-//! question through the native Qwen3.5 model, scored with the 26 letter rows of
-//! the output projection.
+//! Tokenization and scoring: one prefill-only forward pass per question through the
+//! native Qwen3.5 model, scored with the 26 letter rows of the output projection.
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use serde_json::Value as Json;
-use sha2::Digest;
 use tokenizers::Tokenizer;
 
-use crate::contract::{self, LETTERS, Question};
+use crate::contract::{LETTERS, Question, chat_text};
 use crate::model::Model;
-use crate::model::Options;
 
-/// What `cua_s1_export.json` records about a merged checkpoint.
-#[derive(Debug, Clone)]
-pub struct Provenance {
-    pub base_revision: String,
-    pub adapter_revision: String,
-}
+/// Tied with the output projection in Qwen3.5-4B.
+const EMBEDDING: &str = "model.language_model.embed_tokens.weight";
 
-/// Read and check the export record written next to the merged weights.
-pub fn provenance(dir: &Path) -> Result<Provenance> {
-    let path = dir.join("cua_s1_export.json");
-    let info: Json = serde_json::from_str(&std::fs::read_to_string(&path).with_context(|| {
-        format!(
-            "{} is missing; export the merged checkpoint first",
-            path.display()
-        )
-    })?)?;
-    ensure!(
-        info["format"] == "cua-s1-text-merged/1",
-        "{}: unknown format {}",
-        path.display(),
-        info["format"]
-    );
-    ensure!(
-        info["base"]["repo"] == contract::BASE_REPO,
-        "base is not {}",
-        contract::BASE_REPO
-    );
-    ensure!(
-        info["adapter"]["repo"] == contract::ADAPTER_REPO && info["adapter"]["subfolder"] == "text",
-        "adapter is not the `text` adapter of {}",
-        contract::ADAPTER_REPO
-    );
-    // Transformers 5.17 tokenizes Qwen3.5 with the rule saved in this file, not the
-    // one in the base repo's tokenizer.json, so the file must be the exported one.
-    let want = info["tokenizer"]["sha256"]
-        .as_str()
-        .context("cua_s1_export.json does not record the tokenizer's sha256")?;
-    let got = format!(
-        "{:x}",
-        sha2::Sha256::digest(std::fs::read(dir.join("tokenizer.json"))?)
-    );
-    ensure!(
-        got == want,
-        "tokenizer.json (sha256 {got}) is not the one exported with the weights ({want})"
-    );
-    let rev = |v: &Json| v.as_str().map(str::to_string).context("revision missing");
-    Ok(Provenance {
-        base_revision: rev(&info["base"]["revision"])?,
-        adapter_revision: rev(&info["adapter"]["revision"])?,
-    })
-}
-
-/// Chat text and token ids for a question.
-pub struct Prompter {
+pub struct Engine {
     tokenizer: Tokenizer,
-    pub letter_ids: Vec<u32>,
+    model: Arc<Mutex<Model>>,
+    /// the letter rows of the output projection, as float32
+    letters: Vec<f32>,
 }
 
-impl Prompter {
-    fn load(dir: &Path) -> Result<Self> {
-        let tokenizer = Tokenizer::from_file(dir.join("tokenizer.json"))
-            .map_err(|e| anyhow::anyhow!("tokenizer.json: {e}"))?;
-        let mut letter_ids = Vec::with_capacity(LETTERS.len());
-        for letter in LETTERS.chars() {
-            let enc = tokenizer
-                .encode(letter.to_string(), false)
-                .map_err(|e| anyhow::anyhow!(e))?;
-            ensure!(
-                enc.get_ids().len() == 1,
-                "letter {letter} is not a single token"
-            );
-            letter_ids.push(enc.get_ids()[0]);
-        }
+impl Engine {
+    pub async fn load(dir: &Path, library: &Path) -> Result<Self> {
+        // Written by export_text_merged.py; without it `dir` may hold the base model alone.
+        ensure!(
+            dir.join("cua_s1_export.json").exists(),
+            "{} is not a merged text checkpoint; see recipe/cua_s1/native.md",
+            dir.display()
+        );
+        let tokenizer =
+            Tokenizer::from_file(dir.join("tokenizer.json")).map_err(anyhow::Error::msg)?;
+        let ids = LETTERS
+            .chars()
+            .map(|c| {
+                tokenizer
+                    .token_to_id(&c.to_string())
+                    .context("letter token")
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let (d, lib) = (dir.to_path_buf(), library.to_path_buf());
+        let model = tokio::task::spawn_blocking(move || Model::load(&d, &lib)).await??;
+        let letters = letter_rows(dir, &ids, model.cfg.hidden)?;
         Ok(Self {
             tokenizer,
-            letter_ids,
+            model: Arc::new(Mutex::new(model)),
+            letters,
         })
     }
 
     pub fn encode(&self, state: &str, question: &Question) -> Result<Vec<u32>> {
-        let text = contract::chat_text(state, question);
         let enc = self
             .tokenizer
-            .encode(text, false)
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .encode(chat_text(state, question), false)
+            .map_err(anyhow::Error::msg)?;
         Ok(enc.get_ids().to_vec())
-    }
-}
-
-/// Where the output projection can live in a Qwen3.5 text checkpoint; with tied
-/// weights (as in Qwen3.5-4B) only the embedding is stored.
-const HEAD_NAMES: &[&str] = &[
-    "lm_head.weight",
-    "language_model.lm_head.weight",
-    "model.embed_tokens.weight",
-    "model.language_model.embed_tokens.weight",
-    "language_model.model.embed_tokens.weight",
-];
-
-/// The letter rows of the output projection, as float32, read straight from the
-/// safetensors files.
-fn letter_rows(dir: &Path, letter_ids: &[u32]) -> Result<(Vec<f32>, usize)> {
-    let index_path = dir.join("model.safetensors.index.json");
-    let (file, name) = if index_path.exists() {
-        let index: Json = serde_json::from_str(&std::fs::read_to_string(&index_path)?)?;
-        let map = &index["weight_map"];
-        let name = HEAD_NAMES
-            .iter()
-            .find(|n| map.get(**n).is_some())
-            .with_context(|| {
-                format!(
-                    "no output projection or embedding in {}",
-                    index_path.display()
-                )
-            })?;
-        let file = map[*name]
-            .as_str()
-            .context("weight_map entry is not a file name")?;
-        (dir.join(file), Some(name.to_string()))
-    } else {
-        (dir.join("model.safetensors"), None)
-    };
-    let file = std::fs::File::open(&file)?;
-    // SAFETY: the checkpoint is not modified while the worker runs.
-    let mmap = unsafe { memmap2::Mmap::map(&file)? };
-    let st = safetensors::SafeTensors::deserialize(&mmap)?;
-    let name = match name {
-        Some(n) => n,
-        None => {
-            let names = st.names();
-            HEAD_NAMES
-                .iter()
-                .find(|n| names.iter().any(|m| m == *n))
-                .context("no output projection or embedding in model.safetensors")?
-                .to_string()
-        }
-    };
-    let view = st.tensor(&name)?;
-    ensure!(
-        view.dtype() == safetensors::Dtype::BF16 && view.shape().len() == 2,
-        "{name}: expected a 2-D bfloat16 tensor, got {:?} {:?}",
-        view.dtype(),
-        view.shape()
-    );
-    let (vocab, hidden) = (view.shape()[0], view.shape()[1]);
-    let data = view.data();
-    let mut rows = Vec::with_capacity(letter_ids.len() * hidden);
-    for &id in letter_ids {
-        let id = id as usize;
-        ensure!(id < vocab, "letter id {id} outside the vocabulary");
-        let row = &data[id * hidden * 2..(id + 1) * hidden * 2];
-        let (pairs, _) = row.as_chunks::<2>();
-        rows.extend(pairs.iter().map(|&b| half::bf16::from_le_bytes(b).to_f32()));
-    }
-    Ok((rows, hidden))
-}
-
-pub struct Engine {
-    pub prompter: Prompter,
-    model: Arc<Mutex<Model>>,
-    letters: Vec<f32>,
-    hidden: usize,
-    pub load_seconds: f64,
-    pub device: String,
-    pub provenance: Provenance,
-}
-
-impl Engine {
-    /// Check the export record and `tokenizer.json` (see `provenance`), load the CUDA
-    /// library and the model, and prepare CUDA graphs (see `Options`).
-    pub async fn load(dir: &Path, opts: &Options) -> Result<Self> {
-        let started = Instant::now();
-        let provenance = provenance(dir)?;
-        let prompter = Prompter::load(dir)?;
-        let (letters, hidden) = letter_rows(dir, &prompter.letter_ids)?;
-        let dir = dir.to_path_buf();
-        let opts = opts.clone();
-        let model = tokio::task::spawn_blocking(move || Model::load(&dir, &opts)).await??;
-        ensure!(
-            model.cfg.hidden == hidden,
-            "hidden size {} does not match the head ({hidden})",
-            model.cfg.hidden
-        );
-        Ok(Self {
-            prompter,
-            model: Arc::new(Mutex::new(model)),
-            letters,
-            hidden,
-            load_seconds: started.elapsed().as_secs_f64(),
-            device: "cuda".to_string(),
-            provenance,
-        })
-    }
-
-    /// The longest prompt that runs as a CUDA graph (0: none).
-    pub fn graph_max_tokens(&self) -> usize {
-        self.model.lock().map(|m| m.graph_max_tokens()).unwrap_or(0)
     }
 
     /// Option probabilities for one prompt: the final-norm hidden state at the last
@@ -220,33 +63,57 @@ impl Engine {
     pub async fn score(&self, ids: Vec<u32>, n_options: usize) -> Result<Vec<f32>> {
         let model = self.model.clone();
         let last = tokio::task::spawn_blocking(move || {
-            let mut model = model
+            model
                 .lock()
-                .map_err(|_| anyhow::anyhow!("model lock poisoned"))?;
-            model.forward(&ids)
+                .map_err(|_| anyhow::anyhow!("poisoned"))?
+                .forward(&ids)
         })
         .await??;
-        if last.len() != self.hidden {
-            bail!(
-                "hidden size {} does not match the head ({})",
-                last.len(),
-                self.hidden
-            );
-        }
-        let logits: Vec<f32> = self
+        let logits: Vec<f64> = self
             .letters
-            .chunks_exact(self.hidden)
+            .chunks_exact(last.len())
             .take(n_options)
             .map(|w| {
                 w.iter()
                     .zip(&last)
                     .map(|(&a, &b)| a as f64 * b as f64)
-                    .sum::<f64>() as f32
+                    .sum::<f64>() as f32 as f64
             })
             .collect();
-        let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
-        let exps: Vec<f64> = logits.iter().map(|&l| (l as f64 - max).exp()).collect();
+        let max = logits.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let exps: Vec<f64> = logits.iter().map(|&l| (l - max).exp()).collect();
         let total: f64 = exps.iter().sum();
-        Ok(exps.iter().map(|e| (e / total) as f32).collect())
+        let probs: Vec<f32> = exps.iter().map(|e| (e / total) as f32).collect();
+        ensure!(
+            probs.iter().all(|p| p.is_finite()),
+            "non-finite probabilities"
+        );
+        Ok(probs)
     }
+}
+
+/// The letter rows of the bfloat16 embedding, read from the safetensors files.
+fn letter_rows(dir: &Path, ids: &[u32], hidden: usize) -> Result<Vec<f32>> {
+    let index: Json = serde_json::from_str(&std::fs::read_to_string(
+        dir.join("model.safetensors.index.json"),
+    )?)?;
+    let file = index["weight_map"][EMBEDDING].as_str().context(EMBEDDING)?;
+    let file = std::fs::File::open(dir.join(file))?;
+    // SAFETY: the checkpoint is not modified while the worker runs.
+    let mmap = unsafe { memmap2::Mmap::map(&file)? };
+    let tensors = safetensors::SafeTensors::deserialize(&mmap)?;
+    let view = tensors.tensor(EMBEDDING)?;
+    ensure!(
+        view.dtype() == safetensors::Dtype::BF16 && view.shape()[1] == hidden,
+        "{EMBEDDING}: {:?} {:?}",
+        view.dtype(),
+        view.shape()
+    );
+    let mut rows = Vec::with_capacity(ids.len() * hidden);
+    for &id in ids {
+        let row = &view.data()[id as usize * hidden * 2..(id as usize + 1) * hidden * 2];
+        let (pairs, _) = row.as_chunks::<2>();
+        rows.extend(pairs.iter().map(|&b| half::bf16::from_le_bytes(b).to_f32()));
+    }
+    Ok(rows)
 }

@@ -1,125 +1,113 @@
-//! Cua-S1 4B 0.2 (`text` adapter) `/v1/systemone` worker on native CUDA kernels.
+//! Cua-S1 4B 0.2 (`text` adapter) `/v1/systemone` worker on the native CUDA kernels.
 //!
-//!     omni-cua-s1-native --model <merged text checkpoint> [--port 8000]
+//!     CUA_S1_MODEL=<merged text checkpoint> omni-cua-s1-native
 //!
-//! See recipe/cua_s1/native.md for building the CUDA library and exporting the merged
-//! checkpoint.
+//! `CUA_S1_CUDA_LIB` (default: next to this executable), `CUA_S1_HOST` and `CUA_S1_PORT`
+//! are optional; see recipe/cua_s1/native.md.
 
-use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
 
-use anyhow::{Result, ensure};
-use clap::Parser;
-use clap::builder::RangedU64ValueParser;
+use anyhow::{Context, Result, ensure};
+use axum::body::Bytes;
+use axum::extract::rejection::BytesRejection;
+use axum::extract::{DefaultBodyLimit, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use serde_json::{Value, json};
 
-use omni_cua_s1_native::contract;
+use omni_cua_s1_native::contract::{self, MODEL_ID};
 use omni_cua_s1_native::cuda;
 use omni_cua_s1_native::engine::Engine;
-use omni_cua_s1_native::model::Options;
-use omni_cua_s1_native::server::{self, App, Limits};
+use omni_cua_s1_native::json::quote;
 
-#[derive(Parser)]
-#[command(about = "Cua-S1 4B 0.2 text worker on native CUDA kernels")]
-struct Args {
-    /// Merged text checkpoint: Qwen/Qwen3.5-4B with the `text` adapter merged, plus
-    /// the cua_s1_export.json that recipe/cua_s1/export_text_merged.py writes.
-    #[arg(long, env = "CUA_S1_MODEL")]
-    model: PathBuf,
-    /// libqwen3_5_cuda.so, built by src/backends/cuda/qwen3_5/build.sh [default: next
-    /// to this executable].
-    #[arg(long, env = "CUA_S1_CUDA_LIB")]
-    cuda_lib: Option<PathBuf>,
-    #[arg(long, env = "CUA_S1_HOST", default_value = "127.0.0.1")]
-    host: String,
-    #[arg(long, env = "CUA_S1_PORT", default_value_t = 8000)]
-    port: u16,
-    #[arg(long, env = "CUA_S1_MAX_BODY_BYTES", default_value_t = 4 << 20)]
-    max_body_bytes: usize,
-    #[arg(long, env = "CUA_S1_MAX_QUESTIONS", default_value_t = 64)]
-    max_questions: usize,
-    /// Per question; 0 disables the check.
-    #[arg(long, env = "CUA_S1_MAX_PROMPT_TOKENS", default_value_t = 16384)]
-    max_prompt_tokens: usize,
-    /// Prompts up to this many tokens run as a CUDA graph captured for their length
-    /// on first use; longer ones run eagerly. 0 runs everything eagerly, with
-    /// cuBLASLt's first-choice GEMM algorithms and no tuning.
-    #[arg(long, env = "CUA_S1_GRAPH_MAX_TOKENS", default_value_t = 2048)]
-    graph_max_tokens: usize,
-    /// How many prompt lengths keep their captured graph.
-    #[arg(long, env = "CUA_S1_GRAPH_CACHE", default_value_t = 128,
-          value_parser = RangedU64ValueParser::<usize>::new().range(1..))]
-    graph_cache: usize,
-    /// GEMM algorithm choices: read from this file if it exists, else tuned at
-    /// startup and written to it, so later starts make the same choices. A file tuned
-    /// on another GPU or cuBLASLt version, or for another --graph-max-tokens, is
-    /// refused.
-    #[arg(long, env = "CUA_S1_GEMM_PLANS")]
-    gemm_plans: Option<PathBuf>,
-    /// When tuning, time far more cuBLASLt configurations for prompts up to
-    /// --graph-max-tokens (each algorithm with its tiles, stage counts, swizzles and
-    /// several split-K factors) instead of the heuristic's shortlist. Takes about a
-    /// minute; use it with --gemm-plans so that it runs once.
-    #[arg(long, env = "CUA_S1_GEMM_SEARCH")]
-    gemm_search: bool,
+const MAX_BODY_BYTES: usize = 4 << 20;
+const MAX_PROMPT_TOKENS: usize = 16384;
+const WARMUP: &[u8] = br#"{"model": "cua-s1-4b-0.2", "state": "Dialog: Update installed.", "questions": {"q": {"type": "choice", "instructions": "Close it.", "criteria": {"ok": "OK", "wait": "Wait"}}}}"#;
+
+fn reply(status: u16, body: Value) -> Response {
+    (StatusCode::from_u16(status).unwrap(), Json(body)).into_response()
 }
 
-impl Args {
-    fn options(&self) -> Result<Options> {
-        ensure!(
-            self.graph_max_tokens > 0 || (self.gemm_plans.is_none() && !self.gemm_search),
-            "--gemm-plans and --gemm-search need --graph-max-tokens above 0"
-        );
-        Ok(Options {
-            library: match &self.cuda_lib {
-                Some(path) => path.clone(),
-                None => cuda::default_library()?,
-            },
-            graph_max_tokens: self.graph_max_tokens,
-            graph_cache: self.graph_cache,
-            gemm_plans: self.gemm_plans.clone(),
-            gemm_search: self.gemm_search,
-        })
+/// Every prompt is tokenized and checked against the limit before any forward pass.
+async fn decide(engine: &Engine, raw: &[u8]) -> Response {
+    let (state, questions) = match contract::parse_body(raw).and_then(|b| contract::map_request(&b))
+    {
+        Ok(request) => request,
+        Err(e) => return reply(e.status, json!({"detail": e.message})),
+    };
+    let failed = |e: anyhow::Error| {
+        eprintln!("inference failed: {e:#}");
+        reply(500, json!({"detail": "inference failed"}))
+    };
+    let mut prompts = Vec::with_capacity(questions.len());
+    for q in &questions {
+        let ids = match engine.encode(&state, q) {
+            Ok(ids) => ids,
+            Err(e) => return failed(e),
+        };
+        if ids.len() > MAX_PROMPT_TOKENS {
+            let message = format!(
+                "question {}: {} prompt tokens, over {MAX_PROMPT_TOKENS}",
+                quote(&q.name),
+                ids.len()
+            );
+            return reply(413, json!({"detail": message}));
+        }
+        prompts.push(ids);
+    }
+    let tokens: usize = prompts.iter().map(Vec::len).sum();
+    let mut answers = serde_json::Map::new();
+    for (q, ids) in questions.iter().zip(prompts) {
+        match engine.score(ids, q.keys.len()).await {
+            Ok(probs) => answers.insert(q.name.clone(), contract::answer(q, &probs)),
+            Err(e) => return failed(e),
+        };
+    }
+    reply(
+        200,
+        json!({"model": MODEL_ID, "answers": answers, "usage": {"input_tokens": tokens, "output_tokens": 0}}),
+    )
+}
+
+async fn systemone(
+    State(engine): State<Arc<Engine>>,
+    body: Result<Bytes, BytesRejection>,
+) -> Response {
+    match body {
+        Ok(raw) => decide(&engine, &raw).await,
+        Err(e) => reply(e.status().as_u16(), json!({"detail": e.body_text()})),
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let args = Args::parse();
-    let engine = Engine::load(&args.model, &args.options()?).await?;
-    if engine.provenance.adapter_revision != contract::ADAPTER_REVISION {
-        eprintln!(
-            "warning: adapter revision {} is not the pinned {}",
-            engine.provenance.adapter_revision,
-            contract::ADAPTER_REVISION
-        );
-    }
-    if engine.provenance.base_revision != contract::BASE_REVISION {
-        eprintln!(
-            "warning: base revision {} is not the pinned {}",
-            engine.provenance.base_revision,
-            contract::BASE_REVISION
-        );
-    }
-    println!(
-        "loaded in {:.1} s on {} (bfloat16, graphs up to {} tokens)",
-        engine.load_seconds,
-        engine.device,
-        engine.graph_max_tokens()
-    );
-    let api_key = std::env::var_os("CUA_S1_API_KEY").map(|k| k.into_encoded_bytes());
-    let limits = Limits {
-        max_body_bytes: args.max_body_bytes,
-        max_questions: args.max_questions,
-        max_prompt_tokens: args.max_prompt_tokens,
+    let model = std::env::var_os("CUA_S1_MODEL").context("set CUA_S1_MODEL")?;
+    let library = match std::env::var_os("CUA_S1_CUDA_LIB") {
+        Some(path) => path.into(),
+        None => cuda::default_library()?,
     };
-    let revision = engine.provenance.adapter_revision.clone();
-    let app = Arc::new(App::new(engine, limits, api_key, &revision));
-    let started = Instant::now();
-    server::warmup(&app).await?;
-    println!("warmed up in {:.1} s", started.elapsed().as_secs_f64());
-    let listener = tokio::net::TcpListener::bind((args.host.as_str(), args.port)).await?;
-    println!("listening on {}:{}", args.host, args.port);
-    axum::serve(listener, server::router(app)).await?;
+    let engine = Arc::new(Engine::load(model.as_ref(), &library).await?);
+    // one decision before listening, so the first request does not pay for first-call setup
+    ensure!(
+        decide(&engine, WARMUP).await.status() == StatusCode::OK,
+        "warmup failed"
+    );
+    let host = std::env::var("CUA_S1_HOST").unwrap_or_else(|_| "127.0.0.1".into());
+    let port: u16 = std::env::var("CUA_S1_PORT")
+        .map_or(Ok(8000), |p| p.parse())
+        .context("CUA_S1_PORT")?;
+    let app = Router::new()
+        .route(
+            "/health",
+            get(|| async { Json(json!({"status": "ready", "model": MODEL_ID})) }),
+        )
+        .route("/v1/systemone", post(systemone))
+        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+        .with_state(engine);
+    let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
+    println!("listening on {host}:{port}");
+    axum::serve(listener, app).await?;
     Ok(())
 }

@@ -21,18 +21,6 @@ pub struct Stream(*mut c_void);
 // from one thread at a time.
 unsafe impl Send for Stream {}
 
-/// A tuned GEMM algorithm for one shape (`Cs1GemmPlan` in ops.h).
-#[repr(C)]
-#[derive(Clone, Copy, Default)]
-pub struct GemmPlan {
-    pub m: i32,
-    pub n: i32,
-    pub k: i32,
-    pub ldy: i32,
-    pub cublaslt_version: u64,
-    pub algo: [u64; 8],
-}
-
 macro_rules! api {
     ($($name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)?;)*) => {
         /// The functions of the library, as declared in ops.h.
@@ -63,17 +51,12 @@ api! {
     cs1_abi_version() -> u32;
     cs1_error_string(code: c_int) -> *const c_char;
     cs1_set_device(device: c_int) -> c_int;
-    cs1_device_info(name: *mut c_char, cap: usize, compute_capability: *mut c_int, sms: *mut c_int) -> c_int;
     cs1_malloc(ptr: *mut *mut c_void, bytes: usize) -> c_int;
     cs1_free(ptr: *mut c_void) -> c_int;
     cs1_stream_create(stream: *mut Stream) -> c_int;
     cs1_stream_sync(stream: Stream) -> c_int;
     cs1_upload(dst: *mut c_void, src: *const c_void, bytes: usize, stream: Stream) -> c_int;
     cs1_download(dst: *mut c_void, src: *const c_void, bytes: usize, stream: Stream) -> c_int;
-    cs1_graph_begin(stream: Stream) -> c_int;
-    cs1_graph_end(stream: Stream, exec: *mut *mut c_void) -> c_int;
-    cs1_graph_launch(exec: *mut c_void, stream: Stream) -> c_int;
-    cs1_graph_destroy(exec: *mut c_void) -> c_int;
     cs1_embed(ids: *const i32, table: *const c_void, out: *mut c_void, t: c_int, d: c_int, stream: Stream) -> c_int;
     cs1_rms_norm(
         x: *const c_void, w: *const c_void, out: *mut c_void, rows: c_int, d: c_int, eps: f32, stream: Stream,
@@ -108,22 +91,10 @@ api! {
         q: *const c_void, k: *const c_void, v: *const c_void, ldv: c_int, out: *mut c_void, t: c_int, hq: c_int,
         hk: c_int, dh: c_int, scale: f32, stream: Stream,
     ) -> c_int;
-    cs1_attention_simple(
-        q: *const c_void, k: *const c_void, v: *const c_void, ldv: c_int, out: *mut c_void, t: c_int, hq: c_int,
-        hk: c_int, dh: c_int, scale: f32, stream: Stream,
-    ) -> c_int;
     cs1_sigmoid_gate(x: *mut c_void, gate: *const c_void, n: usize, stream: Stream) -> c_int;
     cs1_silu_mul(gate_up: *const c_void, ld: c_int, out: *mut c_void, t: c_int, i: c_int, stream: Stream) -> c_int;
     cs1_gemm_create(workspace_bytes: usize) -> *mut c_void;
     cs1_gemm_destroy(gemm: *mut c_void);
-    cs1_gemm_tune(
-        gemm: *mut c_void, x: *const c_void, w: *const c_void, y: *mut c_void, m: c_int, n: c_int, k: c_int,
-        ldy: c_int, exhaustive: c_int, stream: Stream,
-    ) -> c_int;
-    cs1_gemm_tune_done(gemm: *mut c_void);
-    cs1_gemm_export(gemm: *mut c_void, out: *mut GemmPlan, cap: usize) -> usize;
-    cs1_gemm_import(gemm: *mut c_void, plans: *const GemmPlan, n: usize) -> c_int;
-    cs1_gemm_version() -> usize;
     cs1_gemm(
         gemm: *mut c_void, x: *const c_void, w: *const c_void, y: *mut c_void, m: c_int, n: c_int, k: c_int,
         ldy: c_int, stream: Stream,
@@ -163,21 +134,6 @@ pub fn load(path: &Path) -> Result<&'static Api> {
         path.display()
     );
     Ok(API.get_or_init(|| api))
-}
-
-/// Name, compute capability (major * 10 + minor) and SM count of the current device.
-pub fn device_info() -> Result<(String, i32, i32)> {
-    let mut name = [0 as c_char; 256];
-    let (mut cc, mut sms) = (0, 0);
-    // SAFETY: `name` has room for 256 bytes, of which the library writes a terminated
-    // string; the two integers are valid for writes.
-    check(
-        unsafe { (api().cs1_device_info)(name.as_mut_ptr(), name.len(), &mut cc, &mut sms) },
-        "reading the device properties",
-    )?;
-    // SAFETY: terminated by the library.
-    let name = unsafe { CStr::from_ptr(name.as_ptr()) };
-    Ok((name.to_string_lossy().into_owned(), cc, sms))
 }
 
 /// The loaded library; `load` must have succeeded before.
@@ -280,53 +236,4 @@ pub unsafe fn download(dst: &mut [u8], src: *const c_void, stream: Stream) -> Re
         unsafe { (api().cs1_download)(dst.as_mut_ptr().cast(), src, dst.len(), stream) },
         "copy to host",
     )
-}
-
-/// An instantiated CUDA graph, destroyed on drop.
-pub struct Graph {
-    exec: *mut c_void,
-}
-
-// SAFETY: the executable graph is only launched by its owner, one launch at a time.
-unsafe impl Send for Graph {}
-
-impl Graph {
-    /// Capture the work `record` queues on `stream` (nothing runs) and instantiate it.
-    pub fn capture(stream: Stream, record: impl FnOnce() -> Result<()>) -> Result<Self> {
-        // SAFETY: plain runtime calls on a stream from new_stream; the capture is
-        // always ended, also when `record` fails.
-        unsafe {
-            check((api().cs1_graph_begin)(stream), "cudaStreamBeginCapture")?;
-            let recorded = record();
-            let mut exec = std::ptr::null_mut();
-            let ended = check(
-                (api().cs1_graph_end)(stream, &mut exec),
-                "capturing a CUDA graph",
-            );
-            match recorded.and(ended) {
-                Ok(()) => Ok(Graph { exec }),
-                Err(e) => {
-                    if !exec.is_null() {
-                        (api().cs1_graph_destroy)(exec);
-                    }
-                    Err(e)
-                }
-            }
-        }
-    }
-
-    pub fn launch(&self, stream: Stream) -> Result<()> {
-        // SAFETY: an instantiated graph whose buffers outlive it (see Model).
-        check(
-            unsafe { (api().cs1_graph_launch)(self.exec, stream) },
-            "cudaGraphLaunch",
-        )
-    }
-}
-
-impl Drop for Graph {
-    fn drop(&mut self) {
-        // SAFETY: instantiated by capture and not destroyed before.
-        unsafe { (api().cs1_graph_destroy)(self.exec) };
-    }
 }

@@ -5,7 +5,7 @@
 // four warps of 16 rows each, and walks the keys up to its last query in tiles of
 // 32, keeping the output and the online softmax in registers. The probabilities are
 // rounded to bfloat16 for the P*V product, as in flash attention; the running sums
-// stay float32. cs1_attention_simple is a plain float32 version kept for checking.
+// stay float32.
 #include "common.cuh"
 #include "mma.cuh"
 #include "ops.h"
@@ -15,9 +15,6 @@ namespace {
 
 constexpr int DH = 256;         // head dim
 constexpr int PER = DH / 32;    // values per lane
-constexpr int QB = 16;          // queries per block, two per warp
-constexpr int KB = 32;          // keys per shared-memory tile
-constexpr int ATTN_THREADS = 256;
 
 // One warp per (token, head), q heads first, then k heads. Each lane holds 8
 // consecutive dims, so the rotary partner of dim i < 32 (dim i + 32) sits in lane ^ 4.
@@ -70,86 +67,6 @@ __global__ void attn_prep_kernel(const bf16* __restrict__ qg, const bf16* __rest
         store8(gate + ((size_t)t * Hq + h) * DH + d0, gv);
     } else {
         store8(k + ((size_t)t * Hk + h) * DH + d0, y);
-    }
-}
-
-// Causal attention, float32 scores and online softmax. A block takes QB queries of
-// one head and walks the keys up to its last query in shared-memory tiles.
-__global__ void __launch_bounds__(ATTN_THREADS)
-    attention_kernel(const bf16* __restrict__ q, const bf16* __restrict__ k, const bf16* __restrict__ v, int ldv,
-                     bf16* __restrict__ out, int T, int Hq, int Hk, float scale) {
-    __shared__ __align__(16) bf16 ks[KB * DH];
-    __shared__ __align__(16) bf16 vs[KB * DH];
-    const int h = blockIdx.y, hk = h / (Hq / Hk);
-    const int warp = threadIdx.x / 32, lane = threadIdx.x & 31, d0 = lane * PER;
-    const int first = blockIdx.x * QB + warp * 2;
-
-    float qv[2][PER], acc[2][PER], m[2], l[2];
-#pragma unroll
-    for (int r = 0; r < 2; r++) {
-        const int t = first + r;
-        if (t < T) {
-            load8(q + ((size_t)t * Hq + h) * DH + d0, qv[r]);
-        } else {
-#pragma unroll
-            for (int i = 0; i < PER; i++) qv[r][i] = 0.f;
-        }
-#pragma unroll
-        for (int i = 0; i < PER; i++) acc[r][i] = 0.f;
-        m[r] = -INFINITY;
-        l[r] = 0.f;
-    }
-
-    const int kv_end = min(T, (int)(blockIdx.x * QB + QB));
-    for (int k0 = 0; k0 < kv_end; k0 += KB) {
-        __syncthreads();
-        for (int x = threadIdx.x; x < KB * DH / 8; x += blockDim.x) {
-            const int j = x / (DH / 8), c = (x % (DH / 8)) * 8, s = k0 + j;
-            Pack8 kk{}, vv{};
-            if (s < T) {
-                kk = *reinterpret_cast<const Pack8*>(k + ((size_t)s * Hk + hk) * DH + c);
-                vv = *reinterpret_cast<const Pack8*>(v + (size_t)s * ldv + (size_t)hk * DH + c);
-            }
-            *reinterpret_cast<Pack8*>(ks + j * DH + c) = kk;
-            *reinterpret_cast<Pack8*>(vs + j * DH + c) = vv;
-        }
-        __syncthreads();
-        const int jn = min(KB, kv_end - k0);
-        for (int j = 0; j < jn; j++) {
-            float kv[PER];
-            load8(ks + j * DH + d0, kv);
-            float dot[2] = {0.f, 0.f};
-#pragma unroll
-            for (int i = 0; i < PER; i++) {
-                dot[0] = fmaf(qv[0][i], kv[i], dot[0]);
-                dot[1] = fmaf(qv[1][i], kv[i], dot[1]);
-            }
-            dot[0] = warp_sum(dot[0]);
-            dot[1] = warp_sum(dot[1]);
-            float vx[PER];
-            load8(vs + j * DH + d0, vx);
-            const int s = k0 + j;
-#pragma unroll
-            for (int r = 0; r < 2; r++) {
-                if (s > first + r) continue;
-                const float score = dot[r] * scale;
-                const float mn = fmaxf(m[r], score);
-                const float corr = expf(m[r] - mn), p = expf(score - mn);
-                l[r] = l[r] * corr + p;
-#pragma unroll
-                for (int i = 0; i < PER; i++) acc[r][i] = fmaf(p, vx[i], acc[r][i] * corr);
-                m[r] = mn;
-            }
-        }
-    }
-#pragma unroll
-    for (int r = 0; r < 2; r++) {
-        const int t = first + r;
-        if (t >= T) continue;
-        float o[PER];
-#pragma unroll
-        for (int i = 0; i < PER; i++) o[i] = acc[r][i] / l[r];
-        store8(out + ((size_t)t * Hq + h) * DH + d0, o);
     }
 }
 
@@ -322,16 +239,6 @@ extern "C" int cs1_attn_prep(const void* qg, const void* kr, int ld, const void*
         static_cast<const bf16*>(qg), static_cast<const bf16*>(kr), ld, static_cast<const bf16*>(qw),
         static_cast<const bf16*>(kw), static_cast<const bf16*>(cos), static_cast<const bf16*>(sin),
         static_cast<bf16*>(q), static_cast<bf16*>(gate), static_cast<bf16*>(k), T, Hq, Hk, half, eps);
-    return cudaGetLastError();
-}
-
-extern "C" int cs1_attention_simple(const void* q, const void* k, const void* v, int ldv, void* out, int T, int Hq,
-                                    int Hk, int Dh, float scale, void* stream) {
-    if (Dh != DH || Hk <= 0 || Hq % Hk != 0 || ldv % 8 != 0 || ldv < Hk * Dh || T < 0) return cudaErrorInvalidValue;
-    if (T == 0) return cudaSuccess;
-    attention_kernel<<<dim3((T + QB - 1) / QB, Hq), ATTN_THREADS, 0, static_cast<cudaStream_t>(stream)>>>(
-        static_cast<const bf16*>(q), static_cast<const bf16*>(k), static_cast<const bf16*>(v), ldv,
-        static_cast<bf16*>(out), T, Hq, Hk, scale);
     return cudaGetLastError();
 }
 

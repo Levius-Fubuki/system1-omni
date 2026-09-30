@@ -1,5 +1,4 @@
-//! GPU checks of the attention and Gated DeltaNet kernels on random inputs, and of the
-//! GEMM plan import. They need
+//! GPU checks of the attention and Gated DeltaNet kernels on random inputs. They need
 //! a GPU and CUA_S1_CUDA_LIB pointing at libqwen3_5_cuda.so, so they only run when
 //! asked for:
 //!
@@ -9,7 +8,7 @@
 use std::path::PathBuf;
 
 use half::bf16;
-use omni_cua_s1_native::cuda::{self, DeviceBuffer, GemmPlan, Stream, api, check};
+use omni_cua_s1_native::cuda::{self, DeviceBuffer, Stream, api, check};
 
 fn setup() -> Stream {
     let lib = std::env::var_os("CUA_S1_CUDA_LIB")
@@ -62,7 +61,7 @@ fn from_device(buf: &DeviceBuffer, n: usize, st: Stream) -> Vec<f32> {
 
 #[test]
 #[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
-fn flash_attention_matches_float32_kernel() {
+fn flash_attention_matches_float64_reference() {
     let st = setup();
     let (hq, hk, dh) = (16usize, 4usize, 256usize);
     for (t, amp) in [
@@ -73,68 +72,70 @@ fn flash_attention_matches_float32_kernel() {
         (700, 8.0),
         (2048, 0.5),
     ] {
-        let q = to_device(&random(t * hq * dh, 1, amp), st);
-        let k = to_device(&random(t * hk * dh, 2, amp), st);
+        let (qh, kh) = (random(t * hq * dh, 1, amp), random(t * hk * dh, 2, amp));
         // v is read in place from the q|k|v projection output, rows of 10240 as in the model
         let (ldv, v_at) = (10240usize, (hq * 2 + hk) * dh);
-        let qkv = to_device(&random(t * ldv, 3, 1.0), st);
-        let v = qkv.at(v_at * 2);
-        let flash = DeviceBuffer::new(t * hq * dh * 2).unwrap();
-        let simple = DeviceBuffer::new(t * hq * dh * 2).unwrap();
-        let (ti, hqi, hki, dhi, ldv) = (t as i32, hq as i32, hk as i32, dh as i32, ldv as i32);
+        let qkvh = random(t * ldv, 3, 1.0);
+        let (q, k, qkv) = (to_device(&qh, st), to_device(&kh, st), to_device(&qkvh, st));
+        let out = DeviceBuffer::new(t * hq * dh * 2).unwrap();
         // SAFETY: every buffer holds t rows of the given widths.
-        unsafe {
-            check(
-                (api().cs1_attention)(
-                    q.at(0),
-                    k.at(0),
-                    v,
-                    ldv,
-                    flash.at(0),
-                    ti,
-                    hqi,
-                    hki,
-                    dhi,
-                    0.0625,
-                    st,
-                ),
-                "flash",
+        let code = unsafe {
+            (api().cs1_attention)(
+                q.at(0),
+                k.at(0),
+                qkv.at(v_at * 2),
+                ldv as i32,
+                out.at(0),
+                t as i32,
+                hq as i32,
+                hk as i32,
+                dh as i32,
+                0.0625,
+                st,
             )
-            .unwrap();
-            check(
-                (api().cs1_attention_simple)(
-                    q.at(0),
-                    k.at(0),
-                    v,
-                    ldv,
-                    simple.at(0),
-                    ti,
-                    hqi,
-                    hki,
-                    dhi,
-                    0.0625,
-                    st,
-                ),
-                "simple",
-            )
-            .unwrap();
-        }
-        let a = from_device(&flash, t * hq * dh, st);
-        let b = from_device(&simple, t * hq * dh, st);
-        // per (token, head): the largest difference over the largest magnitude
-        let mut worst = 0f32;
-        for (ra, rb) in a.chunks_exact(dh).zip(b.chunks_exact(dh)) {
-            let d = ra
-                .iter()
-                .zip(rb)
-                .map(|(x, y)| (x - y).abs())
-                .fold(0f32, f32::max);
-            let m = rb.iter().map(|y| y.abs()).fold(1e-3f32, f32::max);
-            assert!(
-                ra.iter().all(|x| x.is_finite()),
-                "non-finite output at t = {t}"
-            );
-            worst = worst.max(d / m);
+        };
+        check(code, "attention").unwrap();
+        let got = from_device(&out, t * hq * dh, st);
+        assert!(
+            got.iter().all(|x| x.is_finite()),
+            "non-finite output at t = {t}"
+        );
+        // about 64 query rows per length, each against causal attention in float64;
+        // per (row, head): the largest difference over the largest magnitude
+        let mut worst = 0f64;
+        for i in (0..t).step_by(t.div_ceil(64)).chain([t - 1]) {
+            for h in 0..hq {
+                let g = h / (hq / hk);
+                let qi = &qh[(i * hq + h) * dh..][..dh];
+                let s: Vec<f64> = (0..=i)
+                    .map(|j| {
+                        let kj = &kh[(j * hk + g) * dh..][..dh];
+                        qi.iter()
+                            .zip(kj)
+                            .map(|(a, b)| a.to_f64() * b.to_f64())
+                            .sum::<f64>()
+                            * 0.0625
+                    })
+                    .collect();
+                let m = s.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+                let w: Vec<f64> = s.iter().map(|x| (x - m).exp()).collect();
+                let z: f64 = w.iter().sum();
+                let want: Vec<f64> = (0..dh)
+                    .map(|d| {
+                        (0..=i)
+                            .map(|j| w[j] * qkvh[j * ldv + v_at + g * dh + d].to_f64())
+                            .sum::<f64>()
+                            / z
+                    })
+                    .collect();
+                let row = &got[(i * hq + h) * dh..][..dh];
+                let diff = row
+                    .iter()
+                    .zip(&want)
+                    .map(|(&x, y)| (x as f64 - y).abs())
+                    .fold(0f64, f64::max);
+                worst = worst.max(diff / want.iter().map(|y| y.abs()).fold(1e-3, f64::max));
+            }
         }
         eprintln!("attention t = {t}, amplitude {amp}: largest relative difference {worst:.2e}");
         assert!(worst < 1.6e-2, "t = {t}: {worst}");
@@ -259,48 +260,5 @@ fn gated_delta_rule_matches_recurrent_reference() {
             "gated delta t = {t}: largest difference {worst:.2e}, largest |reference| {scale:.2}"
         );
         assert!(worst <= 2e-2 * scale, "t = {t}: {worst} vs scale {scale}");
-    }
-}
-
-/// A tuned GEMM plan moves to another cuBLASLt handle through export and import, and a
-/// plan that says it was tuned with another cuBLASLt version is refused without
-/// changing anything.
-#[test]
-#[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
-fn gemm_plans_import_only_for_their_cublaslt_version() {
-    let st = setup();
-    let (m, n, k) = (64i32, 256i32, 512i32);
-    let x = to_device(&random((m * k) as usize, 21, 1.0), st);
-    let w = to_device(&random((n * k) as usize, 22, 1.0), st);
-    let y = DeviceBuffer::new((m * n * 2) as usize).unwrap();
-    // SAFETY: the buffers hold m x k, n x k and m x n values; the handles are destroyed
-    // at the end and not used after.
-    unsafe {
-        let api = api();
-        let (a, b) = (
-            (api.cs1_gemm_create)(32 << 20),
-            (api.cs1_gemm_create)(32 << 20),
-        );
-        assert!(!a.is_null() && !b.is_null());
-        check(
-            (api.cs1_gemm_tune)(a, x.at(0), w.at(0), y.at(0), m, n, k, n, 0, st),
-            "tune",
-        )
-        .unwrap();
-        (api.cs1_gemm_tune_done)(a);
-        let count = (api.cs1_gemm_export)(a, std::ptr::null_mut(), 0);
-        assert_eq!(count, 1);
-        let mut plans = vec![GemmPlan::default(); count];
-        (api.cs1_gemm_export)(a, plans.as_mut_ptr(), count);
-        assert_eq!(plans[0].cublaslt_version, (api.cs1_gemm_version)() as u64);
-
-        let mut other = plans.clone();
-        other[0].cublaslt_version += 1;
-        assert_ne!((api.cs1_gemm_import)(b, other.as_ptr(), 1), 0);
-        assert_eq!((api.cs1_gemm_export)(b, std::ptr::null_mut(), 0), 0);
-        check((api.cs1_gemm_import)(b, plans.as_ptr(), 1), "import").unwrap();
-        assert_eq!((api.cs1_gemm_export)(b, std::ptr::null_mut(), 0), 1);
-        (api.cs1_gemm_destroy)(a);
-        (api.cs1_gemm_destroy)(b);
     }
 }

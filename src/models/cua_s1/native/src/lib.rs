@@ -5,6 +5,5 @@
 pub mod contract;
 pub mod cuda;
 pub mod engine;
+pub mod json;
 pub mod model;
-pub mod pyjson;
-pub mod server;

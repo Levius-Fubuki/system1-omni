@@ -1,17 +1,7 @@
 //! The Qwen3.5 text model (the language model of Qwen/Qwen3.5-4B), prefill only: one
 //! forward pass over a prompt, returning the final-norm hidden state of the last
-//! position. The layer loop, buffers, CUDA graphs and kernel choice live here; the
-//! operations are the CUDA kernels in `src/backends/cuda/qwen3_5`.
-//!
-//! Prompts up to `graph_max_tokens` run as a CUDA graph captured for their exact
-//! length on first use (the most recent `graph_cache` lengths are kept); longer ones
-//! run eagerly. A graph queues the same kernels with the same GEMM algorithms as the
-//! eager pass of that length, so both give bitwise identical results.
-//!
-//! GEMM algorithms are tuned at startup for the lengths in TUNE_ROWS; other lengths
-//! borrow a nearby tuned one (see gemm.cu). The choices can be saved to a file and
-//! reused, so that restarts do not change them; the file records the GPU, the
-//! cuBLASLt version and the tuned lengths, and one that does not match is refused.
+//! position. The layer loop and buffers live here; the operations are the CUDA
+//! kernels in `src/backends/cuda/qwen3_5`.
 //!
 //! The order of operations follows `modeling_qwen3_5.py`, and so do the points where
 //! it rounds to bfloat16, except inside attention and the Gated DeltaNet prefill (see
@@ -19,63 +9,19 @@
 //! token, so the multimodal rotary sections all get the same position and the
 //! rotary embedding is the plain one.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::ffi::c_void;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::Value as Json;
 
-use crate::cuda::{self, DeviceBuffer, Graph, Stream, check};
+use crate::cuda::{self, DeviceBuffer, Stream, check};
 
 const ALIGN: usize = 256;
 const BF16: usize = 2;
 const F32: usize = 4;
 const GEMM_WORKSPACE: usize = 32 << 20;
-
-/// What the GEMM plans depend on besides the shapes: the GPU, cuBLASLt, the
-/// workspace, and the longest prompt tuned in the graph range.
-fn plan_setup(graph_max_tokens: usize) -> Result<Json> {
-    let (gpu, compute_capability, sms) = cuda::device_info()?;
-    // SAFETY: takes no arguments.
-    let cublaslt = unsafe { (cuda::api().cs1_gemm_version)() };
-    Ok(serde_json::json!({
-        "gpu": gpu,
-        "compute_capability": compute_capability,
-        "sms": sms,
-        "cublaslt": cublaslt,
-        "workspace_bytes": GEMM_WORKSPACE,
-        "graph_max_tokens": graph_max_tokens,
-    }))
-}
-
-/// Prompt lengths the GEMM algorithms are tuned for, at most twice apart, so that a
-/// length up to the last one borrows a tuned algorithm for at most twice its length
-/// and longer ones borrow the last one's. Past these, cuBLASLt's first choice for long
-/// prompts is an older, half-rate tensor-core kernel on sm_89.
-pub const TUNE_ROWS: &[usize] = &[
-    64, 96, 128, 160, 192, 224, 256, 320, 384, 448, 512, 640, 768, 1024, 1536, 2048, 4096, 8192,
-    16384,
-];
-
-/// Startup options of the model.
-#[derive(Debug, Clone)]
-pub struct Options {
-    /// libqwen3_5_cuda.so (see src/backends/cuda/qwen3_5/build.sh).
-    pub library: PathBuf,
-    /// Longest prompt that runs as a CUDA graph; 0 runs everything eagerly and skips
-    /// GEMM tuning.
-    pub graph_max_tokens: usize,
-    /// How many prompt lengths keep their captured graph.
-    pub graph_cache: usize,
-    /// Tuned GEMM algorithms: read from this file if it exists, else tuned and
-    /// written to it.
-    pub gemm_plans: Option<PathBuf>,
-    /// Tune the GEMMs of graph-length prompts over far more cuBLASLt configurations
-    /// than the heuristic's shortlist (see gemm.cu; about a minute). Longer prompts
-    /// keep the shortlist, whose choices did better in whole forward passes.
-    pub gemm_search: bool,
-}
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -566,14 +512,8 @@ pub struct Model {
     layers: Vec<Layer>,
     stream: Stream,
     gemm: *mut c_void,
-    /// Graphs by prompt length, least recently used first in `graph_lru`; they point
-    /// into `graph_scratch`, which is never reallocated.
-    graphs: HashMap<usize, Graph>,
-    graph_lru: VecDeque<usize>,
-    graph_scratch: Option<Scratch>,
-    graph_cache: usize,
-    /// For prompts longer than `graph_scratch` holds; grows as needed.
-    eager_scratch: Option<Scratch>,
+    /// Buffers for the longest prompt so far; grows as needed.
+    scratch: Option<Scratch>,
 }
 
 // SAFETY: the raw pointers are device addresses and a cuBLASLt handle owned by the
@@ -582,17 +522,16 @@ unsafe impl Send for Model {}
 
 impl Drop for Model {
     fn drop(&mut self) {
-        self.graphs.clear();
         // SAFETY: created by cs1_gemm_create and not destroyed before.
         unsafe { (cuda::api().cs1_gemm_destroy)(self.gemm) };
     }
 }
 
 impl Model {
-    /// Load the weights, then tune the GEMMs (or read their plans) for graph use.
-    pub fn load(dir: &Path, opts: &Options) -> Result<Self> {
+    /// Load the CUDA library and the weights.
+    pub fn load(dir: &Path, library: &Path) -> Result<Self> {
         let cfg = Config::load(dir)?;
-        cuda::load(&opts.library)?;
+        cuda::load(library)?;
         cuda::set_device(0)?;
         let stream = cuda::new_stream()?;
         let weights = Weights::load(dir, stream)?;
@@ -653,7 +592,7 @@ impl Model {
         // SAFETY: plain allocation; checked for null below.
         let gemm = unsafe { (cuda::api().cs1_gemm_create)(GEMM_WORKSPACE) };
         ensure!(!gemm.is_null(), "cuBLASLt setup failed");
-        let mut model = Self {
+        let model = Self {
             cfg,
             _weights: weights,
             embed,
@@ -661,191 +600,9 @@ impl Model {
             layers,
             stream,
             gemm,
-            graphs: HashMap::new(),
-            graph_lru: VecDeque::new(),
-            graph_scratch: None,
-            graph_cache: opts.graph_cache.max(1),
-            eager_scratch: None,
+            scratch: None,
         };
-        if opts.graph_max_tokens > 0 {
-            model.prepare_graphs(
-                opts.graph_max_tokens,
-                opts.gemm_plans.as_deref(),
-                opts.gemm_search,
-            )?;
-        }
         Ok(model)
-    }
-
-    /// The longest prompt that runs as a graph (0: none).
-    pub fn graph_max_tokens(&self) -> usize {
-        self.graph_scratch.as_ref().map_or(0, |s| s.cap)
-    }
-
-    /// Allocate the graph buffers, then read or tune the GEMM plans.
-    fn prepare_graphs(&mut self, max: usize, plans: Option<&Path>, search: bool) -> Result<()> {
-        let s = Scratch::new(&self.cfg, max, self.stream)?;
-        // one eager pass over the longest prompt fills every buffer and sets up the kernels
-        let zeros = vec![0u8; max * 4];
-        // SAFETY: the ids buffer holds `max` int32 values.
-        unsafe { cuda::upload(s.at(s.ids), &zeros, self.stream)? };
-        self.run(&s, max)?;
-        cuda::synchronize(self.stream)?;
-        let setup = plan_setup(max)?;
-        let loaded = match plans {
-            Some(path) if path.exists() => {
-                let n = self.import_plans(path, &setup).with_context(|| {
-                    format!(
-                        "GEMM plans in {} not used; remove the file, or pass another \
-                         --gemm-plans, to tune again",
-                        path.display()
-                    )
-                })?;
-                eprintln!("GEMM plans: {n} read from {}", path.display());
-                true
-            }
-            _ => false,
-        };
-        if !loaded {
-            let mut rows: Vec<usize> = TUNE_ROWS.iter().copied().filter(|&m| m < max).collect();
-            rows.push(max);
-            for m in rows {
-                self.tune(&s, m, search)?;
-            }
-            // longer prompts run eagerly; tune those lengths in a temporary buffer
-            let long: Vec<usize> = TUNE_ROWS.iter().copied().filter(|&m| m > max).collect();
-            if let Some(&cap) = long.last() {
-                let big = Scratch::new(&self.cfg, cap, self.stream)?;
-                for m in long {
-                    self.tune(&big, m, false)?;
-                }
-            }
-            // SAFETY: frees only the tuning buffers.
-            unsafe { (cuda::api().cs1_gemm_tune_done)(self.gemm) };
-            if let Some(path) = plans {
-                let n = self.export_plans(path, &setup, search)?;
-                eprintln!("GEMM plans: {n} written to {}", path.display());
-            }
-        }
-        self.graph_scratch = Some(s);
-        Ok(())
-    }
-
-    fn export_plans(&self, path: &Path, setup: &Json, search: bool) -> Result<usize> {
-        // SAFETY: a null buffer with capacity 0 only counts.
-        let n = unsafe { (cuda::api().cs1_gemm_export)(self.gemm, std::ptr::null_mut(), 0) };
-        let mut plans = vec![cuda::GemmPlan::default(); n];
-        // SAFETY: `plans` has room for n records.
-        unsafe { (cuda::api().cs1_gemm_export)(self.gemm, plans.as_mut_ptr(), n) };
-        let records: Vec<Json> = plans
-            .iter()
-            .map(|p| {
-                serde_json::json!({
-                    "m": p.m, "n": p.n, "k": p.k, "ldy": p.ldy,
-                    "algo": p.algo.iter().map(|w| format!("{w:016x}")).collect::<Vec<_>>(),
-                })
-            })
-            .collect();
-        let doc = serde_json::json!({
-            "format": "cua-s1-native-gemm-plans/1",
-            "setup": setup,
-            "search": search,
-            "plans": records,
-        });
-        std::fs::write(path, serde_json::to_string_pretty(&doc)? + "\n")
-            .with_context(|| format!("{}", path.display()))?;
-        Ok(n)
-    }
-
-    fn import_plans(&self, path: &Path, setup: &Json) -> Result<usize> {
-        let doc: Json = serde_json::from_str(&std::fs::read_to_string(path)?)?;
-        ensure!(
-            doc["format"] == "cua-s1-native-gemm-plans/1",
-            "unknown format {}",
-            doc["format"]
-        );
-        ensure!(
-            doc["setup"].is_object(),
-            "the file does not record the GPU and cuBLASLt version it was tuned for"
-        );
-        ensure!(
-            doc["setup"] == *setup,
-            "tuned for {}, this run is {setup}",
-            doc["setup"]
-        );
-        let int = |v: &Json| v.as_i64().map(|x| x as i32).context("bad plan field");
-        let plans = doc["plans"]
-            .as_array()
-            .context("no plans")?
-            .iter()
-            .map(|p| {
-                let words = p["algo"].as_array().context("bad algo")?;
-                ensure!(words.len() == 8, "bad algo");
-                let mut algo = [0u64; 8];
-                for (dst, w) in algo.iter_mut().zip(words) {
-                    *dst = u64::from_str_radix(w.as_str().context("bad algo")?, 16)?;
-                }
-                Ok(cuda::GemmPlan {
-                    m: int(&p["m"])?,
-                    n: int(&p["n"])?,
-                    k: int(&p["k"])?,
-                    ldy: int(&p["ldy"])?,
-                    // the file's setup, checked above, records the version
-                    cublaslt_version: setup["cublaslt"].as_u64().context("no cuBLASLt version")?,
-                    algo,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        // SAFETY: `plans` holds plans.len() records.
-        check(
-            unsafe { (cuda::api().cs1_gemm_import)(self.gemm, plans.as_ptr(), plans.len()) },
-            "importing GEMM plans",
-        )?;
-        Ok(plans.len())
-    }
-
-    /// Pick the GEMM algorithms for `m` rows, timing the first layer of each kind.
-    fn tune(&self, s: &Scratch, m: usize, exhaustive: bool) -> Result<()> {
-        let mut jobs: Vec<(usize, &Tensor, usize)> = Vec::new();
-        let layer = &self.layers[0];
-        jobs.push((s.x, &layer.gate_up, s.gate_up));
-        jobs.push((s.act, &layer.down, s.delta));
-        if let Some(la) = self.layers.iter().find_map(|l| match &l.mixer {
-            Mixer::Linear(la) => Some(la),
-            Mixer::Full(_) => None,
-        }) {
-            jobs.push((s.x, &la.in_proj, s.gdn_in));
-            jobs.push((s.ln, &la.out, s.delta));
-        }
-        if let Some(fa) = self.layers.iter().find_map(|l| match &l.mixer {
-            Mixer::Full(fa) => Some(fa),
-            Mixer::Linear(_) => None,
-        }) {
-            jobs.push((s.x, &fa.qkv, s.attn_in));
-            jobs.push((s.ao, &fa.o, s.delta));
-        }
-        for (x, w, y) in jobs {
-            let (n, k) = (w.shape[0] as i32, w.shape[1] as i32);
-            // SAFETY: x and y are scratch buffers sized for `cap` >= m rows of this shape.
-            check(
-                unsafe {
-                    (cuda::api().cs1_gemm_tune)(
-                        self.gemm,
-                        s.at(x),
-                        w.ptr,
-                        s.at(y),
-                        m as i32,
-                        n,
-                        k,
-                        n,
-                        exhaustive.into(),
-                        self.stream,
-                    )
-                },
-                "gemm tuning",
-            )?;
-        }
-        Ok(())
     }
 
     fn gemm(&self, s: &Scratch, x: usize, w: &Tensor, y: usize, m: usize) -> Result<()> {
@@ -870,7 +627,6 @@ impl Model {
     }
 
     /// The final-norm hidden state at the last position, as float32.
-    /// Runs from the graph for this length when graphs are on and it fits, else eagerly.
     pub fn forward(&mut self, ids: &[u32]) -> Result<Vec<f32>> {
         let t = ids.len();
         ensure!(t > 0, "empty prompt");
@@ -880,36 +636,19 @@ impl Model {
             "token id outside the vocabulary"
         );
         cuda::set_device(0)?;
-        let in_graph_scratch = self.graph_scratch.as_ref().is_some_and(|s| t <= s.cap);
-        if !in_graph_scratch && self.eager_scratch.as_ref().is_none_or(|s| t > s.cap) {
-            self.eager_scratch = None;
-            self.eager_scratch = Some(Scratch::new(
+        if self.scratch.as_ref().is_none_or(|s| t > s.cap) {
+            self.scratch = None;
+            self.scratch = Some(Scratch::new(
                 &self.cfg,
                 t.next_multiple_of(1024),
                 self.stream,
             )?);
         }
-        let s = if in_graph_scratch {
-            self.graph_scratch.as_ref()
-        } else {
-            self.eager_scratch.as_ref()
-        }
-        .unwrap();
+        let s = self.scratch.as_ref().unwrap();
         let ids32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
         // SAFETY: the ids buffer holds at least t int32 values.
         unsafe { cuda::upload(s.at(s.ids), &ids32, self.stream)? };
-        if in_graph_scratch {
-            self.graph_for(t)?;
-            self.graphs[&t].launch(self.stream)?;
-        } else {
-            self.run(s, t)?;
-        }
-        let s = if in_graph_scratch {
-            self.graph_scratch.as_ref()
-        } else {
-            self.eager_scratch.as_ref()
-        }
-        .unwrap();
+        self.run(s, t)?;
         let mut last = vec![0u8; h * BF16];
         // SAFETY: x holds at least t rows of the hidden size.
         unsafe { cuda::download(&mut last, s.at(s.x + (t - 1) * h * BF16), self.stream)? };
@@ -920,28 +659,8 @@ impl Model {
             .collect())
     }
 
-    /// Make sure a graph for `t` tokens exists (capturing it if needed) and mark it
-    /// as the most recently used, dropping the least recently used beyond the cache.
-    fn graph_for(&mut self, t: usize) -> Result<()> {
-        if self.graphs.contains_key(&t) {
-            self.graph_lru.retain(|&x| x != t);
-        } else {
-            while self.graphs.len() >= self.graph_cache {
-                let Some(old) = self.graph_lru.pop_front() else {
-                    break;
-                };
-                self.graphs.remove(&old);
-            }
-            let s = self.graph_scratch.as_ref().context("no graph buffers")?;
-            let graph = Graph::capture(self.stream, || self.run(s, t))?;
-            self.graphs.insert(t, graph);
-        }
-        self.graph_lru.push_back(t);
-        Ok(())
-    }
-
-    /// Queue one forward pass over the first `t` ids in `s` (nothing else is queued,
-    /// so it can be captured). The final-norm hidden states end up in `s.x`.
+    /// Queue one forward pass over the first `t` ids in `s`. The final-norm hidden
+    /// states end up in `s.x`.
     fn run(&self, s: &Scratch, t: usize) -> Result<()> {
         let cfg = &self.cfg;
         let st = self.stream;

@@ -2,8 +2,6 @@
 // (libqwen3_5_cuda.so) and never links CUDA itself.
 #include <cuda_runtime.h>
 
-#include <cstdio>
-
 #include "ops.h"
 
 extern "C" {
@@ -13,18 +11,6 @@ uint32_t cs1_abi_version(void) { return CS1_ABI_VERSION; }
 const char* cs1_error_string(int code) { return cudaGetErrorString(static_cast<cudaError_t>(code)); }
 
 int cs1_set_device(int device) { return cudaSetDevice(device); }
-
-int cs1_device_info(char* name, size_t cap, int* compute_capability, int* sms) {
-    int device = 0;
-    cudaDeviceProp prop;
-    cudaError_t e = cudaGetDevice(&device);
-    if (e == cudaSuccess) e = cudaGetDeviceProperties(&prop, device);
-    if (e != cudaSuccess) return e;
-    if (cap > 0) std::snprintf(name, cap, "%s", prop.name);
-    *compute_capability = prop.major * 10 + prop.minor;
-    *sms = prop.multiProcessorCount;
-    return cudaSuccess;
-}
 
 int cs1_malloc(void** ptr, size_t bytes) { return cudaMalloc(ptr, bytes); }
 
@@ -47,23 +33,5 @@ int cs1_download(void* dst, const void* src, size_t bytes, void* stream) {
     const cudaError_t e = cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDeviceToHost, st);
     return e != cudaSuccess ? e : cudaStreamSynchronize(st);
 }
-
-int cs1_graph_begin(void* stream) {
-    return cudaStreamBeginCapture(static_cast<cudaStream_t>(stream), cudaStreamCaptureModeThreadLocal);
-}
-
-int cs1_graph_end(void* stream, void** exec) {
-    cudaGraph_t graph = nullptr;
-    cudaError_t e = cudaStreamEndCapture(static_cast<cudaStream_t>(stream), &graph);
-    if (e == cudaSuccess) e = cudaGraphInstantiate(reinterpret_cast<cudaGraphExec_t*>(exec), graph, 0);
-    if (graph) cudaGraphDestroy(graph);
-    return e;
-}
-
-int cs1_graph_launch(void* exec, void* stream) {
-    return cudaGraphLaunch(static_cast<cudaGraphExec_t>(exec), static_cast<cudaStream_t>(stream));
-}
-
-int cs1_graph_destroy(void* exec) { return cudaGraphExecDestroy(static_cast<cudaGraphExec_t>(exec)); }
 
 }  // extern "C"
