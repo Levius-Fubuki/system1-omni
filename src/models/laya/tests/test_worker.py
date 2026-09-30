@@ -298,3 +298,14 @@ def test_fp16_weights_are_applied_to_every_loaded_model_before_warmup(monkeypatc
 def test_unknown_weights_mode_is_refused():
     with pytest.raises(ValueError, match="fp32 or fp16"):
         worker.create_worker_app(FakeRouter(), "english", "mps", weights="int8")
+
+
+def test_fp16_weights_on_cpu_are_flagged(monkeypatch, caplog):
+    monkeypatch.setattr(worker, "use_fp16_weights", lambda agent: None)
+    with caplog.at_level("WARNING", logger="laya-worker"):
+        worker.create_worker_app(FakeRouter(FakeAgent(device="cpu")), "english", "cpu", weights="fp16")
+    assert "fp16 weights on CPU are slower" in caplog.text
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="laya-worker"):
+        worker.create_worker_app(FakeRouter(), "english", "mps", weights="fp16")
+    assert "slower" not in caplog.text

@@ -21,7 +21,7 @@ Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, L
                                before warmup; see compile_agent
     LAYA_WORKER_WEIGHTS        fp32 or fp16: keep the checkpoint's     fp32
                                fp16 weights instead of laya's fp32
-                               upcast on MPS and CPU
+                               upcast. For MPS; on CPU fp16 is slower
 
 The warmup also compiles the graphs, so the worker takes longer to become ready (20–30 s instead of
 about 8 s on an M1 Pro). /health counts compiled graphs at readiness and now; `recompiled_after_ready` means
@@ -87,7 +87,8 @@ WEIGHT_MODES = {"": "fp32", "fp32": "fp32", "fp16": "fp16"}
 
 def use_fp16_weights(agent: Any) -> None:
     """Keep the weights in fp16, the checkpoint's own precision, so the conversion is exact. laya 0.3.20
-    upcasts them to fp32 on MPS and CPU. `act_head` stays fp32 because laya feeds it `.float()` features."""
+    upcasts them to fp32 on MPS and CPU. `act_head` stays fp32 because laya feeds it `.float()` features.
+    Meant for MPS: on CPU the answers are the same but a 68-token request took 334 ms instead of 138 ms."""
     agent.model.half()
     act_head = getattr(agent.model, "act_head", None)
     if act_head is not None:
@@ -212,6 +213,12 @@ def create_worker_app(
         "models": models,
     }
     graphs_at_ready = graph_counter() if compile != "off" else None
+    on_cpu = [n for n, m in models.items() if m["device"].startswith("cpu")]
+    if weights == "fp16" and on_cpu:
+        log.warning(
+            "fp16 weights on CPU are slower than fp32 (%s); LAYA_WORKER_WEIGHTS=fp16 is meant for MPS",
+            ", ".join(on_cpu),
+        )
     if info["device_mismatch"]:
         wrong = ", ".join(f"{n} is on {m['device']}" for n, m in models.items() if m["device_mismatch"])
         message = f"asked for {info['requested_device']}, {wrong}"

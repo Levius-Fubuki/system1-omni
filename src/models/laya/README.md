@@ -43,7 +43,8 @@ Configuration is laya-serve's (`LAYA_HOST`, `LAYA_PORT`, `LAYA_DEVICE`, `LAYA_MO
 plus `LAYA_WORKER_COMPILE=off|on` and `LAYA_WORKER_WEIGHTS=fp32|fp16`. `on` compiles one-question
 requests end to end and, for several questions, only the encoder (Laya's decision head is slower
 compiled on MPS); `/health` reports compiled graphs at readiness and now. `fp16` keeps the checkpoint's
-fp16 weights (except `act_head`, which Laya feeds fp32 features) instead of the fp32 upcast. See the
+fp16 weights (except `act_head`, which Laya feeds fp32 features) instead of the fp32 upcast; it is meant
+for MPS, on CPU fp16 is about 2.4x slower. See the
 [Apple Silicon recipe](../../../recipe/laya/apple-silicon.md).
 
 ```sh
