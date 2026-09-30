@@ -43,6 +43,8 @@ int cs1_graph_end(void* stream, void** exec) {
     cudaError_t e = cudaStreamEndCapture(static_cast<cudaStream_t>(stream), &graph);
     if (e == cudaSuccess) e = cudaGraphInstantiate(reinterpret_cast<cudaGraphExec_t*>(exec), graph, 0);
     if (graph) cudaGraphDestroy(graph);
+    // The returned error is already reported; do not poison the next capture.
+    if (e != cudaSuccess) (void)cudaGetLastError();
     return e;
 }
 

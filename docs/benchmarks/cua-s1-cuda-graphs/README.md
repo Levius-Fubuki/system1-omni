@@ -4,8 +4,9 @@ This compares the native worker from PR #19, baseline
 `8367333a5d0e115c4c4ad366b67a91a0553449ce`, with the Graph patch in this PR.
 The same modified executable and CUDA library serve both configurations:
 `CUA_S1_GRAPH=0` (eager) versus `CUA_S1_GRAPH=1` (Graph replay). There is no
-GEMM tuning or change to kernel arithmetic. The recorded implementation is
-unchanged apart from later regression tests, comments and documentation.
+GEMM tuning or change to kernel arithmetic. Since these measurements, the patch
+has added capture-failure error cleanup, regression tests, comments and
+documentation. The latency benchmark was not rerun for that recovery fix.
 
 ## Protocol and controls
 

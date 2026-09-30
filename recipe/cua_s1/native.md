@@ -30,7 +30,7 @@ are cached. Growing the scratch allocation clears the captures before freeing
 their buffers. Capture adds first-use latency; leave the variable unset to use
 the eager control. Rebuild both the worker and CUDA library together (ABI 3).
 
-Each question is one eager forward pass over its prompt; the final hidden state at the last position times the 26 letter rows of the output projection gives the option probabilities. The probabilities are not bitwise identical to the reference worker's, since the adapter is merged and the kernels differ; they are held to the tolerance in [`src/models/cua_s1/README.md`](../../src/models/cua_s1/README.md#validation). Error messages are worded differently, and bodies nested more than 127 levels deep are refused.
+Each question runs one forward pass over its prompt, eagerly by default or through exact-length CUDA Graph replay when enabled; the final hidden state at the last position times the 26 letter rows of the output projection gives the option probabilities. The probabilities are not bitwise identical to the reference worker's, since the adapter is merged and the kernels differ; they are held to the tolerance in [`src/models/cua_s1/README.md`](../../src/models/cua_s1/README.md#validation). Error messages are worded differently, and bodies nested more than 127 levels deep are refused.
 
 The request tests need no GPU; the kernel tests compare attention and the chunked Gated DeltaNet prefill with float64 references:
 
