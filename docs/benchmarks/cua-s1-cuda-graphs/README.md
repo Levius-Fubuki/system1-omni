@@ -58,7 +58,9 @@ python /tmp/bench_text.py --direct http://127.0.0.1:8000 --inputs /tmp/text_inpu
 
 The runner uses only Python's standard library. Preserve both measured runs;
 compare the same case across modes. [results.json](results.json) contains all
-measured samples, warmups, response comparisons and startup metadata.
+measured samples, warmups, correctness summary and startup metadata. Full
+response bodies are omitted; the correctness summary records 17/17 identical
+responses.
 
 ## Results
 
