@@ -520,6 +520,7 @@ class GraphRuntime:
             capture_ms = (time.perf_counter() - capture_start) * 1000
         except torch.cuda.OutOfMemoryError:
             self.stats["capture_oom"] += 1
+            candidate.close()
             del candidate
             gc.collect()
             torch.cuda.empty_cache()
@@ -529,6 +530,7 @@ class GraphRuntime:
             # Only a healthy CUDA context can continue serving eagerly.
             torch.cuda.synchronize(values["inputs_embeds"].device)
             self.stats["capture_error"] += 1
+            candidate.close()
             del candidate
             self._disable(key)
             gc.collect()
@@ -536,6 +538,7 @@ class GraphRuntime:
 
         if not torch.equal(reference, output):
             self.stats["numerical_mismatch"] += 1
+            candidate.close()
             del candidate, output
             self._disable(key)
             gc.collect()
@@ -543,6 +546,7 @@ class GraphRuntime:
         retired = self.cache.put(key, candidate)
         if retired is None:
             self.stats["memory_budget"] += 1
+            candidate.close()
             del candidate
             self._disable(key)
             gc.collect()
@@ -553,6 +557,7 @@ class GraphRuntime:
         if retired:
             for entry in retired:
                 self.admission.evict(entry.key)
+                entry.close()
             del entry
             del retired
             gc.collect()
