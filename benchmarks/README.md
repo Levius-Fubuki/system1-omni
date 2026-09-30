@@ -167,5 +167,5 @@ result is not a native-engine speedup. Metal and vision benchmarks follow CUDA.
 ## Tests (no model or GPU)
 
 ```sh
-python -m unittest discover -s benchmarks -p 'test_*.py' -v
+python -m unittest discover -s tests/benchmarks -p 'test_*.py' -v
 ```

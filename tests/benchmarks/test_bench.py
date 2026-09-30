@@ -8,10 +8,11 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-import bench
 import httpx
 
-CASES = bench.load_cases(Path(__file__).with_name("smoke.jsonl"))
+from benchmarks import bench
+
+CASES = bench.load_cases(Path(bench.__file__).with_name("smoke.jsonl"))
 
 
 def response_for(case):
@@ -118,7 +119,7 @@ class ReplayTests(unittest.IsolatedAsyncioTestCase):
             args = argparse.Namespace(
                 metadata=root / "metadata.json",
                 output=root / "run",
-                manifest=Path(__file__).with_name("smoke.jsonl"),
+                manifest=Path(bench.__file__).with_name("smoke.jsonl"),
                 endpoint="http://localhost/v1/systemone",
                 model="english",
                 phase="feasibility",
