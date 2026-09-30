@@ -1,5 +1,5 @@
 //! HTTP routes, matching the Python worker: `GET /health` and `POST /v1/systemone`,
-//! one decision at a time, the same status codes and the same response bytes.
+//! one decision at a time, with the same status codes and response format.
 
 use std::sync::Arc;
 
@@ -12,7 +12,7 @@ use axum::routing::{get, post};
 use http_body_util::BodyExt;
 
 use crate::contract::{self, Request, RequestError, detail_json, map_request, parse_body};
-use crate::engine::{Engine, Prompter};
+use crate::engine::Engine;
 use crate::pyjson::{PyStr, repr_str, write_json_str};
 
 pub struct Limits {
@@ -59,28 +59,27 @@ fn error(status: u16, message: &str) -> Response {
     )
 }
 
-pub enum DecideError {
+enum DecideError {
     Request(RequestError),
     Internal(anyhow::Error),
 }
 
-/// Token ids for every question, checking the per-question prompt limit before any
-/// forward pass runs.
-pub fn encode_all(
-    prompter: &Prompter,
-    request: &Request,
-    max_prompt_tokens: usize,
-) -> Result<Vec<Vec<u32>>, DecideError> {
+/// Score each question and build the response body. Every prompt is tokenized and
+/// checked against the prompt limit before any forward pass runs.
+async fn decide(app: &App, request: &Request) -> Result<String, DecideError> {
+    let limit = app.limits.max_prompt_tokens;
     let mut encoded = Vec::with_capacity(request.questions.len());
     for question in &request.questions {
-        let ids = prompter
+        let ids = app
+            .engine
+            .prompter
             .encode(&request.state, question)
             .map_err(DecideError::Internal)?;
-        if max_prompt_tokens > 0 && ids.len() > max_prompt_tokens {
+        if limit > 0 && ids.len() > limit {
             return Err(DecideError::Request(RequestError::new(
                 413,
                 format!(
-                    "question {}: prompt is {} tokens, over the {max_prompt_tokens}-token limit",
+                    "question {}: prompt is {} tokens, over the {limit}-token limit",
                     repr_str(&PyStr::new(&question.name)),
                     ids.len()
                 ),
@@ -88,12 +87,6 @@ pub fn encode_all(
         }
         encoded.push(ids);
     }
-    Ok(encoded)
-}
-
-/// Score each question and build the response body.
-pub async fn decide(app: &App, request: &Request) -> Result<String, DecideError> {
-    let encoded = encode_all(&app.engine.prompter, request, app.limits.max_prompt_tokens)?;
     let mut answers = String::from("{");
     let mut prompt_tokens = 0;
     for (i, (question, ids)) in request.questions.iter().zip(encoded).enumerate() {

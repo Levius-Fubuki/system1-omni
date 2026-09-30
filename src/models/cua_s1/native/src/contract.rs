@@ -1,6 +1,6 @@
 //! Request mapping, prompt construction and answers for Cua-S1 4B 0.2, ported from
-//! `src/models/cua_s1/text/contract.py` so the two workers answer alike, down to the
-//! error messages.
+//! `src/models/cua_s1/text/contract.py`, so the two workers build the same prompts and
+//! reject the same requests with the same status codes.
 
 use std::fmt::Write as _;
 
@@ -19,8 +19,29 @@ pub const MAX_OPTIONS: usize = 26;
 // from trycua/cua at 0e75660ce4c2edda519e0c795fa3ad98abf4e76f:
 // `libs/cua-s1/python/src/cua_s1/four_b.py` (SYSTEM_PROMPT, build_prompt,
 // _describe_option) and `libs/cua-driver/examples/jev-use/python/decision_models.py`
-// (S1DecisionModel.score). MIT License, Copyright (c) 2025 Cua AI, Inc.; the full
-// notice is in THIRD_PARTY_NOTICES.md.
+// (S1DecisionModel.score).
+//
+// MIT License
+//
+// Copyright (c) 2025 Cua AI, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 pub const SYSTEM_PROMPT: &str = "You are a one-pass computer-use decision model. You are shown the \
 current state of a screen and a fixed, closed list of candidate \
 (element, action) options, each given a single letter. Choose exactly \
@@ -85,7 +106,7 @@ fn text(s: &PyStr) -> &str {
 fn as_text(value: &Value) -> String {
     match value {
         Value::Str(s) => text(s).to_string(),
-        other => dumps(other, false),
+        other => dumps(other),
     }
 }
 

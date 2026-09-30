@@ -2,11 +2,10 @@
 //!
 //!     omni-cua-s1-native --model <merged text checkpoint> [--port 8000]
 //!
-//! See recipe/cua_s1/native.md for building the CUDA library, exporting the merged
-//! checkpoint and checking the worker.
+//! See recipe/cua_s1/native.md for building the CUDA library and exporting the merged
+//! checkpoint.
 
-use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -14,10 +13,11 @@ use anyhow::{Result, ensure};
 use clap::Parser;
 use clap::builder::RangedU64ValueParser;
 
-use omni_cua_s1_native::contract::{self, map_request, parse_body};
+use omni_cua_s1_native::contract;
 use omni_cua_s1_native::cuda;
-use omni_cua_s1_native::engine::{self, Engine, Mode, Options, Prompter};
-use omni_cua_s1_native::server::{self, App, DecideError, Limits};
+use omni_cua_s1_native::engine::Engine;
+use omni_cua_s1_native::model::Options;
+use omni_cua_s1_native::server::{self, App, Limits};
 
 #[derive(Parser)]
 #[command(about = "Cua-S1 4B 0.2 text worker on native CUDA kernels")]
@@ -62,23 +62,6 @@ struct Args {
     /// minute; use it with --gemm-plans so that it runs once.
     #[arg(long, env = "CUA_S1_GEMM_SEARCH")]
     gemm_search: bool,
-    /// Read request bodies on stdin (one JSON string per line), print the prompt
-    /// token ids or the rejection for each, and exit. Loads only the tokenizer.
-    #[arg(long)]
-    encode_only: bool,
-    /// Score every question of the request bodies in this JSON file (name -> body),
-    /// eagerly and as served, print one JSON line per run, and exit.
-    #[arg(long)]
-    score_all: Option<PathBuf>,
-    /// Time the forward pass over the token ids in each of these JSON files (lists
-    /// of integers), without HTTP, and exit.
-    #[arg(long, num_args = 1..)]
-    bench: Vec<PathBuf>,
-    #[arg(long, default_value_t = 50, value_parser = RangedU64ValueParser::<usize>::new().range(1..))]
-    bench_repeat: usize,
-    /// Idle time before each timed forward pass, as between separate requests.
-    #[arg(long, default_value_t = 0)]
-    bench_gap_ms: u64,
 }
 
 impl Args {
@@ -100,135 +83,24 @@ impl Args {
     }
 }
 
-fn encode_only(args: &Args) -> Result<()> {
-    let prompter = Prompter::load(&args.model)?;
-    let mut out = std::io::stdout().lock();
-    for line in std::io::stdin().lock().lines() {
-        let body: String = serde_json::from_str(&line?)?;
-        let result = parse_body(body.as_bytes())
-            .and_then(|b| map_request(&b, args.max_questions))
-            .map_err(DecideError::Request)
-            .and_then(|r| {
-                let ids = server::encode_all(&prompter, &r, args.max_prompt_tokens)?;
-                Ok((r, ids))
-            });
-        let record = match result {
-            Ok((request, ids)) => serde_json::json!({
-                "status": 200,
-                "questions": request.questions.iter().map(|q| &q.name).collect::<Vec<_>>(),
-                "ids": ids,
-            }),
-            Err(DecideError::Request(e)) => {
-                serde_json::json!({"status": e.status, "detail": e.message})
-            }
-            Err(DecideError::Internal(e)) => return Err(e),
-        };
-        writeln!(out, "{record}")?;
-    }
-    Ok(())
-}
-
-async fn score_all(args: &Args, inputs: &Path) -> Result<()> {
-    let cases: serde_json::Map<String, serde_json::Value> =
-        serde_json::from_str(&std::fs::read_to_string(inputs)?)?;
-    let engine = Engine::load(&args.model, &args.options()?).await?;
-    let graph_max = engine.graph_max_tokens();
-    let mut out = std::io::stdout().lock();
-    for (case, body) in &cases {
-        let raw = serde_json::to_vec(body)?;
-        let request = parse_body(&raw)
-            .and_then(|b| map_request(&b, args.max_questions))
-            .map_err(|e| anyhow::anyhow!("{case}: {}", e.message))?;
-        for question in &request.questions {
-            let ids = engine.prompter.encode(&request.state, question)?;
-            for (mode, label) in [(Mode::Eager, "eager"), (Mode::Auto, "served")] {
-                let probs = engine
-                    .score_mode(ids.clone(), question.keys.len(), mode)
-                    .await?;
-                let probabilities: serde_json::Map<String, serde_json::Value> = question
-                    .keys
-                    .iter()
-                    .zip(&probs)
-                    .map(|(k, p)| (k.clone(), serde_json::json!(p)))
-                    .collect();
-                writeln!(
-                    out,
-                    "{}",
-                    serde_json::json!({
-                        "case": case,
-                        "question": question.name,
-                        "tokens": ids.len(),
-                        "mode": label,
-                        "graph": mode == Mode::Auto && ids.len() <= graph_max,
-                        "probabilities": probabilities,
-                    })
-                )?;
-            }
-        }
-    }
-    Ok(())
-}
-
-async fn bench(args: &Args) -> Result<()> {
-    let engine = Engine::load(&args.model, &args.options()?).await?;
-    println!(
-        "loaded in {:.1} s, graphs up to {} tokens",
-        engine.load_seconds,
-        engine.graph_max_tokens()
-    );
-    for file in &args.bench {
-        let ids: Vec<u32> = serde_json::from_str(&std::fs::read_to_string(file)?)?;
-        let mut times = Vec::with_capacity(args.bench_repeat);
-        for i in 0..args.bench_repeat + 3 {
-            std::thread::sleep(std::time::Duration::from_millis(args.bench_gap_ms));
-            let started = Instant::now();
-            engine.last_hidden_blocking(&ids)?;
-            if i >= 3 {
-                times.push(started.elapsed().as_secs_f64() * 1e3);
-            }
-        }
-        times.sort_by(f64::total_cmp);
-        let at = |q: f64| times[((times.len() - 1) as f64 * q).round() as usize];
-        println!(
-            "{}: {} tokens, forward p50 {:.2} ms p95 {:.2} ms min {:.2} ms",
-            file.display(),
-            ids.len(),
-            at(0.5),
-            at(0.95),
-            times[0]
-        );
-    }
-    Ok(())
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    if args.encode_only {
-        return encode_only(&args);
-    }
-    if let Some(inputs) = &args.score_all {
-        return score_all(&args, inputs).await;
-    }
-    if !args.bench.is_empty() {
-        return bench(&args).await;
-    }
-    let provenance = engine::provenance(&args.model)?;
-    if provenance.adapter_revision != contract::ADAPTER_REVISION {
+    let engine = Engine::load(&args.model, &args.options()?).await?;
+    if engine.provenance.adapter_revision != contract::ADAPTER_REVISION {
         eprintln!(
             "warning: adapter revision {} is not the pinned {}",
-            provenance.adapter_revision,
+            engine.provenance.adapter_revision,
             contract::ADAPTER_REVISION
         );
     }
-    if provenance.base_revision != contract::BASE_REVISION {
+    if engine.provenance.base_revision != contract::BASE_REVISION {
         eprintln!(
             "warning: base revision {} is not the pinned {}",
-            provenance.base_revision,
+            engine.provenance.base_revision,
             contract::BASE_REVISION
         );
     }
-    let engine = Engine::load(&args.model, &args.options()?).await?;
     println!(
         "loaded in {:.1} s on {} (bfloat16, graphs up to {} tokens)",
         engine.load_seconds,
@@ -241,12 +113,8 @@ async fn main() -> Result<()> {
         max_questions: args.max_questions,
         max_prompt_tokens: args.max_prompt_tokens,
     };
-    let app = Arc::new(App::new(
-        engine,
-        limits,
-        api_key,
-        &provenance.adapter_revision,
-    ));
+    let revision = engine.provenance.adapter_revision.clone();
+    let app = Arc::new(App::new(engine, limits, api_key, &revision));
     let started = Instant::now();
     server::warmup(&app).await?;
     println!("warmed up in {:.1} s", started.elapsed().as_secs_f64());

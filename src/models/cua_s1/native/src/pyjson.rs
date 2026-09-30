@@ -4,14 +4,12 @@
 //!   `contract.parse_body` adds: duplicate keys, `NaN`/`Infinity`, numbers that are
 //!   out of range for a float, lone surrogates and very deep nesting are all rejected,
 //!   and errors surface in the same order as in Python.
-//! - [`dumps`] follows `json.dumps(value, ensure_ascii=False)` (and the compact form
-//!   Starlette uses for responses).
-//! - [`repr`] follows Python's `repr`, which the error messages quote.
+//! - [`dumps`] follows `json.dumps(value, ensure_ascii=False)`.
+//! - [`repr`] follows Python's `repr`, which the error messages quote, except that
+//!   characters outside ASCII are written as they are unless they are lone surrogates.
 
 use std::collections::HashSet;
 use std::fmt::Write as _;
-
-use crate::printable::NON_PRINTABLE;
 
 /// Nesting limits of the Python worker, measured on CPython 3.12.13 under uvicorn.
 /// Both come from interpreter recursion limits, so they depend on the call stack and
@@ -104,15 +102,6 @@ pub enum Value {
     Array(Vec<Value>),
     /// Key order is kept; keys are unique once parsing succeeds.
     Object(Vec<(PyStr, Value)>),
-}
-
-impl Value {
-    pub fn get(&self, key: &str) -> Option<&Value> {
-        match self {
-            Value::Object(pairs) => pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v),
-            _ => None,
-        }
-    }
 }
 
 /// Values can nest thousands of levels deep before the depth check rejects them, so
@@ -602,17 +591,15 @@ pub fn write_json_str(s: &str, out: &mut String) {
     out.push('"');
 }
 
-/// `json.dumps(value, ensure_ascii=False)`, with the default separators when
-/// `compact` is false and `(",", ":")` when it is true. The value must not hold
-/// lone surrogates (`parse` rejects them).
-pub fn dumps(value: &Value, compact: bool) -> String {
+/// `json.dumps(value, ensure_ascii=False)`. The value must not hold lone surrogates
+/// (`parse` rejects them).
+pub fn dumps(value: &Value) -> String {
     let mut out = String::new();
-    write_value(value, compact, &mut out);
+    write_value(value, &mut out);
     out
 }
 
-fn write_value(value: &Value, compact: bool, out: &mut String) {
-    let (item_sep, key_sep) = if compact { (",", ":") } else { (", ", ": ") };
+fn write_value(value: &Value, out: &mut String) {
     match value {
         Value::Null => out.push_str("null"),
         Value::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
@@ -623,9 +610,9 @@ fn write_value(value: &Value, compact: bool, out: &mut String) {
             out.push('[');
             for (i, item) in items.iter().enumerate() {
                 if i > 0 {
-                    out.push_str(item_sep);
+                    out.push_str(", ");
                 }
-                write_value(item, compact, out);
+                write_value(item, out);
             }
             out.push(']');
         }
@@ -633,32 +620,19 @@ fn write_value(value: &Value, compact: bool, out: &mut String) {
             out.push('{');
             for (i, (key, item)) in pairs.iter().enumerate() {
                 if i > 0 {
-                    out.push_str(item_sep);
+                    out.push_str(", ");
                 }
                 write_json_str(key.as_str().expect("checked UTF-8"), out);
-                out.push_str(key_sep);
-                write_value(item, compact, out);
+                out.push_str(": ");
+                write_value(item, out);
             }
             out.push('}');
         }
     }
 }
 
-fn is_printable(cp: u32) -> bool {
-    NON_PRINTABLE
-        .binary_search_by(|&(lo, hi)| {
-            if hi < cp {
-                std::cmp::Ordering::Less
-            } else if lo > cp {
-                std::cmp::Ordering::Greater
-            } else {
-                std::cmp::Ordering::Equal
-            }
-        })
-        .is_err()
-}
-
-/// Python's `repr(str)`.
+/// Python's `repr(str)`, except that characters outside ASCII are kept as they are
+/// unless they are lone surrogates.
 pub fn repr_str(s: &PyStr) -> String {
     let cps: Vec<u32> = s.code_points().collect();
     let squote = cps.contains(&('\'' as u32));
@@ -676,11 +650,11 @@ pub fn repr_str(s: &PyStr) -> String {
             0x0a => out.push_str("\\n"),
             0x0d => out.push_str("\\r"),
             0..=0x1f | 0x7f => write!(out, "\\x{cp:02x}").unwrap(),
-            0x20..=0x7e => out.push(char::from_u32(cp).unwrap()),
-            _ if is_printable(cp) => out.push(char::from_u32(cp).unwrap()),
-            0x80..=0xff => write!(out, "\\x{cp:02x}").unwrap(),
-            0x100..=0xffff => write!(out, "\\u{cp:04x}").unwrap(),
-            _ => write!(out, "\\U{cp:08x}").unwrap(),
+            _ => match char::from_u32(cp) {
+                Some(c) => out.push(c),
+                // a lone surrogate
+                None => write!(out, "\\u{cp:04x}").unwrap(),
+            },
         }
     }
     out.push(quote);
@@ -762,41 +736,24 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs CUA_S1_FLOAT_VECTORS"]
-    fn float_repr_matches_python_vectors() {
-        // tests/make_float_vectors.py writes "<bits as hex> <repr(float)>" lines
-        let path = std::env::var("CUA_S1_FLOAT_VECTORS")
-            .expect("CUA_S1_FLOAT_VECTORS must name a file from tests/make_float_vectors.py");
-        let text = std::fs::read_to_string(path).unwrap();
-        let mut n = 0;
-        for line in text.lines() {
-            let (bits, want) = line.split_once(' ').unwrap();
-            let x = f64::from_bits(u64::from_str_radix(bits, 16).unwrap());
-            assert_eq!(float_repr(x), want, "bits {bits}");
-            n += 1;
-        }
-        assert!(n > 1000);
-    }
-
-    #[test]
     fn dumps_matches_python() {
         let v = parse(br#"{"a": [1.0, 1e16, 1e-5, 0.0001, -0.0, 1e22, 123456789012345678, 3.14e-07, -0, true, null]}"#).unwrap();
         let v = Value::Object(v);
         assert_eq!(
-            dumps(&v, false),
+            dumps(&v),
             r#"{"a": [1.0, 1e+16, 1e-05, 0.0001, -0.0, 1e+22, 123456789012345678, 3.14e-07, 0, true, null]}"#
         );
         let s = Value::Str(PyStr::new("\u{0}\u{1f}\u{7f}\u{2028}\"\\/\t\u{8}\u{c}é😀"));
         assert_eq!(
-            dumps(&s, false),
+            dumps(&s),
             "\"\\u0000\\u001f\u{7f}\u{2028}\\\"\\\\/\\t\\b\\fé😀\""
         );
     }
 
     #[test]
-    fn repr_matches_python() {
-        let s = PyStr::new("a\u{7f}\u{a0}\u{2028}😀é");
-        assert_eq!(repr_str(&s), "'a\\x7f\\xa0\\u2028😀é'");
+    fn repr_str_quotes_and_escapes() {
+        let s = PyStr::new("a\u{7f}\u{a0}😀é");
+        assert_eq!(repr_str(&s), "'a\\x7f\u{a0}😀é'");
         assert_eq!(repr_str(&PyStr::new("it's")), "\"it's\"");
         assert_eq!(repr_str(&PyStr::new("both'\"")), "'both\\'\"'");
         let v = Value::Object(parse(br#"{"k": [1, 2.5, null, true, "x"], "e": {}}"#).unwrap());

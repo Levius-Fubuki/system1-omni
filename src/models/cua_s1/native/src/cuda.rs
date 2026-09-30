@@ -224,10 +224,6 @@ impl DeviceBuffer {
         Ok(Self { ptr, bytes })
     }
 
-    pub fn bytes(&self) -> usize {
-        self.bytes
-    }
-
     /// The device address `offset` bytes into the buffer.
     pub fn at(&self, offset: usize) -> *mut c_void {
         debug_assert!(offset <= self.bytes);

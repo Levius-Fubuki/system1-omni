@@ -558,14 +558,6 @@ impl Scratch {
     }
 }
 
-/// How to run one forward pass.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mode {
-    /// From the graph for this length when graphs are on and it fits, else eagerly.
-    Auto,
-    Eager,
-}
-
 pub struct Model {
     pub cfg: Config,
     _weights: Weights,
@@ -878,7 +870,8 @@ impl Model {
     }
 
     /// The final-norm hidden state at the last position, as float32.
-    pub fn forward(&mut self, ids: &[u32], mode: Mode) -> Result<Vec<f32>> {
+    /// Runs from the graph for this length when graphs are on and it fits, else eagerly.
+    pub fn forward(&mut self, ids: &[u32]) -> Result<Vec<f32>> {
         let t = ids.len();
         ensure!(t > 0, "empty prompt");
         let (vocab, h) = (self.embed.shape[0], self.cfg.hidden);
@@ -896,7 +889,6 @@ impl Model {
                 self.stream,
             )?);
         }
-        let use_graph = mode == Mode::Auto && in_graph_scratch;
         let s = if in_graph_scratch {
             self.graph_scratch.as_ref()
         } else {
@@ -906,7 +898,7 @@ impl Model {
         let ids32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
         // SAFETY: the ids buffer holds at least t int32 values.
         unsafe { cuda::upload(s.at(s.ids), &ids32, self.stream)? };
-        if use_graph {
+        if in_graph_scratch {
             self.graph_for(t)?;
             self.graphs[&t].launch(self.stream)?;
         } else {

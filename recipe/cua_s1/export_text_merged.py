@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 
@@ -26,15 +27,18 @@ import peft
 import torch
 import transformers
 
-from models.cua_s1.text.adapter import downloaded_revision
 from models.cua_s1.text.contract import ADAPTER_REPO, BASE_REPO, LETTERS
-from models.cua_s1.text.engine import TextEngine
+from models.cua_s1.text.model import TextModel, downloaded_revision
 
 
 def base_revision(base: Path) -> str | None:
-    """The commit Hugging Face recorded when it downloaded config.json."""
+    """The commit Hugging Face recorded when it downloaded config.json, if any."""
     meta = base / ".cache/huggingface/download/config.json.metadata"
-    return meta.read_text().splitlines()[0].strip() if meta.exists() else None
+    try:
+        first = meta.read_text().splitlines()[0].strip()
+    except (OSError, IndexError):
+        return None
+    return first if re.fullmatch(r"[0-9a-f]{40}", first) else None
 
 
 def main() -> None:
@@ -44,19 +48,30 @@ def main() -> None:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
+    # The native worker refuses an export that does not record both revisions.
+    revisions = {
+        "base": base_revision(args.base),
+        "adapter": downloaded_revision(args.adapter),
+    }
+    missing = [name for name, revision in revisions.items() if revision is None]
+    if missing:
+        parser.error(
+            f"no download metadata for the {' and '.join(missing)} weights; "
+            "download them with `hf download --revision ... --local-dir ...`"
+        )
 
     started = time.perf_counter()
-    engine = TextEngine(str(args.base), str(args.adapter), args.device, "bfloat16")
-    model = engine.model.merge_and_unload().eval()
+    loaded = TextModel(str(args.base), str(args.adapter), args.device, "bfloat16")
+    model = loaded.model.merge_and_unload().eval()
     model.save_pretrained(args.out, safe_serialization=True, max_shard_size="5GB")
-    engine.tokenizer.save_pretrained(args.out)
+    loaded.tokenizer.save_pretrained(args.out)
     tokenizer = (args.out / "tokenizer.json").read_bytes()
     record = {
         "format": "cua-s1-text-merged/1",
-        "base": {"repo": BASE_REPO, "revision": base_revision(args.base)},
+        "base": {"repo": BASE_REPO, "revision": revisions["base"]},
         "adapter": {
             "repo": ADAPTER_REPO,
-            "revision": downloaded_revision(args.adapter),
+            "revision": revisions["adapter"],
             "subfolder": "text",
         },
         "merge": {
