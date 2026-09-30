@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use half::bf16;
-use omni_cua_s1_native::cuda::{self, DeviceBuffer, Stream, api, check};
+use omni_qwen3_5_native::cuda::{self, DeviceBuffer, Stream, api, check};
 
 fn setup() -> Stream {
     let lib = std::env::var_os("CUA_S1_CUDA_LIB")
@@ -57,6 +57,126 @@ fn from_device(buf: &DeviceBuffer, n: usize, st: Stream) -> Vec<f32> {
         .iter()
         .map(|&b| bf16::from_le_bytes(b).to_f32())
         .collect()
+}
+
+#[test]
+#[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
+fn fused_attention_gate_matches_separate_pass() {
+    let st = setup();
+    let dh = 256usize;
+    for (hq, hk) in [(24usize, 4usize), (16, 4), (4, 4), (16, 1)] {
+        for t in [1usize, 63, 64, 65, 139, 712, 2048] {
+            let ldv = hk * dh + 16; // exercise a strided V buffer
+            let q = to_device(&random(t * hq * dh, 1, 2.0), st);
+            let k = to_device(&random(t * hk * dh, 2, 2.0), st);
+            let v = to_device(&random(t * ldv, 3, 1.0), st);
+            let n = t * hq * dh;
+            let mut gates = random(n, 4, 12.0);
+            // Saturated sigmoid, zero, and ordinary values in every output row.
+            for row in gates.chunks_exact_mut(dh) {
+                row[0] = bf16::from_f32(-40.0);
+                row[1] = bf16::from_f32(40.0);
+                row[2] = bf16::ZERO;
+            }
+            let gate = to_device(&gates, st);
+            let separate = DeviceBuffer::new(n * 2).unwrap();
+            let fused = DeviceBuffer::new(n * 2).unwrap();
+            // SAFETY: all buffers have complete rows of the widths above, with
+            // disjoint output and gate allocations, and use the same stream.
+            unsafe {
+                check(
+                    (api().cs1_attention)(
+                        q.at(0),
+                        k.at(0),
+                        v.at(0),
+                        ldv as i32,
+                        separate.at(0),
+                        t as i32,
+                        hq as i32,
+                        hk as i32,
+                        dh as i32,
+                        0.0625,
+                        st,
+                    ),
+                    "separate attention",
+                )
+                .unwrap();
+                check(
+                    (api().cs1_sigmoid_gate)(separate.at(0), gate.at(0), n, st),
+                    "separate gate",
+                )
+                .unwrap();
+                check(
+                    (api().cs1_attention_gated)(
+                        q.at(0),
+                        k.at(0),
+                        v.at(0),
+                        ldv as i32,
+                        gate.at(0),
+                        fused.at(0),
+                        t as i32,
+                        hq as i32,
+                        hk as i32,
+                        dh as i32,
+                        0.0625,
+                        st,
+                    ),
+                    "fused attention gate",
+                )
+                .unwrap();
+            }
+            let want = from_device(&separate, n, st);
+            let got = from_device(&fused, n, st);
+            assert!(
+                got.iter().all(|x| x.is_finite()),
+                "non-finite result at t={t}"
+            );
+            assert_eq!(
+                got.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                want.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                "fused gate changed BF16 output at t={t}, hq={hq}, hk={hk}"
+            );
+        }
+    }
+    // Empty work is valid without a gate buffer; nonempty work must have one.
+    // SAFETY: these invalid/empty shapes return before any kernel is launched.
+    unsafe {
+        let null = std::ptr::null();
+        assert_eq!(
+            (api().cs1_attention_gated)(
+                null,
+                null,
+                null,
+                256,
+                null,
+                std::ptr::null_mut(),
+                0,
+                1,
+                1,
+                256,
+                0.0625,
+                st
+            ),
+            0
+        );
+        assert_ne!(
+            (api().cs1_attention_gated)(
+                null,
+                null,
+                null,
+                256,
+                null,
+                std::ptr::null_mut(),
+                1,
+                1,
+                1,
+                256,
+                0.0625,
+                st
+            ),
+            0
+        );
+    }
 }
 
 #[test]

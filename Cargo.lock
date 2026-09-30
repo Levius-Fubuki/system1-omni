@@ -901,10 +901,9 @@ dependencies = [
  "anyhow",
  "axum",
  "half",
- "libloading",
  "memmap2",
+ "omni-qwen3-5-native",
  "safetensors",
- "serde",
  "serde_json",
  "tokenizers",
  "tokio",
@@ -918,6 +917,31 @@ dependencies = [
  "futures-util",
  "reqwest",
  "tokio",
+]
+
+[[package]]
+name = "omni-open-jev-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "omni-qwen3-5-native",
+ "serde_json",
+ "tokenizers",
+ "tokio",
+]
+
+[[package]]
+name = "omni-qwen3-5-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "half",
+ "libloading",
+ "memmap2",
+ "safetensors",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

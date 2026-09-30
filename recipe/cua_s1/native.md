@@ -30,5 +30,5 @@ The request tests need no GPU; the kernel tests compare attention and the chunke
 ```sh
 cargo test -p omni-cua-s1-native
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
-  cargo test --release -p omni-cua-s1-native --test kernels -- --ignored
+  cargo test --release -p omni-qwen3-5-native --test kernels -- --ignored
 ```
