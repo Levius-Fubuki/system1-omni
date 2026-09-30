@@ -5,8 +5,8 @@ from [`src/models/laya/`](../../src/models/laya/), puts the Rust frontend in fro
 the benchmark suite. The [Laya text worker](README.md) recipe covers the plain CPU setup.
 
 Validated on an M1 Pro (16 GB, 16-core GPU), macOS 26.1, Python 3.12, `laya[serve]==0.3.20`,
-torch 2.14.0 and the `english` checkpoint (`convaiinnovations/laya` at `55cf4c4`). Other M-series
-Macs have not been tested.
+torch 2.14.0 and the `english` checkpoint (`convaiinnovations/laya` at `55cf4c4`), and by another
+contributor on an M5 (10-core GPU, 32 GB, macOS 26.5.2). Other M-series Macs have not been tested.
 
 Run all commands from the repository root.
 
@@ -17,11 +17,12 @@ or `uv python install 3.12`.
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/python -m pip install 'laya[serve]==0.3.20' pytest
+.venv/bin/python -m pip install 'laya[serve]==0.3.20' pytest httpx2
 .venv/bin/python -c "import torch; print(torch.backends.mps.is_available())"
 ```
 
-The last command must print `True`. The standard macOS arm64 wheel of torch includes MPS.
+The last command must print `True`. The standard macOS arm64 wheel of torch includes MPS. `pytest` and
+`httpx2` are only for the tests: Starlette's `TestClient` needs `httpx2` (or, deprecated, `httpx`).
 
 ## Start the worker
 
@@ -33,8 +34,10 @@ LAYA_REQUIRE_DEVICE=1 \
 
 First startup downloads the checkpoint (about 850 MB). The worker loads the model, runs a warmup
 over short, long and multi-question requests, and only then listens on port 8000, so the first
-request it accepts is already warm. `LAYA_REQUIRE_DEVICE=1` makes it exit instead of silently
-serving on the CPU when the model cannot be placed on MPS.
+request it accepts is already warm: on an M1 Pro the first request after ready took 62–81 ms, against
+0.7–1.1 s from plain laya-serve. On an M5, 21 of 23 fresh starts gave 21–36 ms and two gave 327 and
+409 ms, not yet explained. `LAYA_REQUIRE_DEVICE=1` makes it exit instead of silently serving on the CPU
+when the model cannot be placed on MPS.
 
 Check what it is running on:
 
@@ -63,6 +66,10 @@ together lowered warm p50 against the worker without them by 37–38% for a 68-t
 request (about 57 → 35 ms in those runs), 17–20% at 198–484 tokens, 14% for three questions and 18% for
 six, and cut the worker's memory from 3.5 GB to 2.8 GB. Answers stayed within 0.0031 of the fp32
 worker's. The price is startup: the worker becomes ready after 20–30 s instead of about 8 s.
+
+On an M5 the same paired comparison gave median ratios of 0.51–0.53 for one-question requests at
+47–68 tokens, 0.30–0.33 at 198–484 tokens, 0.37 for three questions and 0.60 for six, most of it from
+the fp16 weights, which on that GPU speed up every input even without compile.
 
 `/health` reports under `compile` how many graphs existed when the worker became ready and how many
 exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup.
