@@ -1,0 +1,13 @@
+# Reference environment from the pinned trycua/cua four-b lock.
+# Install the CUDA Torch/Torchvision wheels first, as described in reference.md.
+torch==2.14.0
+torchvision==0.29.0
+transformers==5.17.0
+peft==0.21.0
+accelerate==1.15.0
+Pillow==11.3.0
+safetensors==0.8.0
+huggingface-hub==1.32.0
+tokenizers==0.23.2
+# NumPy is used only for raw tensor-byte serialization.
+numpy==2.5.3
