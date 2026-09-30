@@ -1,5 +1,6 @@
 # Versions match upstream's `four-b` lock (trycua/cua libs/cua-s1/python/uv.lock
-# at 0e75660ce4c2edda519e0c795fa3ad98abf4e76f), which the parity checks rely on.
+# at 0e75660ce4c2edda519e0c795fa3ad98abf4e76f), the reference environment in
+# src/models/cua_s1/README.md.
 torch==2.14.0
 transformers==5.17.0
 tokenizers==0.23.2

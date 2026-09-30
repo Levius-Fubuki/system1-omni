@@ -1,6 +1,6 @@
 # Cua-S1 4B 0.2 text worker
 
-This recipe runs the Cua-S1 4B 0.2 `text` adapter behind the Rust frontend. The worker lives in [`src/models/cua_s1/text/`](../../src/models/cua_s1/text/), and [`src/models/cua_s1/README.md`](../../src/models/cua_s1/README.md) documents the inference contract and the request mapping. Only `choice` questions are supported.
+This recipe runs the Cua-S1 4B 0.2 `text` adapter behind the Rust frontend. The model lives in [`src/models/cua_s1/text/`](../../src/models/cua_s1/text/) and the HTTP worker in [`src/frontend/cua_s1_text.py`](../../src/frontend/cua_s1_text.py); [`src/models/cua_s1/README.md`](../../src/models/cua_s1/README.md) documents the inference contract and the request mapping. Only `choice` questions are supported.
 
 Run all commands from the repository root, on Linux with an NVIDIA GPU.
 
@@ -33,7 +33,7 @@ To verify every file against upstream's lock, clone [trycua/cua](https://github.
 ## Start the worker
 
 ```sh
-PYTHONPATH=src .venv/bin/python -m models.cua_s1.text.server \
+PYTHONPATH=src .venv/bin/python -m frontend.cua_s1_text \
   --base weights/Qwen3.5-4B --adapter weights/cua-s1-4b-0.2/text \
   --device cuda --dtype bfloat16 --host 127.0.0.1 --port 8000
 ```
@@ -66,25 +66,6 @@ The answer has the Jev choice shape. On an RTX 6000 Ada in bfloat16, the respons
 
 ```json
 {"model":"cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79:text","answers":{"pick":{"type":"choice","choice":"cancel","probabilities":{"delete":0.0024726232513785362,"cancel":0.9975274205207825},"confidence":0.9750249565060322}},"usage":{"input_tokens":153,"output_tokens":0}}
-```
-
-## Check against upstream
-
-`compare_text_with_upstream.py` scores the fixed input set (`tests/cua_s1/data/text_inputs.json`) with the worker's model and then with upstream `FourBModel`, one model at a time, and compares the results. It needs the trycua/cua checkout from above and two extra packages for upstream's processor:
-
-```sh
-.venv/bin/python -m pip install torchvision==0.29.0 pillow==11.3.0
-.venv/bin/python recipe/cua_s1/compare_text_with_upstream.py --upstream ../cua \
-  --base weights/Qwen3.5-4B --adapter weights/cua-s1-4b-0.2/text --device cuda
-```
-
-Every question must have identical prompt token ids and identical fp32 probabilities.
-
-With the worker and the frontend running, `bench_text.py` checks that the frontend returns the same bytes as the worker for every input, then measures warm latency on both paths:
-
-```sh
-.venv/bin/python recipe/cua_s1/bench_text.py --direct http://127.0.0.1:8000 \
-  --frontend http://127.0.0.1:8080 --warmup 3 --repeat 20
 ```
 
 ## Tests

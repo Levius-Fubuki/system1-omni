@@ -2,16 +2,7 @@
 
 This directory owns Cua-S1 4B 0.2 ([#10](https://github.com/ThinkFlowLab/system1-omni/issues/10)): request mapping, prompt construction, adapter selection, execution, and the answer-letter readout. This page records the pinned upstream revisions, the inference contract an implementation must match, and how its outputs will be compared with the upstream reference.
 
-Status: a reference worker for the `text` adapter is in [`text/`](text/). It loads the model directly through Hugging Face Transformers and PEFT and serves `/v1/systemone`; setup and checks are in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). A native worker for the `text` adapter is in [`native/`](native/): Rust, with the Qwen3.5 forward pass on the CUDA kernels in [`src/backends/cuda/qwen3_5/`](../../backends/cuda/qwen3_5/); see [`recipe/cua_s1/native.md`](../../../recipe/cua_s1/native.md). A worker for the `multimodal` adapter is proposed in [#12](https://github.com/ThinkFlowLab/system1-omni/pull/12).
-
-| Path | Contents |
-| --- | --- |
-| `text/contract.py` | Request validation, the `/v1/systemone` mapping, prompt construction and answers. No torch imports. |
-| `text/engine.py` | Model and adapter loading and the answer-letter readout. |
-| `text/server.py` | The HTTP worker (`GET /health`, `POST /v1/systemone`). |
-| `text/adapter.py` | Finds and checks the local `text` adapter and its downloaded revision. |
-| `native/` | The native worker for the `text` adapter (Rust crate `omni-cua-s1-native`): the same request handling and answers as `text/`, the forward pass on `src/backends/cuda/qwen3_5/`. |
-| `tests/cua_s1/test_text_*.py` (repository root) | Tests that need neither weights nor a GPU, and tokenizer checks. The fixed input set is `tests/cua_s1/data/text_inputs.json`. |
+Status: a reference worker for the `text` adapter loads the model directly through Hugging Face Transformers and PEFT and serves `/v1/systemone`. The model is in [`text/`](text/) (`contract.py` for request mapping, prompts and answers; `model.py` for loading and the answer-letter readout), the HTTP worker is [`src/frontend/cua_s1_text.py`](../../frontend/cua_s1_text.py), and setup is in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). A native worker for the `text` adapter is in [`native/`](native/): Rust, with the Qwen3.5 forward pass on the CUDA kernels in [`src/backends/cuda/qwen3_5/`](../../backends/cuda/qwen3_5/); see [`recipe/cua_s1/native.md`](../../../recipe/cua_s1/native.md). A worker for the `multimodal` adapter is proposed in [#12](https://github.com/ThinkFlowLab/system1-omni/pull/12).
 
 ## Pinned revisions
 

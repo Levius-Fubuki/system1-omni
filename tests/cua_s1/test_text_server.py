@@ -1,4 +1,4 @@
-"""HTTP tests for the worker with a fake engine: no weights, no torch."""
+"""HTTP tests for the worker with a fake model: no weights, no torch."""
 
 import json
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from models.cua_s1.text.server import build_app  # noqa: E402
+from frontend.cua_s1_text import build_app  # noqa: E402
 
 
 @dataclass
@@ -19,7 +19,7 @@ class _Ids:
     shape: tuple
 
 
-class FakeEngine:
+class FakeModel:
     device = "cpu"
     dtype = "float32"
 
@@ -49,9 +49,9 @@ class FakeEngine:
         return Scored(probabilities, inputs["input_ids"].shape[1])
 
 
-def client(engine=None, api_key=None, max_body_bytes=4 << 20, max_prompt_tokens=32768):
+def client(model=None, api_key=None, max_body_bytes=4 << 20, max_prompt_tokens=32768):
     app = build_app(
-        engine or FakeEngine(),
+        model or FakeModel(),
         api_key=api_key,
         max_body_bytes=max_body_bytes,
         max_questions=64,
@@ -136,26 +136,26 @@ def test_limits():
         headers={"content-type": "application/json"},
     )
     assert streamed.status_code == 413
-    engine = FakeEngine(tokens=40000)
+    model = FakeModel(tokens=40000)
     body = json.loads(json.dumps(BODY))
     body["questions"]["r"] = body["questions"]["q"]
-    response = client(engine).post("/v1/systemone", json=body)
+    response = client(model).post("/v1/systemone", json=body)
     assert response.status_code == 413
     assert "token limit" in response.json()["detail"]
-    assert engine.forward_calls == 0
+    assert model.forward_calls == 0
 
 
-@pytest.mark.parametrize("engine", [FakeEngine(fail=True), FakeEngine(nan=True)])
-def test_engine_failure_is_json_500(engine):
-    response = client(engine).post("/v1/systemone", json=BODY)
+@pytest.mark.parametrize("model", [FakeModel(fail=True), FakeModel(nan=True)])
+def test_model_failure_is_json_500(model):
+    response = client(model).post("/v1/systemone", json=BODY)
     assert response.status_code == 500
     assert response.json() == {"detail": "inference failed"}
 
 
 def test_warmup_runs_the_request_path():
-    engine = FakeEngine()
+    model = FakeModel()
     app = build_app(
-        engine,
+        model,
         api_key=None,
         max_body_bytes=1 << 20,
         max_questions=64,
@@ -163,10 +163,10 @@ def test_warmup_runs_the_request_path():
         revision="r",
     )
     app.state.warmup()
-    assert engine.forward_calls == 1
+    assert model.forward_calls == 1
     with pytest.raises(ValueError):
         build_app(
-            FakeEngine(nan=True),
+            FakeModel(nan=True),
             api_key=None,
             max_body_bytes=1 << 20,
             max_questions=64,

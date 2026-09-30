@@ -16,7 +16,6 @@ MODEL_NAME = "cua-s1-4b-0.2"
 ADAPTER_REPO = "cua-ai/cua-s1-4b-0.2"
 ADAPTER_REVISION = "16818868b0cc7813808aae4e87b417657046ab79"
 BASE_REPO = "Qwen/Qwen3.5-4B"
-BASE_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
 
 LETTERS = string.ascii_uppercase
 MAX_OPTIONS = len(LETTERS)
@@ -25,8 +24,30 @@ MAX_OPTIONS = len(LETTERS)
 # copied from trycua/cua at 0e75660ce4c2edda519e0c795fa3ad98abf4e76f:
 # `libs/cua-s1/python/src/cua_s1/four_b.py` (SYSTEM_PROMPT, build_prompt,
 # _describe_option) and `libs/cua-driver/examples/jev-use/python/
-# decision_models.py` (S1DecisionModel.score). MIT License, Copyright (c) 2025
-# Cua AI, Inc.; see THIRD_PARTY_NOTICES.md.
+# decision_models.py` (S1DecisionModel.score), as are the two upstream fixtures
+# converted in `tests/cua_s1/data/text_inputs.json`.
+#
+# MIT License
+#
+# Copyright (c) 2025 Cua AI, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 SYSTEM_PROMPT = (
     "You are a one-pass computer-use decision model. You are shown the "
     "current state of a screen and a fixed, closed list of candidate "
@@ -269,5 +290,5 @@ def answer(question: Question, probabilities: list[float]) -> dict[str, Any]:
     }
 
 
-def model_identity(revision: str = ADAPTER_REVISION, modality: str = "text") -> str:
-    return f"{ADAPTER_REPO}@{revision}:{modality}"
+def model_identity(revision: str = ADAPTER_REVISION) -> str:
+    return f"{ADAPTER_REPO}@{revision}:text"

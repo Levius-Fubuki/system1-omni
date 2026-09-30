@@ -1,9 +1,10 @@
 """HTTP worker for Cua-S1 4B 0.2 (`text` adapter) behind the Rust frontend.
 
 Routes: `GET /health` and `POST /v1/systemone`. The model is loaded before the
-server starts listening, and one forward pass runs at a time.
+server starts listening, and one forward pass runs at a time. The model itself
+is in `src/models/cua_s1/text/`.
 
-    PYTHONPATH=src python -m models.cua_s1.text.server --base <dir> --adapter <dir>
+    PYTHONPATH=src python -m frontend.cua_s1_text --base <dir> --adapter <dir>
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from .contract import (
+from models.cua_s1.text.contract import (
     ADAPTER_REVISION,
     MODEL_NAME,
     RequestError,
@@ -48,7 +49,7 @@ WARMUP_REQUEST = {
 
 
 def build_app(
-    engine: Any,
+    model: Any,
     *,
     api_key: str | None,
     max_body_bytes: int,
@@ -80,8 +81,8 @@ def build_app(
             "status": "ready",
             "modality": "text",
             "model": identity,
-            "device": engine.device,
-            "dtype": engine.dtype,
+            "device": model.device,
+            "dtype": model.dtype,
         }
 
     def decide(mapped):
@@ -89,7 +90,7 @@ def build_app(
         # before any forward pass runs.
         encoded = []
         for question in mapped.questions:
-            inputs = engine.encode(mapped.state, question)
+            inputs = model.encode(mapped.state, question)
             n = int(inputs["input_ids"].shape[1])
             if max_prompt_tokens and n > max_prompt_tokens:
                 raise RequestError(
@@ -100,7 +101,7 @@ def build_app(
             encoded.append((question, inputs))
         answers, prompt_tokens = {}, 0
         for question, inputs in encoded:
-            scored = engine.score_encoded(inputs, len(question.keys))
+            scored = model.score_encoded(inputs, len(question.keys))
             answers[question.name] = answer(question, scored.probabilities)
             prompt_tokens += scored.prompt_tokens
         return {
@@ -189,8 +190,11 @@ def main(argv: list[str] | None = None) -> None:
 
     import uvicorn
 
-    from .adapter import downloaded_revision, text_adapter_dir
-    from .engine import TextEngine
+    from models.cua_s1.text.model import (
+        TextModel,
+        downloaded_revision,
+        text_adapter_dir,
+    )
 
     # Fail before loading weights if this is not the text adapter.
     text_adapter_dir(args.adapter)
@@ -212,13 +216,13 @@ def main(argv: list[str] | None = None) -> None:
             flush=True,
         )
 
-    engine = TextEngine(args.base, args.adapter, args.device, args.dtype)
+    model = TextModel(args.base, args.adapter, args.device, args.dtype)
     print(
-        f"loaded in {engine.load_seconds:.1f} s on {args.device} ({args.dtype})",
+        f"loaded in {model.load_seconds:.1f} s on {args.device} ({args.dtype})",
         flush=True,
     )
     app = build_app(
-        engine,
+        model,
         api_key=env("CUA_S1_API_KEY") or None,
         max_body_bytes=args.max_body_bytes,
         max_questions=args.max_questions,

@@ -40,7 +40,7 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 
 | Directory | Responsibility |
 | --- | --- |
-| [`src/frontend/`](src/frontend/) | Rust serving code and the small engine interface. |
+| [`src/frontend/`](src/frontend/) | Rust serving code, Python worker adapters, and the small engine interface. |
 | [`src/models/`](src/models/) | Model implementations, one directory per model: preprocessing, batching, state, execution, and output processing. |
 | [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
 | [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
