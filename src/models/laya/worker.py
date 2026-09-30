@@ -7,8 +7,9 @@ request handling unchanged and fixes both:
 - It binds only after a warmup of every loaded model that covers short, long and multi-question
   requests (the last one crosses laya's fp16 autocast threshold on MPS), so a reachable worker is a
   warm one whichever model a request is routed to.
-- /health reports, per loaded model, the device, weight and autocast dtypes, the checkpoint and the
-  revision its weights were downloaded from, and whether the device differs from the one requested.
+- /health reports, per loaded model and read on every call, the device, weight and autocast dtypes, the
+  checkpoint and the revision its weights were downloaded from, and whether the device differs from the
+  one requested. laya moves a model to the CPU on a GPU out-of-memory error and keeps serving.
 
 Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, LAYA_API_KEY, ...) plus:
 
@@ -23,8 +24,8 @@ Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, L
                                fp16 weights instead of laya's fp32
                                upcast. For MPS; on CPU fp16 is slower
 
-The warmup also compiles the graphs, so the worker takes longer to become ready (20–30 s instead of
-about 8 s on an M1 Pro). /health counts compiled graphs at readiness and now; `recompiled_after_ready` means
+The warmup also compiles the graphs, so the worker takes longer to become ready (35–39 s instead of
+8–10 s on an M1 Pro). /health counts compiled graphs at readiness and now; `recompiled_after_ready` means
 a request hit a shape class the warmup did not cover.
 """
 
@@ -198,20 +199,29 @@ def create_worker_app(
     if compile != "off":
         for name in names:
             compile_agent(router.load(name))
-    models = {}
-    for name in names:
-        warm = warmup(router, name)
-        models[name] = {
-            **describe(router.load(name), requested, warm["routing"], revisions),
-            "warmup_ms": warm["warmup_ms"],
+    warmed = {name: warmup(router, name) for name in names}
+    agents = {name: router.load(name) for name in names}
+    primary = model if model in agents else names[0]
+
+    def current() -> dict[str, Any]:
+        """Describe the agents as they are now: laya moves a model to the CPU when a request runs out of
+        GPU memory, so the device at startup is not necessarily the device serving the next request."""
+        models = {
+            name: {
+                **describe(agent, requested, warmed[name]["routing"], revisions),
+                "warmup_ms": warmed[name]["warmup_ms"],
+            }
+            for name, agent in agents.items()
         }
-    primary = model if model in models else names[0]
-    info = {
-        **models[primary],
-        "device_mismatch": any(m["device_mismatch"] for m in models.values()),
-        "warmup_ms": round(sum(m["warmup_ms"] for m in models.values()), 1),
-        "models": models,
-    }
+        return {
+            **models[primary],
+            "device_mismatch": any(m["device_mismatch"] for m in models.values()),
+            "warmup_ms": round(sum(m["warmup_ms"] for m in models.values()), 1),
+            "models": models,
+        }
+
+    info = current()
+    models = info["models"]
     graphs_at_ready = graph_counter() if compile != "off" else None
     on_cpu = [n for n, m in models.items() if m["device"].startswith("cpu")]
     if weights == "fp16" and on_cpu:
@@ -237,7 +247,7 @@ def create_worker_app(
             compiled.update(
                 graphs_at_ready=graphs_at_ready, graphs_now=now, recompiled_after_ready=now > graphs_at_ready
             )
-        return {"status": "ok", "ready": True, "loaded": router.loaded, **info, "compile": compiled}
+        return {"status": "ok", "ready": True, "loaded": router.loaded, **current(), "compile": compiled}
 
     return app
 

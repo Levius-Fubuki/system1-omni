@@ -309,3 +309,16 @@ def test_fp16_weights_on_cpu_are_flagged(monkeypatch, caplog):
     with caplog.at_level("WARNING", logger="laya-worker"):
         worker.create_worker_app(FakeRouter(), "english", "mps", weights="fp16")
     assert "slower" not in caplog.text
+
+
+def test_health_follows_a_fallback_to_cpu_after_startup():
+    agent = FakeAgent(device="mps")
+    client = TestClient(worker.create_worker_app(FakeRouter(agent), "english", "mps", require_device=True))
+    assert client.get("/health").json()["device_mismatch"] is False
+    agent.device = "cpu"  # what laya does when a request runs out of GPU memory
+    agent.dtype = "torch.float32"
+    health = client.get("/health").json()
+    assert health["device"] == "cpu"
+    assert health["device_mismatch"] is True
+    assert health["models"]["english"]["device"] == "cpu"
+    assert health["autocast_dtype"] == "torch.float32"

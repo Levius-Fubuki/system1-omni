@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import statistics
+import sys
 from collections import defaultdict
 
 GATE = 0.10
@@ -25,7 +26,11 @@ def read(paths):
     records = []
     for path in paths:
         with open(path) as f:
-            records.extend(json.loads(line) for line in f if line.strip())
+            rows = [json.loads(line) for line in f if line.strip()]
+        if any("config" not in r for r in rows):  # e.g. paired.py results: summarize those with paired.py
+            print(f"skipping {path}: not a bench_inproc/bench_http result", file=sys.stderr)
+            continue
+        records.extend(rows)
     return records
 
 
