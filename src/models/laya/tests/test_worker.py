@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import optimize
 import worker
 
 ANSWER = {"type": "noul", "noul": 0.9, "confidence": 0.9}
@@ -150,7 +151,7 @@ def test_main_exits_non_zero_when_warmup_fails(monkeypatch):
 def test_compile_wraps_the_model_before_warmup(monkeypatch):
     router = FakeRouter()
     order = []
-    monkeypatch.setattr(worker, "compile_agent", lambda agent: order.append((agent, len(router.calls))))
+    monkeypatch.setattr(optimize, "compile_agent", lambda agent: order.append((agent, len(router.calls))))
     worker.create_worker_app(router, "english", "mps", compile="on", graph_counter=lambda: 3)
     assert order == [(router.agent, 0)]  # before the first warmup request
 
@@ -161,7 +162,7 @@ def test_health_reports_compile_off_by_default():
 
 
 def test_health_flags_graphs_compiled_after_ready(monkeypatch):
-    monkeypatch.setattr(worker, "compile_agent", lambda agent: None)
+    monkeypatch.setattr(optimize, "compile_agent", lambda agent: None)
     graphs = iter([4, 4, 5])  # at readiness, first /health, second /health after a new shape compiled
     client = TestClient(
         worker.create_worker_app(FakeRouter(), "english", "mps", compile="on", graph_counter=lambda: next(graphs))
@@ -175,7 +176,7 @@ def test_compile_failure_means_no_app(monkeypatch):
     def broken(agent):
         raise RuntimeError("inductor: unsupported op on mps")
 
-    monkeypatch.setattr(worker, "compile_agent", broken)
+    monkeypatch.setattr(optimize, "compile_agent", broken)
     with pytest.raises(RuntimeError, match="unsupported op"):
         worker.create_worker_app(FakeRouter(), "english", "mps", compile="on")
 
@@ -217,7 +218,7 @@ def test_compiled_paths_by_batch_rows(monkeypatch):
     agent = FakeAgent()
     model = Model()
     agent.model = model
-    worker.compile_agent(agent)
+    optimize.compile_agent(agent)
     assert agent.model(on_gpu(1)) == "whole model compiled"  # one question
     assert agent.model(on_gpu(3)) == ("head", "compiled encoder")  # several: eager head, compiled encoder
     assert agent.model(torch.zeros(1, 7)) == ("head", "eager encoder")  # on the CPU: laya's model as it is
@@ -288,7 +289,7 @@ def test_fp16_weights_keep_act_head_in_fp32():
 
     agent = FakeAgent()
     agent.model = Model()
-    worker.use_fp16_weights(agent)
+    optimize.use_fp16_weights(agent)
     assert agent.model.eager.encoder.weight.dtype == torch.float16
     assert agent.model.eager.act_head.weight.dtype == torch.float32
 
@@ -297,7 +298,7 @@ def test_fp16_weights_are_applied_to_every_loaded_model_before_warmup(monkeypatc
     order = []
     agents = {"english": FakeAgent(), "multilingual": FakeAgent()}
     router = FakeRouter(agents=agents)
-    monkeypatch.setattr(worker, "use_fp16_weights", lambda agent: order.append((agent, len(router.calls))))
+    monkeypatch.setattr(optimize, "use_fp16_weights", lambda agent: order.append((agent, len(router.calls))))
     worker.create_worker_app(router, "english", "mps", weights="fp16")
     assert order == [(agents["english"], 0), (agents["multilingual"], 0)]
 
@@ -309,8 +310,8 @@ def test_unknown_weights_mode_is_refused():
 
 def test_options_are_not_applied_to_a_model_on_the_cpu(monkeypatch, caplog):
     applied = []
-    monkeypatch.setattr(worker, "use_fp16_weights", lambda agent: applied.append("fp16"))
-    monkeypatch.setattr(worker, "compile_agent", lambda agent: applied.append("compile"))
+    monkeypatch.setattr(optimize, "use_fp16_weights", lambda agent: applied.append("fp16"))
+    monkeypatch.setattr(optimize, "compile_agent", lambda agent: applied.append("compile"))
     with caplog.at_level("WARNING", logger="laya-worker"):
         worker.create_worker_app(
             FakeRouter(FakeAgent(device="cpu")), "english", "cpu", weights="fp16", compile="on", graph_counter=lambda: 0
@@ -339,8 +340,8 @@ def test_after_a_fallback_to_cpu_the_model_runs_fp32_and_uncompiled(monkeypatch)
     monkeypatch.setattr(torch, "compile", lambda module, dynamic: lambda *a, **k: "compiled")
     agent = FakeAgent()
     agent.model = Model()
-    worker.use_fp16_weights(agent)
-    worker.compile_agent(agent)
+    optimize.use_fp16_weights(agent)
+    optimize.compile_agent(agent)
     assert agent.model(on_gpu(1)) == "compiled"
     assert next(agent.model.parameters()).dtype == torch.float16
     assert agent.model(torch.zeros(1, 7)) == ("eager", torch.float32)  # inputs on the CPU: laya fell back
