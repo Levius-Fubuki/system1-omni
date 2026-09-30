@@ -4,7 +4,8 @@
 
 Per question: the decision must match (choice: chosen option; score: most likely level; noul: side of
 0.5) and the largest absolute probability difference must stay within tolerance: 1e-3 when the request
-ran in fp32, 1e-2 when it ran under fp16 autocast (MPS and rows >= the worker's amp threshold).
+ran in fp32, 1e-2 when it ran in fp16: fp16 weights (every request), or fp16 autocast on MPS for
+rows >= the worker's amp threshold.
 A flipped decision is reported with the reference margin between its top two outcomes.
 Exits 1 when any question fails.
 """
@@ -52,12 +53,12 @@ def margin(probs):
 
 
 def path(env, rows):
-    fp16 = (
+    autocast = (
         env.get("device_actual") == "mps"
         and env.get("amp_dtype") == "torch.float16"
         and rows >= (env.get("mps_amp_min_rows") or 10**9)
     )
-    return "fp16" if fp16 else "fp32"
+    return "fp16" if autocast or env.get("weights_dtype") == "torch.float16" else "fp32"
 
 
 def main():

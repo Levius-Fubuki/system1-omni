@@ -66,6 +66,15 @@ exist now; `recompiled_after_ready: true` means a request shape was not covered 
 compiles every path; in feasibility runs it made multi-question requests up to 65% slower and took
 over a minute to start, so it is not recommended.
 
+### fp16 weights
+
+Add `LAYA_WORKER_WEIGHTS=fp16` to the command above to keep the checkpoint's fp16 weights instead of
+Laya's fp32 upcast on MPS. With `single`, in two paired runs (both workers alive, every request sent to
+each back to back) it lowered warm p50 by about 14% for one-question requests (median ratio 0.855–0.857
+at 68 tokens), about 10% at 198–484 tokens and 11% for six questions, and raised it by 4% for three
+questions. The worker's memory dropped from 3.6 GB to 2.7 GB. Answers stayed within 0.0031 of the
+fp32 worker's. Without compile, fp16 weights did not make one-question requests faster.
+
 ## Start the frontend
 
 In another terminal:

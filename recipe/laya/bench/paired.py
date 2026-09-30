@@ -1,0 +1,211 @@
+"""Paired comparison of two worker configurations: both run at once, and every request goes to A and to B
+back to back, alternating which goes first, so background load that shifts both cancels out.
+
+    python recipe/laya/bench/paired.py --run e4a \
+        --a "LAYA_WORKER_COMPILE=single" --b "LAYA_WORKER_COMPILE=single LAYA_WORKER_WEIGHTS=fp16"
+    python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_e4*.jsonl
+
+Each side is src/models/laya/worker.py started with the given environment. The summary reports, per
+input, the median of the per-pair ratio B/A with a 95% bootstrap interval, and B's answers against A's.
+"""
+
+import argparse
+import json
+import os
+import random
+import statistics
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[2]
+sys.path.insert(0, str(HERE))
+from bench_http import Client, body_for, fetch_answers, wait_ready
+from env import footprint_mb, header, noise_problems
+
+CHECKPOINT = "convaiinnovations/laya"
+
+
+def spawn(env_spec, port, python, log_path):
+    env = {
+        **os.environ,
+        "LAYA_HOST": "127.0.0.1",
+        "LAYA_PORT": str(port),
+        "LAYA_DEVICE": "mps",
+        "LAYA_MODELS": "english",
+        "LAYA_LOG_LEVEL": "warning",
+    }
+    env.update(pair.split("=", 1) for pair in env_spec.split())
+    log = open(log_path, "w")  # noqa: SIM115
+    return subprocess.Popen(
+        [python, str(REPO / "src/models/laya/worker.py")], env=env, stdout=log, stderr=subprocess.STDOUT
+    )
+
+
+def run(args):
+    problems = noise_problems(args.max_load)
+    if problems and args.run != "feasibility":
+        sys.exit("refusing a measured run: " + "; ".join(problems))
+    with open(args.workloads) as f:
+        workloads = [json.loads(line) for line in f if line.strip()]
+    bench = [w for w in workloads if w["kind"] == "bench"]
+    parity = [w for w in workloads if w["kind"] == "parity"]
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sides = {"A": (args.a, args.port_a), "B": (args.b, args.port_b)}
+    procs = {
+        s: spawn(spec, port, args.python, out_dir / f"paired_{args.run}_{s}.log") for s, (spec, port) in sides.items()
+    }
+    urls = {s: f"http://127.0.0.1:{port}" for s, (_, port) in sides.items()}
+    try:
+        health = {s: wait_ready(urls[s], {s: procs[s]}, args.ready_timeout)[1] for s in sides}
+        with open(out_dir / f"paired_{args.run}.jsonl", "w") as f:
+
+            def emit(record):
+                f.write(json.dumps({"run": args.run, **record}) + "\n")
+
+            emit(
+                header(
+                    CHECKPOINT,
+                    a=args.a,
+                    b=args.b,
+                    n=args.n,
+                    discard=args.discard,
+                    seed=args.seed,
+                    health=health,
+                    noise=problems,
+                )
+            )
+            clients = {s: Client(urls[s]) for s in sides}
+            for w in bench + parity:
+                body = body_for(w, args.model)
+                for s in sides:
+                    answers, error = fetch_answers(clients[s], body)
+                    emit({"type": "answers", "side": s, "workload": w["id"], "answers": answers, "error": error})
+            order = bench[:]
+            random.Random(args.seed).shuffle(order)
+            for w in order:
+                body = body_for(w, args.model)
+                for i in range(args.discard + args.n):
+                    first, second = ("A", "B") if i % 2 == 0 else ("B", "A")
+                    ms = {}
+                    for s in (first, second):
+                        t, status, _ = clients[s].request("POST", "/v1/systemone", body, retry=True)
+                        ms[s] = t if status == 200 else None
+                    if i >= args.discard:
+                        emit(
+                            {
+                                "type": "pair",
+                                "workload": w["id"],
+                                "i": i - args.discard,
+                                "first": first,
+                                "a_ms": ms["A"],
+                                "b_ms": ms["B"],
+                                "rows": len(w["questions"]),
+                            }
+                        )
+            end_health = {s: json.loads(clients[s].request("GET", "/health", retry=True)[2]) for s in sides}
+            emit(
+                {
+                    "type": "end",
+                    "health": end_health,
+                    "footprint_mb": {s: footprint_mb(procs[s].pid).get("footprint_mb") for s in sides},
+                }
+            )
+    finally:
+        for p in procs.values():
+            p.terminate()
+            p.wait(timeout=30)
+    print(out_dir / f"paired_{args.run}.jsonl")
+
+
+def median_interval(ratios, seed=0, resamples=2000):
+    rng = random.Random(seed)
+    meds = sorted(statistics.median(rng.choices(ratios, k=len(ratios))) for _ in range(resamples))
+    return statistics.median(ratios), meds[int(0.025 * resamples)], meds[int(0.975 * resamples) - 1]
+
+
+def flat(answer):
+    return answer.get("probabilities", {"p": answer.get("noul")})
+
+
+def decision(answer):
+    if answer["type"] == "choice":
+        return answer["choice"]
+    if answer["type"] == "noul":
+        return answer["noul"] >= 0.5
+    return max(answer["probabilities"], key=answer["probabilities"].get)
+
+
+def margin(answer):
+    p = sorted(flat(answer).values(), reverse=True)
+    return abs(p[0] - 0.5) if len(p) == 1 else p[0] - p[1]
+
+
+def summarize(paths):
+    for path in paths:
+        with open(path) as f:
+            records = [json.loads(line) for line in f if line.strip()]
+        env = next(r for r in records if r["type"] == "env")
+        print(f"## {env['run']}: A = `{env['a']}`, B = `{env['b']}`, load at start {env['loadavg_1m']}\n")
+        print("| input | pairs | A p50 ms | B p50 ms | median B/A | 95% interval |\n|---|---|---|---|---|---|")
+        pairs = {}
+        for r in records:
+            if r["type"] == "pair" and r["a_ms"] and r["b_ms"]:
+                pairs.setdefault(r["workload"], []).append(r)
+        for wid in sorted(pairs):
+            ps = pairs[wid]
+            med, lo, hi = median_interval([p["b_ms"] / p["a_ms"] for p in ps])
+            print(
+                f"| {wid} | {len(ps)} | {statistics.median(p['a_ms'] for p in ps):.1f} | "
+                f"{statistics.median(p['b_ms'] for p in ps):.1f} | {med:.3f} | {lo:.3f}–{hi:.3f} |"
+            )
+        answers = {}
+        for r in records:
+            if r["type"] == "answers":
+                answers.setdefault(r["workload"], {})[r["side"]] = r
+        worst, flips, errors = 0.0, [], []
+        for wid, sides in answers.items():
+            if sides["A"]["error"] or sides["B"]["error"]:
+                errors.append(wid)
+                continue
+            for q, a in sides["A"]["answers"].items():
+                b = sides["B"]["answers"][q]
+                worst = max(worst, max(abs(flat(a)[k] - flat(b)[k]) for k in flat(a)))
+                if decision(a) != decision(b):
+                    flips.append((wid, q, round(margin(a), 4)))
+        end = next(r for r in records if r["type"] == "end")
+        compile_state = {s: h.get("compile", {}).get("recompiled_after_ready") for s, h in end["health"].items()}
+        print(f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}")
+        print(f"recompiled after ready: {compile_state}; footprint MB: {end['footprint_mb']}\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--summarize", nargs="+", metavar="JSONL")
+    parser.add_argument("--run")
+    parser.add_argument("--a", default="LAYA_WORKER_COMPILE=single", help="environment of side A")
+    parser.add_argument("--b", default="LAYA_WORKER_COMPILE=single LAYA_WORKER_WEIGHTS=fp16")
+    parser.add_argument("--port-a", type=int, default=8000)
+    parser.add_argument("--port-b", type=int, default=8001)
+    parser.add_argument("--python", default=sys.executable)
+    parser.add_argument("--model", default="english")
+    parser.add_argument("--workloads", default=str(HERE / "workloads.jsonl"))
+    parser.add_argument("-n", type=int, default=300, help="timed pairs per input")
+    parser.add_argument("--discard", type=int, default=20)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--ready-timeout", type=float, default=900)
+    parser.add_argument("--max-load", type=float, default=2.0)
+    parser.add_argument("--out", default=str(HERE / "results"))
+    args = parser.parse_args()
+    if args.summarize:
+        summarize(args.summarize)
+    elif args.run:
+        run(args)
+    else:
+        parser.error("give --run or --summarize")
+
+
+if __name__ == "__main__":
+    main()

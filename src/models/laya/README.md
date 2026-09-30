@@ -42,7 +42,9 @@ validated on an M1 Pro). No native CUDA or Metal backend yet.
 Configuration is laya-serve's (`LAYA_HOST`, `LAYA_PORT`, `LAYA_DEVICE`, `LAYA_MODELS`, `LAYA_API_KEY`, ...),
 plus `LAYA_WORKER_COMPILE=off|single|all`: `single` sends one-question requests through a
 `torch.compile(dynamic=True)` graph compiled during warmup and runs the rest eagerly; `/health` reports
-compiled graphs at readiness and now. See the [Apple Silicon recipe](../../../recipe/laya/apple-silicon.md).
+compiled graphs at readiness and now, and `LAYA_WORKER_WEIGHTS=fp32|fp16`: `fp16` keeps the checkpoint's
+fp16 weights (except `act_head`, which Laya feeds fp32 features) instead of the fp32 upcast. See the
+[Apple Silicon recipe](../../../recipe/laya/apple-silicon.md).
 
 ```sh
 LAYA_DEVICE=mps LAYA_MODELS=english python src/models/laya/worker.py

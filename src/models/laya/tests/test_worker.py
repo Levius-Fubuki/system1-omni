@@ -249,3 +249,33 @@ def test_record_snapshot_revisions_reads_the_downloaded_path(monkeypatch):
     )
     huggingface_hub.snapshot_download("/local/checkpoint")
     assert revisions == {"convaiinnovations/laya": "55cf4c4abc"}
+
+
+def test_fp16_weights_keep_act_head_in_fp32():
+    import torch
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.encoder = torch.nn.Linear(4, 4)
+            self.act_head = torch.nn.Linear(4, 2)
+
+    agent = FakeAgent()
+    agent.model = Model()
+    worker.use_fp16_weights(agent)
+    assert agent.model.encoder.weight.dtype == torch.float16
+    assert agent.model.act_head.weight.dtype == torch.float32
+
+
+def test_fp16_weights_are_applied_to_every_loaded_model_before_warmup(monkeypatch):
+    order = []
+    agents = {"english": FakeAgent(), "multilingual": FakeAgent()}
+    router = FakeRouter(agents=agents)
+    monkeypatch.setattr(worker, "use_fp16_weights", lambda agent: order.append((agent, len(router.calls))))
+    worker.create_worker_app(router, "english", "mps", weights="fp16")
+    assert order == [(agents["english"], 0), (agents["multilingual"], 0)]
+
+
+def test_unknown_weights_mode_is_refused():
+    with pytest.raises(ValueError, match="fp32 or fp16"):
+        worker.create_worker_app(FakeRouter(), "english", "mps", weights="int8")

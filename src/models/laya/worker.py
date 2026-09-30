@@ -20,6 +20,9 @@ Configuration is laya-serve's (LAYA_HOST, LAYA_PORT, LAYA_DEVICE, LAYA_MODELS, L
     LAYA_WORKER_COMPILE        off, all, or single: torch.compile      off
                                (dynamic=True) the model before warmup,
                                for every batch or one-row batches only
+    LAYA_WORKER_WEIGHTS        fp32 or fp16: keep the checkpoint's     fp32
+                               fp16 weights instead of laya's fp32
+                               upcast on MPS and CPU
 
 The warmup also compiles every shape class it sends through the compiled model: in measured runs on an
 M1 Pro the worker with `single` was ready after about 22 s instead of 8 s (`all` took over a minute).
@@ -80,6 +83,18 @@ def compiled_graphs() -> int:
 
 
 COMPILE_MODES = {"0": "off", "off": "off", "": "off", "1": "all", "all": "all", "single": "single"}
+
+
+WEIGHT_MODES = {"": "fp32", "fp32": "fp32", "fp16": "fp16"}
+
+
+def use_fp16_weights(agent: Any) -> None:
+    """Keep the weights in fp16, the checkpoint's own precision, so the conversion is exact. laya 0.3.20
+    upcasts them to fp32 on MPS and CPU. `act_head` stays fp32 because laya feeds it `.float()` features."""
+    agent.model.half()
+    act_head = getattr(agent.model, "act_head", None)
+    if act_head is not None:
+        act_head.float()
 
 
 def compile_agent(agent: Any, mode: str) -> None:
@@ -160,6 +175,7 @@ def create_worker_app(
     compile: str = "off",
     graph_counter=compiled_graphs,
     revisions: dict[str, str] | None = None,
+    weights: str = "fp32",
 ):
     """Optionally compile, warm up every loaded model, then return laya's app with /health replaced.
     `model` is the one summarised at the top of /health, and the one loaded if nothing is preloaded.
@@ -168,7 +184,12 @@ def create_worker_app(
 
     if compile not in ("off", "all", "single"):
         raise ValueError(f"compile mode must be off, all or single, not {compile!r}")
+    if weights not in ("fp32", "fp16"):
+        raise ValueError(f"weights must be fp32 or fp16, not {weights!r}")
     names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
+    if weights == "fp16":
+        for name in names:
+            use_fp16_weights(router.load(name))
     if compile != "off":
         for name in names:
             compile_agent(router.load(name), compile)
@@ -226,6 +247,7 @@ def main() -> None:
             require_device=_env_bool("LAYA_REQUIRE_DEVICE"),
             compile=COMPILE_MODES.get(os.environ.get("LAYA_WORKER_COMPILE", "").strip().lower(), "invalid"),
             revisions=revisions,
+            weights=WEIGHT_MODES.get(os.environ.get("LAYA_WORKER_WEIGHTS", "").strip().lower(), "invalid"),
         )
     except Exception as exc:  # noqa: BLE001 -- any failure before binding means not ready, ever
         sys.exit(f"laya-worker: not starting: {exc}")
