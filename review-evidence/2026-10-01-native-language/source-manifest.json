@@ -1,0 +1,21 @@
+{
+  "native_revision": "93a6cb0e874a72efa47d9c8492d69335e29cc697",
+  "base_revision": "566dec1bbd99329dc534a3af4bdaa4b91258beda",
+  "reference_export_revision": "1b64fa2ceb0a82b6a66a69ecdc9bc5cc1b1a0b66",
+  "source_sha256": {
+    "recipe/cua_s1/native.md": "bd03ac5ac96489242fb09eeb92ac1e87887fc0cada802e0e7381d48c57492536",
+    "src/models/cua_s1/native/examples/multimodal_boundary.rs": "081a98efc5c90f52d510b687d7f3e737417c36c7c9dbcd1df285b29aa7350247",
+    "src/models/cua_s1/native/src/inputs.rs": "a8892c0c77900334afd0436a73b3f104e85e73d986ab3e1e3c06a2abe60bc8f4",
+    "src/models/cua_s1/native/src/lib.rs": "b31965119798b6a9f08d322f6c4a839346daa6e7e831958ab647b0d8b571962a",
+    "src/models/cua_s1/native/src/model.rs": "733123b534db1c568c78630f821dee5554582b57dd33366eab34cda8bb5c1aff",
+    "src/models/cua_s1/native/tests/multimodal.rs": "344ef2594a63b3129de521b3edf58b94967e9632cf0e7c2e147f789fb728e2fa"
+  },
+  "cuda_library_sha256": "7f441cbd45064b9da2748922c7a34d9ffbd1b6b61ee229d15d882454782be3b9",
+  "torch_build": "2.14.0+cu130",
+  "transformers": "5.17.0",
+  "peft": "0.21.0",
+  "gpu": "RTX 4090 24 GiB",
+  "driver": "595.71.05",
+  "nvcc": "13.0.88 (sm_89)",
+  "source_verified": true
+}

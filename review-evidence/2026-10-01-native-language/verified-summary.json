@@ -1,0 +1,100 @@
+{
+  "status": "pass",
+  "questions": 8,
+  "native_forwards": 16,
+  "bf16_reference_max_probability_error": 0.00736469030380249,
+  "native_max_probability_error": 0.0015364587306976318,
+  "probability_allowance": 0.024729380607604982,
+  "all_top_choices_equal": true,
+  "cases": [
+    {
+      "case": "small",
+      "question": "next",
+      "sequence": 235,
+      "image_tokens": 80,
+      "probability_error_vs_fp32": 3.391457721590996e-05,
+      "top_equal": true,
+      "fp32_margin": 0.9945894293487072,
+      "max_hidden_error_vs_merged_bf16": 0.28125,
+      "max_logit_error_vs_merged_bf16": 0.13010787963867188
+    },
+    {
+      "case": "wide",
+      "question": "next",
+      "sequence": 355,
+      "image_tokens": 200,
+      "probability_error_vs_fp32": 9.562168270349503e-05,
+      "top_equal": true,
+      "fp32_margin": 0.9934319073799998,
+      "max_hidden_error_vs_merged_bf16": 0.1875,
+      "max_logit_error_vs_merged_bf16": 0.14197540283203125
+    },
+    {
+      "case": "portrait",
+      "question": "next",
+      "sequence": 355,
+      "image_tokens": 200,
+      "probability_error_vs_fp32": 1.2956326827406883e-05,
+      "top_equal": true,
+      "fp32_margin": 0.9949751943349838,
+      "max_hidden_error_vs_merged_bf16": 0.21875,
+      "max_logit_error_vs_merged_bf16": 0.07769012451171875
+    },
+    {
+      "case": "jpeg",
+      "question": "next",
+      "sequence": 455,
+      "image_tokens": 300,
+      "probability_error_vs_fp32": 0.0002032762859016657,
+      "top_equal": true,
+      "fp32_margin": 0.9944376749917865,
+      "max_hidden_error_vs_merged_bf16": 0.3125,
+      "max_logit_error_vs_merged_bf16": 0.258575439453125
+    },
+    {
+      "case": "single-option",
+      "question": "next",
+      "sequence": 216,
+      "image_tokens": 80,
+      "probability_error_vs_fp32": 0.0,
+      "top_equal": true,
+      "fp32_margin": 1,
+      "max_hidden_error_vs_merged_bf16": 0.5,
+      "max_logit_error_vs_merged_bf16": 0.12923622131347656
+    },
+    {
+      "case": "26-options",
+      "question": "next",
+      "sequence": 518,
+      "image_tokens": 64,
+      "probability_error_vs_fp32": 0.0015364587306976318,
+      "top_equal": true,
+      "fp32_margin": 0.4760816842317581,
+      "max_hidden_error_vs_merged_bf16": 0.1875,
+      "max_logit_error_vs_merged_bf16": 0.13096237182617188
+    },
+    {
+      "case": "two-questions",
+      "question": "next",
+      "sequence": 235,
+      "image_tokens": 80,
+      "probability_error_vs_fp32": 3.391457721590996e-05,
+      "top_equal": true,
+      "fp32_margin": 0.9945894293487072,
+      "max_hidden_error_vs_merged_bf16": 0.28125,
+      "max_logit_error_vs_merged_bf16": 0.13010787963867188
+    },
+    {
+      "case": "two-questions",
+      "question": "second",
+      "sequence": 229,
+      "image_tokens": 80,
+      "probability_error_vs_fp32": 4.3137348257005215e-05,
+      "top_equal": true,
+      "fp32_margin": 0.9977713681291789,
+      "max_hidden_error_vs_merged_bf16": 0.25,
+      "max_logit_error_vs_merged_bf16": 0.09311676025390625
+    }
+  ],
+  "scope": "native language at fixed BF16 reference vision boundary; not native image processing or vision execution"
+}
