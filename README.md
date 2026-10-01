@@ -60,7 +60,7 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 | LAYA | [External worker](recipe/laya/README.md); model engine planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 
-CUDA and Metal coverage will be documented per model as implementations are added and validated.
+[Supported models and hardware](docs/supported-models.md) lists the devices and where each worker has been run.
 
 ## Benchmarks
 
