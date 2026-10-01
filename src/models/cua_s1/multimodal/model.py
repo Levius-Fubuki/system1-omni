@@ -111,7 +111,12 @@ class _RequestImageProcessor:
 
 class MultimodalEngine:
     def __init__(
-        self, base: str, adapter: str, device: str = "cuda", dtype: str = "bfloat16"
+        self,
+        base: str,
+        adapter: str,
+        device: str = "cuda",
+        dtype: str = "bfloat16",
+        graph_config=None,
     ):
         import torch
         from peft import PeftModel
@@ -148,6 +153,11 @@ class MultimodalEngine:
         self.adapter_modules = len(modules)
         self.model.eval()
         self.dtype = dtype
+        self.graph_runtime = None
+        if graph_config is not None:
+            from .graph_runtime import GraphRuntime
+
+            self.graph_runtime = GraphRuntime(self.model, graph_config)
 
     def prepare(self, image, question: Question):
         return self._prepare(self.processor, image, question)
@@ -211,13 +221,23 @@ class MultimodalEngine:
                 attention_mask=text_inputs.get("attention_mask"),
             )
             # Candidate scoring reads only the final position.
-            output = self.model(
-                inputs_embeds=embeds,
-                position_ids=position_ids,
-                logits_to_keep=1,
-                **text_inputs,
-            )
-        logits = output.logits[0, -1, :]
+            graph_runtime = getattr(self, "graph_runtime", None)
+            if graph_runtime is None:
+                output = self.model(
+                    inputs_embeds=embeds,
+                    position_ids=position_ids,
+                    logits_to_keep=1,
+                    **text_inputs,
+                )
+                logits = output.logits[0, -1, :]
+            else:
+                logits = graph_runtime.forward(
+                    {
+                        "inputs_embeds": embeds,
+                        "position_ids": position_ids,
+                        **text_inputs,
+                    }
+                )
         return torch.softmax(
             logits[torch.tensor(ids, device=logits.device)].float(), dim=-1
         ).tolist()
