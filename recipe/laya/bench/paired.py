@@ -1,18 +1,21 @@
 """Paired comparison of two worker configurations: both run at once, and every request goes to A and to B
 back to back, alternating which goes first, so background load that shifts both cancels out.
 
-    python recipe/laya/bench/paired.py --run p1 \
-        --a "LAYA_WORKER_COMPILE=off" --b "LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16"
-    python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_e4*.jsonl
+    python recipe/laya/bench/paired.py --run p1 --a "" --b "--compile --weights fp16"
+    python recipe/laya/bench/paired.py --run f1 --a-url http://127.0.0.1:8000 --b-url http://127.0.0.1:8080
+    python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_p1.jsonl
 
-Each side is src/models/laya/worker.py started with the given environment. The summary reports, per
-input, the median of the per-pair ratio B/A with a 95% bootstrap interval, and B's answers against A's.
+`--a`/`--b` are extra flags for `frontend.laya_mps`, which the script starts on MPS with the english
+model; `--a-url`/`--b-url` compare two servers that are already running (e.g. a worker directly and
+through the Rust frontend). The summary reports, per input, the median of the per-pair ratio B/A with a
+95% bootstrap interval, and B's answers against A's.
 """
 
 import argparse
 import json
 import os
 import random
+import shlex
 import statistics
 import subprocess
 import sys
@@ -27,20 +30,24 @@ from env import footprint_mb, header, noise_problems
 CHECKPOINT = "convaiinnovations/laya"
 
 
-def spawn(env_spec, port, python, log_path):
-    env = {
-        **os.environ,
-        "LAYA_HOST": "127.0.0.1",
-        "LAYA_PORT": str(port),
-        "LAYA_DEVICE": "mps",
-        "LAYA_MODELS": "english",
-        "LAYA_LOG_LEVEL": "warning",
-    }
-    env.update(pair.split("=", 1) for pair in env_spec.split())
+def spawn(flags, port, python, model, log_path):
+    env = {**os.environ, "PYTHONPATH": str(REPO / "src")}
+    command = [
+        python,
+        "-m",
+        "frontend.laya_mps",
+        "--device",
+        "mps",
+        "--model",
+        model,
+        "--port",
+        str(port),
+        "--log-level",
+        "warning",
+        *shlex.split(flags),
+    ]
     log = open(log_path, "w")  # noqa: SIM115
-    return subprocess.Popen(
-        [python, str(REPO / "src/models/laya/worker.py")], env=env, stdout=log, stderr=subprocess.STDOUT
-    )
+    return subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT, cwd=REPO)
 
 
 def run(args):
@@ -53,13 +60,21 @@ def run(args):
     parity = [w for w in workloads if w["kind"] == "parity"]
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    sides = {"A": (args.a, args.port_a), "B": (args.b, args.port_b)}
-    procs = {
-        s: spawn(spec, port, args.python, out_dir / f"paired_{args.run}_{s}.log") for s, (spec, port) in sides.items()
-    }
-    urls = {s: f"http://127.0.0.1:{port}" for s, (_, port) in sides.items()}
+    if args.a_url or args.b_url:
+        if not (args.a_url and args.b_url) or args.a is not None or args.b is not None:
+            sys.exit("give both --a-url and --b-url, without --a/--b")
+        sides = {"A": args.a_url, "B": args.b_url}
+        procs = {}
+        urls = sides
+    else:
+        sides = {"A": (args.a or "", args.port_a), "B": (args.b or "", args.port_b)}
+        procs = {
+            s: spawn(flags, port, args.python, args.model, out_dir / f"paired_{args.run}_{s}.log")
+            for s, (flags, port) in sides.items()
+        }
+        urls = {s: f"http://127.0.0.1:{port}" for s, (_, port) in sides.items()}
     try:
-        health = {s: wait_ready(urls[s], {s: procs[s]}, args.ready_timeout)[1] for s in sides}
+        health = {s: wait_ready(urls[s], {s: procs[s]} if s in procs else {}, args.ready_timeout)[1] for s in sides}
         with open(out_dir / f"paired_{args.run}.jsonl", "w") as f:
 
             def emit(record):
@@ -68,8 +83,8 @@ def run(args):
             emit(
                 header(
                     CHECKPOINT,
-                    a=args.a,
-                    b=args.b,
+                    a=args.a_url or f"frontend.laya_mps {args.a or ''}".strip(),
+                    b=args.b_url or f"frontend.laya_mps {args.b or ''}".strip(),
                     n=args.n,
                     discard=args.discard,
                     seed=args.seed,
@@ -110,7 +125,7 @@ def run(args):
                 {
                     "type": "end",
                     "health": end_health,
-                    "footprint_mb": {s: footprint_mb(procs[s].pid).get("footprint_mb") for s in sides},
+                    "footprint_mb": {s: footprint_mb(procs[s].pid).get("footprint_mb") for s in procs},
                 }
             )
     finally:
@@ -185,8 +200,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--summarize", nargs="+", metavar="JSONL")
     parser.add_argument("--run")
-    parser.add_argument("--a", default="LAYA_WORKER_COMPILE=off", help="environment of side A")
-    parser.add_argument("--b", default="LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16", help="environment of side B")
+    parser.add_argument("--a", help="extra frontend.laya_mps flags for side A (default: none)")
+    parser.add_argument("--b", help="extra frontend.laya_mps flags for side B (default: --compile --weights fp16)")
+    parser.add_argument("--a-url", help="instead of starting workers: an already running server for side A")
+    parser.add_argument("--b-url", help="... and for side B")
     parser.add_argument("--port-a", type=int, default=8000)
     parser.add_argument("--port-b", type=int, default=8001)
     parser.add_argument("--python", default=sys.executable)
@@ -202,6 +219,8 @@ def main():
     if args.summarize:
         summarize(args.summarize)
     elif args.run:
+        if args.b is None and not args.b_url:
+            args.b = "--compile --weights fp16"
         run(args)
     else:
         parser.error("give --run or --summarize")

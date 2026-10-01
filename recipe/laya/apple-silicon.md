@@ -1,8 +1,9 @@
 # Laya on Apple Silicon
 
-This recipe serves Laya on the GPU of an Apple Silicon Mac (PyTorch MPS) with the Laya worker
-from [`src/models/laya/`](../../src/models/laya/), puts the Rust frontend in front of it and runs
-the benchmark suite. The [Laya text worker](README.md) recipe covers the plain CPU setup.
+This recipe serves Laya on the GPU of an Apple Silicon Mac (PyTorch MPS) with the worker in
+[`src/frontend/laya_mps.py`](../../src/frontend/laya_mps.py), puts the Rust frontend in front of it and
+runs the benchmarks. The model-side code is in [`src/models/laya/`](../../src/models/laya/). The
+[Laya text worker](README.md) recipe covers plain laya-serve on the CPU.
 
 Validated on an M1 Pro (16 GB, 16-core GPU), macOS 26.1, Python 3.12, `laya[serve]==0.3.20`,
 torch 2.14.0 and the `english` checkpoint (`convaiinnovations/laya` at `55cf4c4`), and by another
@@ -17,26 +18,24 @@ with `uv venv --python 3.12 --seed .venv` (`--seed` puts pip in the environment)
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/python -m pip install 'laya[serve]==0.3.20' pytest httpx2
+.venv/bin/python -m pip install -r recipe/laya/requirements-mps.txt
 .venv/bin/python -c "import torch; print(torch.backends.mps.is_available())"
 ```
 
-The last command must print `True`. The standard macOS arm64 wheel of torch includes MPS. `pytest` and
-`httpx2` are only for the tests: Starlette's `TestClient` needs `httpx2` (or, deprecated, `httpx`).
+The last command must print `True`. The standard macOS arm64 wheel of torch includes MPS.
 
 ## Start the worker
 
 ```sh
-LAYA_HOST=127.0.0.1 LAYA_PORT=8000 LAYA_DEVICE=mps LAYA_MODELS=english \
-LAYA_REQUIRE_DEVICE=1 \
-  .venv/bin/python src/models/laya/worker.py
+PYTHONPATH=src .venv/bin/python -m frontend.laya_mps --device mps --model english --require-device --port 8000
 ```
 
 First startup downloads the checkpoint (about 850 MB). The worker loads the model, runs a warmup
 over short, long and multi-question requests, and only then listens on port 8000, so the first
 request it accepts is already warm: on an M1 Pro the first request after ready took 70–81 ms, against
-0.7–1.1 s from plain laya-serve. `LAYA_REQUIRE_DEVICE=1` makes it exit instead of silently serving on the
-CPU when the model cannot be placed on MPS; without it the worker logs a warning and serves from the CPU.
+0.7–1.1 s from plain laya-serve. `--require-device` makes it exit instead of silently serving on the CPU
+when the model cannot be placed on MPS; without it the worker logs a warning and serves from the CPU.
+laya-serve's environment variables still apply, e.g. `LAYA_API_KEY` for bearer authentication.
 
 Check what it is running on:
 
@@ -55,14 +54,13 @@ after about 30 s, and later 68-token requests took 140–270 ms from the CPU.
 ### Faster: compile and fp16 weights
 
 ```sh
-LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16 LAYA_HOST=127.0.0.1 LAYA_PORT=8000 LAYA_DEVICE=mps \
-LAYA_MODELS=english LAYA_REQUIRE_DEVICE=1 \
-  .venv/bin/python src/models/laya/worker.py
+PYTHONPATH=src .venv/bin/python -m frontend.laya_mps --device mps --model english --require-device \
+  --compile --weights fp16 --port 8000
 ```
 
-`LAYA_WORKER_COMPILE=on` compiles the model during warmup: one-question requests run the whole model
-compiled, requests with several questions run the encoder compiled and Laya's decision head as it is.
-`LAYA_WORKER_WEIGHTS=fp16` keeps the checkpoint's fp16 weights instead of Laya's fp32 upcast on MPS.
+`--compile` compiles the model during warmup: one-question requests run the whole model compiled,
+requests with several questions run the encoder compiled and Laya's decision head as it is.
+`--weights fp16` keeps the checkpoint's fp16 weights instead of Laya's fp32 upcast on MPS.
 
 On the M1 Pro, with both workers running and every request sent to each back to back, the two options
 together lowered warm p50 against the worker without them by 37–38% for a 68-token one-question
@@ -108,9 +106,12 @@ The frontend forwards the worker's response unchanged; `compare_with_backend.py`
 
 ## Test
 
+The tests need `pytest` and `httpx2` (Starlette's `TestClient`; `httpx` works with a deprecation warning):
+
 ```sh
-.venv/bin/python -m pytest src/models/laya/tests                    # unit tests, no model
-LAYA_CONTRACT=1 .venv/bin/python -m pytest src/models/laya/tests    # plus contract tests against a CPU worker
+.venv/bin/python -m pip install pytest httpx2
+PYTHONPATH=src .venv/bin/python -m pytest tests/laya                    # unit tests, no model
+LAYA_CONTRACT=1 PYTHONPATH=src .venv/bin/python -m pytest tests/laya    # plus contract tests against a CPU worker
 ```
 
 ## Benchmark
@@ -119,12 +120,13 @@ Stop the worker and frontend first; the benchmark starts its own. The scripts ar
 [`bench/`](bench/README.md). A first pass that checks everything runs:
 
 ```sh
-.venv/bin/python recipe/laya/bench/check_workloads.py
 .venv/bin/python recipe/laya/bench/bench_inproc.py --device mps --config C2 --run feasibility
 .venv/bin/python recipe/laya/bench/bench_http.py --config C3 --run feasibility --spawn .venv/bin/laya-serve
 .venv/bin/python recipe/laya/bench/bench_http.py --config C4 --run feasibility \
   --url http://127.0.0.1:8080 --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
+.venv/bin/python recipe/laya/bench/paired.py --run feasibility --a "" --b "--compile --weights fp16"
 .venv/bin/python recipe/laya/bench/report.py recipe/laya/bench/results/*_feasibility.jsonl
+.venv/bin/python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_feasibility.jsonl
 ```
 
 Runs labelled anything other than `feasibility` refuse to start on battery power or when the
@@ -132,8 +134,8 @@ Runs labelled anything other than `feasibility` refuse to start on battery power
 
 ## Troubleshooting
 
-- `device_mismatch: true` at startup, or the worker exits with `asked for mps, english is on cpu`: MPS
-  is not available to this Python. Check the `torch.backends.mps.is_available()` line above (an x86_64
+- `device_mismatch: true` at startup, or with `--require-device` the worker exits with
+  `asked for mps, english is on cpu`: MPS is not available to this Python. Check the `torch.backends.mps.is_available()` line above (an x86_64
   Python under Rosetta, for example, has no MPS).
 - `device_mismatch: true` on a worker that started on MPS: Laya fell back to the CPU after a GPU
   out-of-memory error. It keeps answering, several times slower; free memory and restart the worker

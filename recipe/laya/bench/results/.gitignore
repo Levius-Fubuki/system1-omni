@@ -1,7 +1,3 @@
-# Committed: reports built from measured runs.
-# Not committed: raw JSONL (published as a release asset, see ../README.md), feasibility runs,
-# worker/frontend logs, runner state.
-*.jsonl
-*feasibility*
-*.log
-done_*
+# Benchmark output stays out of the repository; the reports and raw data are release assets (see ../README.md).
+*
+!.gitignore

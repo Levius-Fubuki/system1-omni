@@ -4,7 +4,7 @@
 - Compile: torch.compile for the batches where it pays off on MPS.
 
 Both go through one wrapper module that replaces `agent.model`, so that on the CPU the worker always runs
-laya's own fp32 model. worker.py decides when to apply them and reports the result in /health.
+laya's own fp32 model. frontend/laya_mps.py decides when to apply them and reports the result in /health.
 """
 
 from typing import Any

@@ -6,9 +6,14 @@ With --spawn the script starts the worker itself and times process start to the 
 --url in front of it; readiness is then the frontend's /health, which proxies the worker's. Each
 workload runs at every --concurrency level; each client thread keeps one keep-alive connection.
 
-    python recipe/laya/bench/bench_http.py --config C3 --run m1 --spawn .venv-laya/bin/laya-serve
+    python recipe/laya/bench/bench_http.py --config C3 --run m1 --spawn .venv/bin/laya-serve
     python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
-        --frontend target/release/omni-jev --spawn .venv-laya/bin/laya-serve
+        --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
+    python recipe/laya/bench/bench_http.py --config C3o --run m1 \
+        --spawn .venv/bin/python -m frontend.laya_mps --device mps --compile --weights fp16 --port {port}
+
+The spawned command gets LAYA_HOST/LAYA_PORT/LAYA_DEVICE/LAYA_MODELS in its environment (what laya-serve
+reads), PYTHONPATH=src (for `-m frontend.laya_mps`), and `{port}` in its arguments replaced by the port.
 """
 
 import argparse
@@ -24,6 +29,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 from env import footprint_mb, header, noise_problems
 
@@ -182,8 +188,10 @@ def main():
             "LAYA_PRELOAD": "1",
             "LAYA_LOG_LEVEL": "warning",
         }
+        env["PYTHONPATH"] = str(REPO / "src") + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+        command = [arg.replace("{port}", str(port)) for arg in args.spawn]
         spawn_log = open(Path(args.out) / f"http_{args.config}_{args.run}.worker.log", "w")  # noqa: SIM115
-        processes["worker"] = subprocess.Popen(args.spawn, env=env, stdout=spawn_log, stderr=subprocess.STDOUT)
+        processes["worker"] = subprocess.Popen(command, env=env, stdout=spawn_log, stderr=subprocess.STDOUT, cwd=REPO)
     if args.frontend:
         parts = urlsplit(args.url)
         env = {
@@ -263,7 +271,7 @@ def main():
             for w in order:
                 body = body_for(w, args.model)
                 answers, error = fetch_answers(client, body)
-                if error:  # parity.py reports the workload as missing
+                if error:  # the parity section of report.py reports the workload as missing
                     emit({"type": "answers_error", "workload": w["id"], **error})
                 else:
                     emit({"type": "answers", "workload": w["id"], "answers": answers})

@@ -1,7 +1,7 @@
 """Contract tests against a real worker process on CPU. They load the Laya checkpoint, so they only run
 with LAYA_CONTRACT=1:
 
-    LAYA_CONTRACT=1 python -m pytest src/models/laya/tests/test_contract.py
+    LAYA_CONTRACT=1 PYTHONPATH=src python -m pytest tests/laya/test_contract.py
 """
 
 import http.client
@@ -18,7 +18,7 @@ import pytest
 
 pytestmark = pytest.mark.skipif(os.environ.get("LAYA_CONTRACT") != "1", reason="set LAYA_CONTRACT=1")
 
-WORKER = Path(__file__).resolve().parents[1] / "worker.py"
+SRC = Path(__file__).resolve().parents[2] / "src"
 TOKEN = "contract-test-token"
 STATE = "I was charged twice for my order. Please refund the duplicate today."
 CHOICE = {
@@ -62,16 +62,21 @@ def decide(port, questions, **kwargs):
 @pytest.fixture(scope="module")
 def worker():
     port = free_port()
-    env = {
-        **os.environ,
-        "LAYA_HOST": "127.0.0.1",
-        "LAYA_PORT": str(port),
-        "LAYA_DEVICE": "cpu",
-        "LAYA_MODELS": "english",
-        "LAYA_API_KEY": TOKEN,
-        "LAYA_LOG_LEVEL": "warning",
-    }
-    process = subprocess.Popen([sys.executable, str(WORKER)], env=env)
+    env = {**os.environ, "PYTHONPATH": str(SRC), "LAYA_API_KEY": TOKEN}
+    command = [
+        sys.executable,
+        "-m",
+        "frontend.laya_mps",
+        "--device",
+        "cpu",
+        "--model",
+        "english",
+        "--port",
+        str(port),
+        "--log-level",
+        "warning",
+    ]
+    process = subprocess.Popen(command, env=env)
     deadline = time.monotonic() + 600
     while time.monotonic() < deadline:
         assert process.poll() is None, f"worker exited with {process.returncode}"

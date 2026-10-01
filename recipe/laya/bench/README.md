@@ -1,71 +1,60 @@
 # Laya benchmark scripts
 
 Scripts behind the numbers in the [Apple Silicon recipe](../apple-silicon.md). Each run writes raw
-JSONL to `results/`; `report.py` and `parity.py` build the tables from it.
+JSONL to `results/` (kept out of the repository); `report.py` builds the tables from it.
 
 | file | purpose |
 | --- | --- |
-| `workloads.src.py` → `workloads.jsonl` | fixed inputs: W1–W6 timed, P* parity only |
-| `check_workloads.py` | token count of each input with Laya's tokenizer |
-| `bench_inproc.py` | Laya in-process: load, warmup, first request, warm latency, memory |
-| `bench_http.py` | a `/v1/systemone` worker, optionally behind the frontend: time to ready, first request, warm latency, throughput |
-| `paired.py` | two worker configurations alive at once, each request sent to both back to back; median ratio with a bootstrap interval |
-| `frontend_overhead.py` | frontend cost, each request sent directly and through the frontend back to back |
+| `workloads.jsonl` | the fixed inputs: W1–W6 are timed, P* are for answer comparison only. Tokens per row with Laya's tokenizer: W1 68, W2 198, W3 484, W4 68/48/47, W5 40–68, W6 47 |
+| `bench_inproc.py` | Laya in-process (no HTTP): load, warmup, first request, warm latency, memory |
+| `bench_http.py` | a `/v1/systemone` server, optionally started by the script and optionally behind the frontend: time to ready, first request, warm latency, throughput |
+| `paired.py` | two configurations compared request by request, both alive at once: two worker flag sets, or two running servers (e.g. a worker directly and through the frontend) |
 | `profile_mps.py` | where a request's time goes on MPS |
-| `parity.py` | answers of every run against a reference run |
-| `report.py` | tables from the JSONL |
-| `env.py` | versions, checkpoint, hardware and load recorded with each run |
+| `report.py` | tables from the JSONL, including the run-to-run gate and the answer comparison against a reference config |
+| `env.py` | shared: versions, checkpoint, hardware, power and load recorded with each run; memory footprint |
 
 ## Run
 
-From the repository root, in the environment of the recipe:
+From the repository root, in the recipe's environment (`.venv`), with the frontend built:
 
 ```sh
-python recipe/laya/bench/check_workloads.py
 python recipe/laya/bench/bench_inproc.py --device cpu --config C1 --run m1
 python recipe/laya/bench/bench_inproc.py --device mps --config C2 --run m1
 python recipe/laya/bench/bench_http.py --config C3 --run m1 --spawn .venv/bin/laya-serve
 python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
   --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
-LAYA_WORKER_COMPILE=off python recipe/laya/bench/bench_http.py --config C3w --run m1 \
-  --spawn .venv/bin/python src/models/laya/worker.py
-LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16 python recipe/laya/bench/bench_http.py --config C3o --run m1 \
-  --spawn .venv/bin/python src/models/laya/worker.py
-python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl
-python recipe/laya/bench/parity.py recipe/laya/bench/results/*_m[0-9].jsonl --ref C1
+python recipe/laya/bench/bench_http.py --config C3w --run m1 \
+  --spawn .venv/bin/python -m frontend.laya_mps --device mps --port {port}
+python recipe/laya/bench/bench_http.py --config C3o --run m1 \
+  --spawn .venv/bin/python -m frontend.laya_mps --device mps --compile --weights fp16 --port {port}
+python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl --ref C1
 ```
 
 Repeat with `--run m2` for a second measured run. Runs refuse to start on battery power or above a
 1-minute load average of `--max-load` (default 2) unless labelled `--run feasibility`. Memory is the
 process's physical footprint, which on Apple Silicon includes MPS allocations.
 
-Two worker configurations can also be compared request by request, which holds up under background
-load better than separate runs:
+Two configurations compared request by request, which holds up under background load better than
+separate runs:
 
 ```sh
-python recipe/laya/bench/paired.py --run p1 --a "LAYA_WORKER_COMPILE=off" \
-  --b "LAYA_WORKER_COMPILE=on LAYA_WORKER_WEIGHTS=fp16"
+python recipe/laya/bench/paired.py --run p1 --a "" --b "--compile --weights fp16"
+python recipe/laya/bench/paired.py --run f1 --a-url http://127.0.0.1:8000 --b-url http://127.0.0.1:8080
 python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_p1.jsonl
 ```
 
 ## Results
 
-`results/` holds the reports from the measured runs on an M1 Pro: `measured-report.md`,
-`measured-parity.md`, `frontend_overhead_m1.md`, `paired-fp16.md` and `paired-all-optimizations.md`.
-`C3s` in `measured-report.md` and side B of `paired-fp16.md` ran an earlier compile mode that compiled
-one-question requests only; `on` compiles them the same way and adds the encoder for several questions. The raw JSONL is published as
-release assets:
+The measured runs on an M1 Pro are published as assets of one release on the fork,
+<https://github.com/cacheline999/system1-omni/releases/tag/laya-mps-results-2026-09-28>:
 
-```sh
-curl -LO https://github.com/cacheline999/system1-omni/releases/download/laya-mps-results-2026-09-28/laya-mps-results-2026-09-28.tar.gz
-shasum -a 256 laya-mps-results-2026-09-28.tar.gz   # 611ed30707ac8c98875b5aa5382360b5a7d760da166d61c626eb07ebe1ee6404
-tar xzf laya-mps-results-2026-09-28.tar.gz -C recipe/laya/bench/results
-python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl
-```
+| asset | contents | sha256 |
+| --- | --- | --- |
+| `laya-mps-reports-2026-10-01.tar.gz` | the tables: baseline report and parity, frontend overhead, paired fp16, paired all optimizations | `e857da5082da4983e07a91104b20f84fb1ffd7994c56123e0a832e0d7a870cea` |
+| `laya-mps-results-2026-09-28.tar.gz` | raw JSONL of the baseline runs (C1–C4, C3w, C3s) | `611ed30707ac8c98875b5aa5382360b5a7d760da166d61c626eb07ebe1ee6404` |
+| `laya-mps-paired-fp16-2026-09-30.tar.gz` | raw JSONL of the paired fp16 runs | `cc0d6f5bda6e3e0ee1f40c6966f84429e902a2f585b8e1ee33658a9be139326e` |
+| `laya-mps-paired-all-2026-09-30.tar.gz` | raw JSONL of the paired all-optimizations runs | `25d1b7bc9d6dff7173f9b972ebd0204f8fb4e2089fe2d27924d48ba6e589780c` |
 
-The paired fp16 runs (`paired_e4a.jsonl`, `paired_e4b.jsonl`) are in
-`laya-mps-paired-fp16-2026-09-30.tar.gz` on the same release (sha256 `cc0d6f5bda6e3e0ee1f40c6966f84429e902a2f585b8e1ee33658a9be139326e`); rebuild the summary with
-`paired.py --summarize`.
-
-The runs behind `paired-all-optimizations.md` (`paired_e5a.jsonl`, `paired_e5b.jsonl`) are in
-`laya-mps-paired-all-2026-09-30.tar.gz` on the same release (sha256 `25d1b7bc9d6dff7173f9b972ebd0204f8fb4e2089fe2d27924d48ba6e589780c`).
+Extract the raw JSONL into `results/` and run `report.py` or `paired.py --summarize` on it to rebuild
+the tables. `C3s` in the baseline runs is an earlier compile mode that compiled one-question requests
+only; `--compile` does the same for them and adds the encoder for several questions.
