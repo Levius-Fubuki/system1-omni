@@ -78,6 +78,7 @@ ready after 19 s instead of 3 s; its first request took 21–36 ms in 21 of 23 f
 
 `/health` reports under `compile` how many graphs existed when the worker became ready and how many
 exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup.
+`active` is `false` once no model runs the compiled path any more, i.e. after a fallback to the CPU.
 
 Both options apply on the GPU only. After a fallback to the CPU the worker runs Laya's fp32 model
 uncompiled, like a worker started without them.

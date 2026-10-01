@@ -1,4 +1,4 @@
-"""Where a Laya request's time goes on MPS (spec R2). Wraps laya's stages on the loaded instance; laya
+"""Where a Laya request's time goes on MPS. Wraps laya's stages on the loaded instance; laya
 itself is not modified.
 
 Three measurements:

@@ -7,27 +7,17 @@ Both go through one wrapper module that replaces `agent.model`, so that on the C
 laya's own fp32 model. frontend/laya_mps.py decides when to apply them and reports the result in /health.
 """
 
+import functools
 from typing import Any
 
 
-def _served(agent: Any) -> Any:
-    """The module the worker puts in place of laya's model, created on first use.
-
-    On the GPU it runs the compiled paths when there are any, otherwise laya's model. On the CPU it always
-    runs laya's model in fp32: laya moves the model to the CPU when a request runs out of GPU memory, and
-    there fp16 weights are slower (334 ms against 138 ms for a 68-token request) and the compiled graphs
-    would first recompile (28 s measured). So after a fallback the worker behaves like plain laya.
-    """
+@functools.cache
+def _served_class() -> type:
+    """The module class the worker puts in place of laya's model (built on first use: torch is imported late)."""
     import torch
 
-    if getattr(agent.model, "laya_worker_wrapper", False):
-        return agent.model
-    eager = agent.model
-
     class Served(torch.nn.Module):
-        laya_worker_wrapper = True
-
-        def __init__(self):
+        def __init__(self, eager):
             super().__init__()
             self.eager = eager
             self.fp16 = False
@@ -44,7 +34,19 @@ def _served(agent: Any) -> Any:
             whole, encoder_only = self.paths
             return (whole if input_ids.shape[0] == 1 else encoder_only)(input_ids, *args, **kwargs)
 
-    agent.model = Served()
+    return Served
+
+
+def _served(agent: Any) -> Any:
+    """Wrap `agent.model` once and return the wrapper.
+
+    On the GPU it runs the compiled paths when there are any, otherwise laya's model. On the CPU it always
+    runs laya's model in fp32: laya moves the model to the CPU when a request runs out of GPU memory, and
+    there fp16 weights are slower than fp32 and the compiled graphs would have to recompile first. So after
+    a fallback the worker behaves like plain laya.
+    """
+    if not isinstance(agent.model, _served_class()):
+        agent.model = _served_class()(agent.model)
     return agent.model
 
 
@@ -65,14 +67,16 @@ def compile_agent(agent: Any) -> None:
 
     A batch of one row (one question) runs the whole model compiled. A batch of several rows runs only
     the encoder compiled and laya's decision head eagerly: the head is two nn.TransformerEncoderLayer
-    with a key padding mask, which lose PyTorch's fused fast path when compiled and were about 50 ms
-    slower on padded multi-row batches.
+    with a key padding mask, which lose PyTorch's fused fast path when compiled and get slower on
+    padded multi-row batches. Does nothing for an agent that is already compiled.
     """
     import copy
 
     import torch
 
     served = _served(agent)
+    if served.paths is not None:
+        return
     eager = served.eager
     whole = torch.compile(eager, dynamic=True)
     encoder_only = copy.copy(eager)  # same parameters and submodules ...
@@ -81,15 +85,24 @@ def compile_agent(agent: Any) -> None:
     served.paths = (whole, encoder_only)
 
 
+def _on_cpu(agent: Any) -> bool:
+    return str(getattr(agent, "device", "")).startswith("cpu")
+
+
 def apply(agent: Any, *, fp16: bool, compile: bool) -> bool:
     """Apply the requested options to one agent. Does nothing and returns False for a model on the CPU."""
-    if str(getattr(agent, "device", "")).startswith("cpu"):
+    if _on_cpu(agent):
         return False
     if fp16:
         use_fp16_weights(agent)
     if compile:
         compile_agent(agent)
     return True
+
+
+def compile_active(agent: Any) -> bool:
+    """Whether requests to this agent run the compiled paths now. False on the CPU, also after a fallback."""
+    return getattr(getattr(agent, "model", None), "paths", None) is not None and not _on_cpu(agent)
 
 
 def compiled_graphs() -> int:

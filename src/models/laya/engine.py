@@ -10,8 +10,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-# (words of state, questions): each shape runs twice. Short, mid-length and near-window states, then
-# 3 and 6 questions (6 is at or above laya's MPS fp16 autocast threshold of 5 rows).
+# (words of state, questions). Short, mid-length and near-window states, then several questions; the last
+# shape has enough rows to reach laya's fp16 autocast on MPS (`agent.mps_amp_min_rows`).
 _CHOICE = {
     "type": "choice",
     "instructions": "Which team should handle this?",
@@ -27,6 +27,7 @@ WARMUP_SHAPES = [
     (10, {f"q{i}": q for i, q in enumerate([_CHOICE, _SCORE, _NOUL, _CHOICE, _SCORE, _NOUL])}),
 ]
 WARMUP_REPEATS = 2
+WARMUP_MAX_ROWS = max(len(questions) for _, questions in WARMUP_SHAPES)
 
 
 def warmup(router: Any, model: str, shapes=WARMUP_SHAPES, repeats: int = WARMUP_REPEATS) -> dict[str, Any]:

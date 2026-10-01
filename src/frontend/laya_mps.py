@@ -70,6 +70,17 @@ def build_app(
             "models": models,
         }
 
+    for name, agent in agents.items():
+        autocast_rows = getattr(agent, "mps_amp_min_rows", None)
+        if str(agent.device).startswith("mps") and autocast_rows and autocast_rows > engine.WARMUP_MAX_ROWS:
+            log.warning(
+                "%s: laya autocasts from %d questions but the warmup stops at %d; the first request that "
+                "large is not warm",
+                name,
+                autocast_rows,
+                engine.WARMUP_MAX_ROWS,
+            )
+
     info = current()
     graphs_at_ready = graph_counter() if compile else None
     if info["device_mismatch"]:
@@ -88,7 +99,10 @@ def build_app(
         if compile:
             now = graph_counter()
             compiled.update(
-                graphs_at_ready=graphs_at_ready, graphs_now=now, recompiled_after_ready=now > graphs_at_ready
+                active=any(optimize.compile_active(agent) for agent in agents.values()),
+                graphs_at_ready=graphs_at_ready,
+                graphs_now=now,
+                recompiled_after_ready=now > graphs_at_ready,
             )
         return {"status": "ok", "ready": True, "loaded": router.loaded, **current(), "compile": compiled}
 
@@ -113,12 +127,17 @@ def main() -> None:
     parser.add_argument("--require-device", action="store_true", help="exit if a model is not on --device")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--log-level", default="info")
+    parser.add_argument(
+        "--log-level",
+        default="info",
+        choices=["critical", "error", "warning", "info", "debug"],
+        help="for the worker's own log and uvicorn's",
+    )
     args = parser.parse_args()
 
     import uvicorn
 
-    logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
+    logging.basicConfig(level=args.log_level.upper(), format="%(name)s: %(message)s")
     revisions = engine.record_snapshot_revisions()
     try:
         app = build_app(
@@ -131,6 +150,7 @@ def main() -> None:
             revisions=revisions,
         )
     except Exception as exc:  # noqa: BLE001 -- any failure before binding means not ready, ever
+        log.exception("startup failed")
         sys.exit(f"laya-worker: not starting: {exc}")
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 

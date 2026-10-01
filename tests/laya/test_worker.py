@@ -162,7 +162,13 @@ def test_health_flags_graphs_compiled_after_ready(monkeypatch):
         worker.build_app(FakeRouter(), "english", "mps", compile=True, graph_counter=lambda: next(graphs))
     )
     first = client.get("/health").json()["compile"]
-    assert first == {"enabled": True, "graphs_at_ready": 4, "graphs_now": 4, "recompiled_after_ready": False}
+    assert first == {
+        "enabled": True,
+        "active": False,  # compile_agent is stubbed out here
+        "graphs_at_ready": 4,
+        "graphs_now": 4,
+        "recompiled_after_ready": False,
+    }
     assert client.get("/health").json()["compile"]["recompiled_after_ready"] is True
 
 
@@ -344,3 +350,41 @@ def test_health_follows_a_fallback_to_cpu_after_startup():
     assert health["device_mismatch"] is True
     assert health["models"]["english"]["device"] == "cpu"
     assert health["autocast_dtype"] == "torch.float32"
+
+
+def test_health_compile_active_follows_a_fallback_to_cpu(monkeypatch):
+    import torch
+
+    compiles = []
+    monkeypatch.setattr(torch, "compile", lambda module, dynamic: compiles.append(module) or module)
+    agent = FakeAgent()
+    agent.model = torch.nn.Sequential()
+    agent.model.encoder = torch.nn.Identity()
+    client = TestClient(worker.build_app(FakeRouter(agent), "english", "mps", compile=True, graph_counter=lambda: 2))
+    assert client.get("/health").json()["compile"]["active"] is True
+    optimize.compile_agent(agent)  # a second name for the same agent must not compile again
+    assert len(compiles) == 2
+    agent.device = "cpu"
+    assert client.get("/health").json()["compile"]["active"] is False
+
+
+def test_warning_when_the_warmup_does_not_reach_layas_autocast_rows(caplog):
+    agent = FakeAgent()
+    agent.mps_amp_min_rows = engine.WARMUP_MAX_ROWS + 1
+    with caplog.at_level("WARNING", logger="laya-worker"):
+        worker.build_app(FakeRouter(agent), "english", "mps")
+    assert "the warmup stops at" in caplog.text
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="laya-worker"):
+        worker.build_app(FakeRouter(), "english", "mps")
+    assert "the warmup stops at" not in caplog.text
+
+
+def test_log_level_applies_to_the_workers_own_log(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(worker, "make_router", lambda device, model: FakeRouter())
+    monkeypatch.setattr(worker.logging, "basicConfig", lambda **kw: seen.update(kw))
+    monkeypatch.setattr("uvicorn.run", lambda app, **kw: seen.update(uvicorn=kw["log_level"]))
+    monkeypatch.setattr(sys, "argv", ["laya_mps", "--device", "mps", "--log-level", "warning"])
+    worker.main()
+    assert (seen["level"], seen["uvicorn"]) == ("WARNING", "warning")
