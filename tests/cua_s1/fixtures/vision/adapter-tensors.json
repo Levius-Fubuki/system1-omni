@@ -1,0 +1,702 @@
+{
+  "base_model.model.model.visual.blocks.0.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.0.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.0.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.0.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.1.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.1.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.1.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.1.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.10.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.10.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.10.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.10.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.11.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.11.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.11.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.11.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.12.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.12.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.12.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.12.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.13.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.13.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.13.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.13.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.14.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.14.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.14.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.14.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.15.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.15.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.15.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.15.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.16.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.16.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.16.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.16.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.17.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.17.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.17.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.17.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.18.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.18.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.18.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.18.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.19.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.19.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.19.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.19.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.2.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.2.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.2.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.2.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.20.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.20.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.20.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.20.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.21.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.21.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.21.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.21.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.22.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.22.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.22.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.22.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.23.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.23.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.23.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.23.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.3.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.3.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.3.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.3.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.4.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.4.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.4.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.4.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.5.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.5.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.5.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.5.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.6.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.6.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.6.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.6.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.7.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.7.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.7.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.7.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.8.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.8.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.8.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.8.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.9.mlp.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      1024
+    ]
+  },
+  "base_model.model.model.visual.blocks.9.mlp.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.blocks.9.mlp.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.blocks.9.mlp.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      1024,
+      16
+    ]
+  },
+  "base_model.model.model.visual.merger.linear_fc1.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.merger.linear_fc1.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      4096,
+      16
+    ]
+  },
+  "base_model.model.model.visual.merger.linear_fc2.lora_A.weight": {
+    "dtype": "F32",
+    "shape": [
+      16,
+      4096
+    ]
+  },
+  "base_model.model.model.visual.merger.linear_fc2.lora_B.weight": {
+    "dtype": "F32",
+    "shape": [
+      2560,
+      16
+    ]
+  }
+}
