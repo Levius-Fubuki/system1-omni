@@ -1,5 +1,7 @@
 # System1-Omni
 
+Documentation: <https://thinkflowlab.github.io/system1-omni/>
+
 A community-maintained inference engine for prefill-only System1-Omni models, designed around a Rust frontend, model-owned execution, and high-performance CUDA and Metal backends.
 
 The Rust frontend forwards requests to a separately running model worker. The Cua-S1 4B 0.2 `text` adapter and Open-Jev-27B-v1.1 have native workers using shared CUDA kernels in this repository.
@@ -60,6 +62,12 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates, full-checkpoint validation pending |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
+
+## Benchmarks
+
+See the [GPU serving benchmark](benchmarks/README.md) for request replay,
+output-fidelity checks, and the CUDA comparison protocol. GPU performance
+measurements are pending.
 
 ## Stay Tuned with Us
 

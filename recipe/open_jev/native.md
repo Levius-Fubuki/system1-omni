@@ -45,7 +45,8 @@ or an incomplete export. The saved limit defaults to 4096 tokens per candidate;
 The CUDA kernels require compute capability 8.0 or newer. The current build
 target below is Ada (`89`); pass your GPU's compute capability explicitly.
 The CUDA shared library and both Rust workers must be rebuilt together because
-the gated-attention entry point updates the library ABI to version 3.
+the gated-attention entry point updates the library ABI to version 4 alongside
+the shared CUDA Graph entry points.
 
 ```sh
 src/backends/cuda/qwen3_5/build.sh target/release 89
@@ -94,9 +95,11 @@ DeltaNet operations. Attention's sigmoid gate is fused into its output epilogue,
 preserving both BF16 rounding points and removing one launch and one output
 read/write pass per full-attention layer (16 layers for this model).
 
-This initial implementation runs one eager forward pass per candidate. Prefix
-sharing, CUDA Graphs, GEMM autotuning, quantization and multimodal inference are
-not implemented. No latency improvement over the reference is claimed. Merged
+This recipe leaves `CUA_S1_GRAPH` unset and runs one eager forward pass per
+candidate. The shared backend retains Cua-S1's opt-in CUDA Graph path, but
+Open-Jev graph replay remains unvalidated. Prefix sharing, GEMM autotuning,
+quantization and multimodal inference are not implemented. No latency
+improvement over the reference is claimed. Merged
 weights, CUDA attention/Gated DeltaNet, and the CPU head's accumulation order
 can change probabilities; full-checkpoint comparisons are required before
 treating this worker as an accuracy-validated replacement.

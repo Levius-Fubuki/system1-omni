@@ -11,4 +11,5 @@ The norm, elementwise and q/k preparation kernels round to bfloat16 where Transf
 `cs1_attention_gated` fuses the sigmoid gate into the attention epilogue, preserving
 the BF16 rounding of both attention and sigmoid before multiplication. The native
 workers use this entry point; the separate operations remain available for kernel
-comparisons. Rebuild the library and workers together for ABI version 3.
+comparisons. Rebuild the library and workers together for ABI version 4, which
+includes the CUDA Graph entry points and gated attention.
