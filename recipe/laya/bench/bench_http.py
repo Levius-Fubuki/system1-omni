@@ -31,7 +31,7 @@ from urllib.parse import urlsplit
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
-from env import footprint_mb, header, noise_problems
+from env import footprint_mb, header, noise_problems  # noqa: E402
 
 CHECKPOINT = "convaiinnovations/laya"  # what laya-serve's "english" model resolves to (laya/router.py)
 

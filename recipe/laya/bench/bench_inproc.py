@@ -16,14 +16,14 @@ from pathlib import Path
 
 T_START = time.perf_counter()
 warnings.filterwarnings("ignore")
-import laya
-import torch
+import laya  # noqa: E402
+import torch  # noqa: E402
 
 T_IMPORT = time.perf_counter() - T_START
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from env import footprint_mb, header, noise_problems
+from env import footprint_mb, header, noise_problems  # noqa: E402
 
 
 def load_workloads(path):

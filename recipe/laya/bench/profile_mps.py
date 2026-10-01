@@ -25,13 +25,13 @@ from collections import defaultdict
 from pathlib import Path
 
 warnings.filterwarnings("ignore")
-import laya
-import laya.agent
-import torch
+import laya  # noqa: E402
+import laya.agent  # noqa: E402
+import torch  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from env import header, noise_problems
+from env import header, noise_problems  # noqa: E402
 
 STAGES = ["encode", "collate", "dispatch", "gpu_wait", "copy_back", "decode", "other"]
 

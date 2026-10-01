@@ -24,8 +24,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
-from bench_http import Client, body_for, fetch_answers, wait_ready
-from env import footprint_mb, header, noise_problems
+from bench_http import Client, body_for, fetch_answers, wait_ready  # noqa: E402
+from env import footprint_mb, header, noise_problems  # noqa: E402
 
 CHECKPOINT = "convaiinnovations/laya"
 
