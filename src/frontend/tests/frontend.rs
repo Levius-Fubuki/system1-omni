@@ -160,7 +160,7 @@ async fn forwards_every_modality_byte_for_byte() {
 }
 
 #[tokio::test]
-async fn forwards_decision_fixtures_and_worker_responses_unchanged() {
+async fn round_trips_decision_fixtures() {
     let fixtures = [
         (
             r#"{"model":"any-worker","state":"Please route this request.","questions":{"department":{"type":"choice","instructions":"Which team?","criteria":{"billing":"Charges and refunds","technical":"Software problems"}}}}"#,
@@ -204,7 +204,7 @@ async fn forwards_decision_fixtures_and_worker_responses_unchanged() {
 }
 
 #[tokio::test]
-async fn rejects_unsupported_methods_and_unknown_paths_without_contacting_worker() {
+async fn rejects_invalid_routes_before_forwarding() {
     let (worker, seen) = start_worker(Reply::default()).await;
     let frontend = start_frontend(&worker, Config::DEFAULT_TIMEOUT).await;
 
@@ -367,7 +367,7 @@ async fn health_reflects_worker_health_under_base_path() {
 }
 
 #[tokio::test]
-async fn decision_forwards_backend_prefix_and_query_parameters() {
+async fn forwards_prefixed_decision_with_query() {
     let response_body = r#"{"answers":{"refund":{"type":"noul","noul":0.9}}}"#;
     let (worker, seen) = start_worker(Reply {
         headers: vec![("content-type", "application/json")],
@@ -379,7 +379,7 @@ async fn decision_forwards_backend_prefix_and_query_parameters() {
     let request_body = decision_request(r#""A request with a backend prefix.""#);
     let response = client()
         .post(format!(
-            "{frontend}/v1/systemone?request_id=cpu-test&verbose=1"
+            "{frontend}/v1/systemone?request_id=param-test&verbose=1"
         ))
         .header("content-type", "application/json")
         .body(request_body.clone())
@@ -396,7 +396,7 @@ async fn decision_forwards_backend_prefix_and_query_parameters() {
     assert_eq!(seen[0].method, "POST");
     assert_eq!(
         seen[0].uri,
-        "/worker/v1/systemone?request_id=cpu-test&verbose=1"
+        "/worker/v1/systemone?request_id=param-test&verbose=1"
     );
     assert_eq!(seen[0].body, request_body.as_bytes());
 }
