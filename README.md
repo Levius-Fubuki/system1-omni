@@ -62,6 +62,12 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
+## Benchmarks
+
+See the [GPU serving benchmark](benchmarks/README.md) for request replay,
+output-fidelity checks, and the CUDA comparison protocol. GPU performance
+measurements are pending.
+
 ## Stay Tuned with Us
 
 If you find system1-omni useful, [give us a star on GitHub](https://github.com/ThinkFlowLab/system1-omni)
