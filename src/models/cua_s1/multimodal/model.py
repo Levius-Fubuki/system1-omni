@@ -81,11 +81,14 @@ def verify_weights(base: Path, adapter: Path):
     for root, names in allowed.items():
         for path in root.rglob("*"):
             relative = path.relative_to(root)
-            if path.is_file() and relative.parts[0] != ".cache":
-                if relative.as_posix() not in names:
-                    raise ValueError(
-                        f"unlisted artifact may override pinned files: {relative}"
-                    )
+            if (
+                path.is_file()
+                and relative.parts[0] != ".cache"
+                and relative.as_posix() not in names
+            ):
+                raise ValueError(
+                    f"unlisted artifact may override pinned files: {relative}"
+                )
 
 
 class _RequestImageProcessor:
@@ -207,8 +210,12 @@ class MultimodalEngine:
                 image_grid_thw=text_inputs.pop("image_grid_thw"),
                 attention_mask=text_inputs.get("attention_mask"),
             )
+            # Candidate scoring reads only the final position.
             output = self.model(
-                inputs_embeds=embeds, position_ids=position_ids, **text_inputs
+                inputs_embeds=embeds,
+                position_ids=position_ids,
+                logits_to_keep=1,
+                **text_inputs,
             )
         logits = output.logits[0, -1, :]
         return torch.softmax(
