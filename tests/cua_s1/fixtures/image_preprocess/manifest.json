@@ -1,0 +1,311 @@
+{
+  "schema": "cua-s1-rgb-preprocess-v1",
+  "packages": {
+    "torch": "2.14.0",
+    "torchvision": "0.29.0",
+    "transformers": "5.17.0",
+    "numpy": "2.5.3",
+    "Pillow": "11.3.0"
+  },
+  "python": "3.12.13",
+  "platform": "macOS-15.1-arm64-arm-64bit",
+  "processor_class": "Qwen2VLImageProcessor",
+  "config_sha256": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516",
+  "source": "https://huggingface.co/Qwen/Qwen3.5-4B/resolve/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a/preprocessor_config.json",
+  "cases": [
+    {
+      "name": "single_pixel",
+      "width": 1,
+      "height": 1,
+      "pattern": "constant",
+      "seed": 1,
+      "input_sha256": "5240672d7b51756b829ad0ef8d9468b7a078afa2f410484fd3892dab47becb72",
+      "grid": [
+        1,
+        16,
+        16
+      ],
+      "shape": [
+        256,
+        1536
+      ],
+      "image_tokens": 64,
+      "resized_width": 256,
+      "resized_height": 256,
+      "output_sha256": "4be14d273f372df812a97f08c26e505d130fb987cff734b46b853556bfcdd8cd"
+    },
+    {
+      "name": "tiny_noise",
+      "width": 17,
+      "height": 19,
+      "pattern": "noise",
+      "seed": 17,
+      "input_sha256": "22860fa660ddef7f9051f741053ecf182d140e24326e022bd07696cd36a0f565",
+      "grid": [
+        1,
+        18,
+        16
+      ],
+      "shape": [
+        288,
+        1536
+      ],
+      "image_tokens": 72,
+      "resized_width": 256,
+      "resized_height": 288,
+      "output_sha256": "b7d9e48516869359467ee74e44c64e1df4b3df11f747d3a96416dd22c39d3494"
+    },
+    {
+      "name": "aligned_noise",
+      "width": 256,
+      "height": 256,
+      "pattern": "noise",
+      "seed": 123,
+      "input_sha256": "9ffa16f72cb251b6c84f8a4b0c5ed04ae554138750fb402ac7e5d575f598b3d3",
+      "grid": [
+        1,
+        16,
+        16
+      ],
+      "shape": [
+        256,
+        1536
+      ],
+      "image_tokens": 64,
+      "resized_width": 256,
+      "resized_height": 256,
+      "output_sha256": "852bf0f888518e7a52a9e3b94d0c7904bae60bed665c90d0011e5bb1279dd6ab"
+    },
+    {
+      "name": "odd_noise",
+      "width": 319,
+      "height": 241,
+      "pattern": "noise",
+      "seed": 42,
+      "input_sha256": "e630421ec49113b391cca6e1ee834c3e958710a4d991f8683866c9694f532a97",
+      "grid": [
+        1,
+        16,
+        20
+      ],
+      "shape": [
+        320,
+        1536
+      ],
+      "image_tokens": 80,
+      "resized_width": 320,
+      "resized_height": 256,
+      "output_sha256": "cffe9c2ceffdbdfc61bcc7d17af4dde178fa6519f189ff0dcccfcfc1f701e829"
+    },
+    {
+      "name": "tie_down",
+      "width": 272,
+      "height": 256,
+      "pattern": "noise",
+      "seed": 999,
+      "input_sha256": "e965e1a3abcb3d57ad7bb4f0d31622ced62bff32b42cca4baf745e7c72f21b06",
+      "grid": [
+        1,
+        16,
+        16
+      ],
+      "shape": [
+        256,
+        1536
+      ],
+      "image_tokens": 64,
+      "resized_width": 256,
+      "resized_height": 256,
+      "output_sha256": "c4132d737f13c1748dc4acf9a016e8b291726a0a4f109c07202ad5532f8ebce3"
+    },
+    {
+      "name": "tie_up",
+      "width": 304,
+      "height": 256,
+      "pattern": "noise",
+      "seed": 101,
+      "input_sha256": "9b13761bd909b3dc74b4d92277897f079a88baef9ccc01e889e4285cf5385ca7",
+      "grid": [
+        1,
+        16,
+        20
+      ],
+      "shape": [
+        320,
+        1536
+      ],
+      "image_tokens": 80,
+      "resized_width": 320,
+      "resized_height": 256,
+      "output_sha256": "41791fd7564d0a17b712a742c6ae28bccf0c2109dfa106e6cf23f3c9a10f1202"
+    },
+    {
+      "name": "both_down",
+      "width": 271,
+      "height": 271,
+      "pattern": "checker",
+      "seed": 1,
+      "input_sha256": "133d4fbdb2075c9361414a4e35c8af5d29991bf0f9c3c88e42d94378521f2035",
+      "grid": [
+        1,
+        16,
+        16
+      ],
+      "shape": [
+        256,
+        1536
+      ],
+      "image_tokens": 64,
+      "resized_width": 256,
+      "resized_height": 256,
+      "output_sha256": "7e7caab1b9e235e1861ad0b9925fa0bb59ec9d31542522da5f1b8f830ec4d3b2"
+    },
+    {
+      "name": "one_axis_down",
+      "width": 256,
+      "height": 257,
+      "pattern": "ramp",
+      "seed": 1,
+      "input_sha256": "b81676bf2b54b033e4f8e456328f2b7a964ec37b25aa94304290a33458c6dd56",
+      "grid": [
+        1,
+        16,
+        16
+      ],
+      "shape": [
+        256,
+        1536
+      ],
+      "image_tokens": 64,
+      "resized_width": 256,
+      "resized_height": 256,
+      "output_sha256": "6f1b0167bde5b26c0eb889350a06e1d21a215159cf3dc8815269b3563c78ea30"
+    },
+    {
+      "name": "wide",
+      "width": 640,
+      "height": 320,
+      "pattern": "ramp",
+      "seed": 1,
+      "input_sha256": "51fc6689e0aa0479f3d2b3bfce7c3be48f5acab03178a544154458daf39e2286",
+      "grid": [
+        1,
+        20,
+        40
+      ],
+      "shape": [
+        800,
+        1536
+      ],
+      "image_tokens": 200,
+      "resized_width": 640,
+      "resized_height": 320,
+      "output_sha256": "c5b55bf291ae416f796adba33e92507f05f90f02661a3b2a17f56282f2aff588"
+    },
+    {
+      "name": "portrait",
+      "width": 319,
+      "height": 641,
+      "pattern": "noise",
+      "seed": 23,
+      "input_sha256": "fe01ee085e153e00f10560d9e6440bbe71d4cb618f05631be24e3349b8f65ef2",
+      "grid": [
+        1,
+        40,
+        20
+      ],
+      "shape": [
+        800,
+        1536
+      ],
+      "image_tokens": 200,
+      "resized_width": 320,
+      "resized_height": 640,
+      "output_sha256": "228c19a2962227a0df105b7da6fae3129ef6b904dc219559794b661e35b66c5d"
+    },
+    {
+      "name": "aspect_limit",
+      "width": 200,
+      "height": 1,
+      "pattern": "noise",
+      "seed": 47,
+      "input_sha256": "cfc8a35fb8806ef337f79f41719dd94d53e6389ff6026e2f7e8473459e5ca79e",
+      "grid": [
+        1,
+        2,
+        228
+      ],
+      "shape": [
+        456,
+        1536
+      ],
+      "image_tokens": 114,
+      "resized_width": 3648,
+      "resized_height": 32,
+      "output_sha256": "e27c87e42e5c35687c531929b0f5d55c9029a50a94348576988f781f3664f6f2"
+    },
+    {
+      "name": "tall_aspect_limit",
+      "width": 7,
+      "height": 1400,
+      "pattern": "checker",
+      "seed": 1,
+      "input_sha256": "d9a7e9950b25ca5737160572f03b5bfcd4c036c84ccf2dfb201709ed8be79dd4",
+      "grid": [
+        1,
+        228,
+        2
+      ],
+      "shape": [
+        456,
+        1536
+      ],
+      "image_tokens": 114,
+      "resized_width": 32,
+      "resized_height": 3648,
+      "output_sha256": "06c24cd87800971d6afdf1300ecb5bfdacfe3acb8153f636a04906c654be272b"
+    },
+    {
+      "name": "input_pixel_limit",
+      "width": 2048,
+      "height": 512,
+      "pattern": "noise",
+      "seed": 55,
+      "input_sha256": "10a95319d17cce1ace47155b2b0404649d79fdd2bb7767c7ba3dd9ee3457cb04",
+      "grid": [
+        1,
+        32,
+        128
+      ],
+      "shape": [
+        4096,
+        1536
+      ],
+      "image_tokens": 1024,
+      "resized_width": 2048,
+      "resized_height": 512,
+      "output_sha256": "c737f6ff50ce47fef6e6be3e61e7e6fecec93f787e1813fb432fd82fe162541c"
+    },
+    {
+      "name": "large_round_up",
+      "width": 1600,
+      "height": 600,
+      "pattern": "noise",
+      "seed": 77,
+      "input_sha256": "8684ebba18009b80e4779f17bcb6da86da6c5217984f2c1221211bbfe14fabb5",
+      "grid": [
+        1,
+        38,
+        100
+      ],
+      "shape": [
+        3800,
+        1536
+      ],
+      "image_tokens": 950,
+      "resized_width": 1600,
+      "resized_height": 608,
+      "output_sha256": "8f360d3070b0593c539c193617c6e13fc2aad17e1f87d246ba684f6b97abca7a"
+    }
+  ]
+}
