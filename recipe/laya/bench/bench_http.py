@@ -10,10 +10,13 @@ workload runs at every --concurrency level; each client thread keeps one keep-al
     python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
         --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
     python recipe/laya/bench/bench_http.py --config C3o --run m1 \
-        --spawn .venv/bin/python -m frontend.laya_mps --device mps --compile --weights fp16 --port {port}
+        --spawn .venv/bin/python -m frontend.laya_mps --device {device} --model {model} \
+        --compile --weights fp16 --port {port}
 
 The spawned command gets LAYA_HOST/LAYA_PORT/LAYA_DEVICE/LAYA_MODELS in its environment (what laya-serve
-reads), PYTHONPATH=src (for `-m frontend.laya_mps`), and `{port}` in its arguments replaced by the port.
+reads) and PYTHONPATH=src (for `-m frontend.laya_mps`). `{port}`, `{device}` and `{model}` in its arguments
+are replaced by the port and by --device and --model, which is how `frontend.laya_mps` gets them: it takes
+flags and does not read those variables.
 """
 
 import argparse
@@ -147,7 +150,7 @@ def main():
     parser.add_argument("--frontend", help="Rust frontend binary to start on --url in front of the spawned worker")
     parser.add_argument("--backend-port", type=int, default=8000, help="worker port when --frontend is used")
     parser.add_argument("--spawn", nargs=argparse.REMAINDER, help="start this worker command, then benchmark it")
-    parser.add_argument("--device", default="mps", help="LAYA_DEVICE for a spawned worker")
+    parser.add_argument("--device", default="mps", help="device for a spawned worker: LAYA_DEVICE and {device}")
     parser.add_argument("--ready-timeout", type=float, default=600)
     parser.add_argument("--workloads", default=str(HERE / "workloads.jsonl"))
     parser.add_argument("--only", nargs="*", help="bench workload ids to run (default: all)")
@@ -177,44 +180,47 @@ def main():
 
     Path(args.out).mkdir(parents=True, exist_ok=True)
     processes = {}
-    if args.spawn:
-        port = args.backend_port if args.frontend else urlsplit(args.url).port
-        env = {
-            **os.environ,
-            "LAYA_HOST": "127.0.0.1",
-            "LAYA_PORT": str(port),
-            "LAYA_DEVICE": args.device,
-            "LAYA_MODELS": args.model,
-            "LAYA_PRELOAD": "1",
-            "LAYA_LOG_LEVEL": "warning",
-        }
-        env["PYTHONPATH"] = str(REPO / "src") + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-        command = [arg.replace("{port}", str(port)) for arg in args.spawn]
-        spawn_log = open(Path(args.out) / f"http_{args.config}_{args.run}.worker.log", "w")  # noqa: SIM115
-        processes["worker"] = subprocess.Popen(command, env=env, stdout=spawn_log, stderr=subprocess.STDOUT, cwd=REPO)
-    if args.frontend:
-        parts = urlsplit(args.url)
-        env = {
-            **os.environ,
-            "OMNI_JEV_BIND": f"{parts.hostname}:{parts.port}",
-            "OMNI_JEV_BACKEND_URL": f"http://127.0.0.1:{args.backend_port}",
-        }
-        frontend_log = open(Path(args.out) / f"http_{args.config}_{args.run}.frontend.log", "w")  # noqa: SIM115
-        processes["frontend"] = subprocess.Popen(
-            [args.frontend], env=env, stdout=frontend_log, stderr=subprocess.STDOUT
-        )
-    process = processes.get("worker")
-    frontend = processes.get("frontend")
 
     def memory():
-        mem = footprint_mb(process.pid) if process else {}
-        if frontend:
-            mem["frontend_footprint_mb"] = footprint_mb(frontend.pid).get("footprint_mb")
+        mem = footprint_mb(processes["worker"].pid) if "worker" in processes else {}
+        if "frontend" in processes:
+            mem["frontend_footprint_mb"] = footprint_mb(processes["frontend"].pid).get("footprint_mb")
         return mem
 
     out = Path(args.out) / f"http_{args.config}_{args.run}.jsonl"
     common = {"config": args.config, "run": args.run}
     try:
+        if args.spawn:
+            port = args.backend_port if args.frontend else urlsplit(args.url).port
+            env = {
+                **os.environ,
+                "LAYA_HOST": "127.0.0.1",
+                "LAYA_PORT": str(port),
+                "LAYA_DEVICE": args.device,
+                "LAYA_MODELS": args.model,
+                "LAYA_PRELOAD": "1",
+                "LAYA_LOG_LEVEL": "warning",
+            }
+            env["PYTHONPATH"] = str(REPO / "src") + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+            placeholders = {"{port}": str(port), "{device}": args.device, "{model}": args.model}
+            command = list(args.spawn)
+            for placeholder, value in placeholders.items():
+                command = [arg.replace(placeholder, value) for arg in command]
+            spawn_log = open(Path(args.out) / f"http_{args.config}_{args.run}.worker.log", "w")  # noqa: SIM115
+            processes["worker"] = subprocess.Popen(
+                command, env=env, stdout=spawn_log, stderr=subprocess.STDOUT, cwd=REPO
+            )
+        if args.frontend:
+            parts = urlsplit(args.url)
+            env = {
+                **os.environ,
+                "OMNI_JEV_BIND": f"{parts.hostname}:{parts.port}",
+                "OMNI_JEV_BACKEND_URL": f"http://127.0.0.1:{args.backend_port}",
+            }
+            frontend_log = open(Path(args.out) / f"http_{args.config}_{args.run}.frontend.log", "w")  # noqa: SIM115
+            processes["frontend"] = subprocess.Popen(
+                [args.frontend], env=env, stdout=frontend_log, stderr=subprocess.STDOUT
+            )
         ready_s, health = wait_ready(args.url, processes, args.ready_timeout)
         with open(out, "w") as f:
 
@@ -257,7 +263,7 @@ def main():
             emit(
                 {
                     "type": "phase",
-                    "process_to_ready_s": round(ready_s, 3) if process else None,
+                    "process_to_ready_s": round(ready_s, 3) if "worker" in processes else None,
                     "warmup_s": round(warmup_s, 3),
                     "first_ms": {k: round(v, 2) for k, v in first_ms.items()},
                     "routing": routing,

@@ -115,6 +115,7 @@ def build_app(
     def on_load(ctx: Any) -> None:
         """A checkpoint loaded while serving is prepared like the ones loaded at startup, or not kept at all;
         in that case the checkpoints laya evicted for it are loaded again."""
+        nonlocal graphs_at_ready
         made_room = [name for name in evicted if name != ctx.model]
         evicted.clear()
         preparing.add(ctx.model)
@@ -130,6 +131,8 @@ def build_app(
                     router.load(name)
                 except Exception:  # noqa: BLE001 -- the request fails for the first reason either way
                     log.exception("%s was evicted for %s and could not be loaded again", name, ctx.model)
+            if compile:
+                graphs_at_ready = graph_counter()  # graphs the unloaded checkpoint compiled are not recompiles
             raise
         finally:
             preparing.discard(ctx.model)

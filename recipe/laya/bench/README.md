@@ -24,9 +24,9 @@ python recipe/laya/bench/bench_http.py --config C3 --run m1 --spawn .venv/bin/la
 python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
   --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
 python recipe/laya/bench/bench_http.py --config C3w --run m1 \
-  --spawn .venv/bin/python -m frontend.laya_mps --device mps --port {port}
+  --spawn .venv/bin/python -m frontend.laya_mps --device {device} --model {model} --port {port}
 python recipe/laya/bench/bench_http.py --config C3o --run m1 \
-  --spawn .venv/bin/python -m frontend.laya_mps --device mps --compile --weights fp16 --port {port}
+  --spawn .venv/bin/python -m frontend.laya_mps --device {device} --model {model} --compile --weights fp16 --port {port}
 python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl --ref C1
 ```
 

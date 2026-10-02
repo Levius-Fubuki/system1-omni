@@ -538,3 +538,21 @@ def test_main_warns_about_laya_serve_variables_it_does_not_read(monkeypatch, cap
         worker.main()
     assert "LAYA_THREADS" in caplog.text
     assert "LAYA_API_KEY" not in caplog.text
+
+
+def test_graphs_compiled_by_a_late_checkpoint_that_fails_are_not_reported_as_recompiles(monkeypatch):
+    monkeypatch.setattr(optimize, "compile_agent", lambda agent: None)
+    router = FakeRouter()
+    graphs = {"n": 0}
+    predict = router.predict
+
+    def predict_and_compile(state, questions, model=None):
+        graphs["n"] += 1
+        return predict(state, questions, model=model)
+
+    router.predict = predict_and_compile
+    client = TestClient(worker.build_app(router, "english", "mps", compile=True, graph_counter=lambda: graphs["n"]))
+    router.fail_on_call = len(router.calls) + 3
+    with pytest.raises(RuntimeError, match="out of memory"):
+        router.load_while_serving("multilingual", FakeAgent())
+    assert client.get("/health").json()["compile"]["recompiled_after_ready"] is False

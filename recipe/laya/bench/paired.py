@@ -69,12 +69,12 @@ def run(args):
         urls = sides
     else:
         sides = {"A": (args.a or "", args.port_a), "B": (args.b or "", args.port_b)}
-        procs = {
-            s: spawn(flags, port, args.python, args.model, out_dir / f"paired_{args.run}_{s}.log")
-            for s, (flags, port) in sides.items()
-        }
+        procs = {}
         urls = {s: f"http://127.0.0.1:{port}" for s, (_, port) in sides.items()}
     try:
+        if not (args.a_url or args.b_url):
+            for s, (flags, port) in sides.items():
+                procs[s] = spawn(flags, port, args.python, args.model, out_dir / f"paired_{args.run}_{s}.log")
         health = {s: wait_ready(urls[s], {s: procs[s]} if s in procs else {}, args.ready_timeout)[1] for s in sides}
         with open(out_dir / f"paired_{args.run}.jsonl", "w") as f:
 

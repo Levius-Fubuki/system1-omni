@@ -40,11 +40,17 @@ launcher reads do not: device, model, host, port and log level are the flags abo
 `LAYA_AUTO_TASK` are not read. The worker warns at startup if any of them is set.
 
 Laya loads another checkpoint when a request names it (`"model": "multilingual"`) or its routing picks it
-(a non-English state). The worker prepares that checkpoint the same way inside that first request, so
-that request takes seconds (other requests wait behind it; `/health` names it under `preparing`
-meanwhile), and `/health` lists it from then on. With `--require-device`, a checkpoint
-that does not land on the requested device is unloaded again and the request fails with 500. If Laya
-evicted another checkpoint to make room for it (it keeps two by default), the worker loads that one again.
+(a non-English state). The worker prepares that checkpoint the same way inside that first request; other
+requests wait behind it, `/health` names it under `preparing` meanwhile and lists it afterwards. On the
+M1 Pro that first request took about 5–10 s without the options and about 70 s with `--compile` (plus the
+download the first time, 680 MB for `multilingual`). The frontend gives a backend 60 s, so with `--compile`
+it answered that request with 504 while the worker finished preparing; the same request sent again then
+took 35 ms. To avoid that, send one request for each further checkpoint straight to the worker after
+startup. Each resident checkpoint needs its own memory (see Troubleshooting).
+
+With `--require-device`, a checkpoint that does not land on the requested device is unloaded again and
+the request fails with 500. If Laya evicted another checkpoint to make room for it (it keeps two by
+default), the worker loads that one again.
 
 Check what it is running on:
 
@@ -135,7 +141,7 @@ Stop the worker and frontend first; the benchmark starts its own. The scripts ar
 .venv/bin/python recipe/laya/bench/bench_http.py --config C4 --run feasibility \
   --url http://127.0.0.1:8080 --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
 .venv/bin/python recipe/laya/bench/paired.py --run feasibility --a "" --b "--compile --weights fp16"
-.venv/bin/python recipe/laya/bench/report.py recipe/laya/bench/results/*_feasibility.jsonl
+.venv/bin/python recipe/laya/bench/report.py recipe/laya/bench/results/*_feasibility.jsonl --ref C2
 .venv/bin/python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_feasibility.jsonl
 ```
 
@@ -151,5 +157,5 @@ Runs labelled anything other than `feasibility` refuse to start on battery power
   out-of-memory error. It keeps answering, several times slower; free memory and restart the worker
   to get back on the GPU.
 - The worker process uses about 4 GB, or 3 GB with fp16 weights (Activity Monitor's Memory column,
-  which counts MPS allocations). On a 16 GB Mac, close other large applications before benchmarking.
+  which counts MPS allocations), with one checkpoint loaded; a second one Laya loads later adds its own. On a 16 GB Mac, close other large applications before benchmarking.
 - `Address already in use`: another worker or frontend still holds port 8000 or 8080.
