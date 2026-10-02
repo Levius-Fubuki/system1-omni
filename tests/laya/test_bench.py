@@ -28,7 +28,9 @@ def test_header_records_what_makes_two_runs_comparable(monkeypatch):
         version(package) for package in ("laya", "torch", "transformers")
     )
     assert record["argv"] == sys.argv and record["python"] == ".".join(map(str, sys.version_info[:3]))
-    assert record["power"] and record["loadavg_1m"] >= 0 and record["chip"] and record["mem_gb"] > 0
+    assert record["loadavg_1m"] >= 0
+    if sys.platform == "darwin":  # the machine probes use macOS tools; elsewhere they are None (test below)
+        assert record["power"] and record["chip"] and record["mem_gb"] > 0
     assert record["utc"].endswith("+00:00")
 
 
@@ -85,3 +87,41 @@ def test_documented_commands_use_flags_and_files_that_exist():
                 ), f"{document}: {command}"
         used = set(re.findall(r"(?<![\w-])(--[a-z][a-z-]*)", ours))
         assert used <= options, f"{document}: {command}: unknown {sorted(used - options)}"
+
+
+def test_the_header_degrades_to_none_where_macos_tools_are_missing(monkeypatch):
+    run = bench_env._run
+    macos_only = ("pmset", "sysctl", "system_profiler")
+    monkeypatch.setattr(bench_env, "_run", lambda *cmd: None if cmd[0] in macos_only else run(*cmd))
+    record = bench_env.header("some/repo")  # what a Linux machine records: no failure, the probes are None
+    assert (record["power"], record["chip"], record["gpu_cores"], record["mem_gb"]) == (None, None, None, 0)
+    assert record["omni_sha"] and record["torch"]
+
+
+# ---------------------------------------------------------------------------------------------- report.py
+import report  # noqa: E402
+
+NOUL = {"q": {"type": "noul", "noul": 0.9}}
+
+
+def test_parity_lists_benchmark_runs_but_not_runs_that_never_answer():
+    records = [
+        {"type": "env", "config": "C2", "run": "x"},
+        {"type": "phase", "config": "C2", "run": "x"},
+        {"type": "answers", "config": "C2", "run": "x", "workload": "W1", "answers": NOUL},
+        # profile_mps.py: an env record and its own measurements, never answers
+        {"type": "env", "config": "profile-mps", "run": "x"},
+        {"type": "sweep", "config": "profile-mps", "run": "x"},
+        # a benchmark run that stopped after its warmup, before any answers
+        {"type": "env", "config": "C3", "run": "x"},
+        {"type": "phase", "config": "C3", "run": "x"},
+        # a benchmark run whose answer probes all failed
+        {"type": "env", "config": "C4", "run": "x"},
+        {"type": "phase", "config": "C4", "run": "x"},
+        {"type": "answers_error", "config": "C4", "run": "x", "workload": "W1", "status": 500, "detail": "x"},
+    ]
+    out = report.parity(records, "C2")
+    assert "profile-mps" not in out
+    assert "| C3 | x | W1 | | | | missing | | | FAIL |" in out
+    assert "| C4 | x | W1 | | | | status 500: x | | | FAIL |" in out
+    assert out.endswith("0/2 questions within tolerance.")

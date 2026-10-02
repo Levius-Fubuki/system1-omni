@@ -105,10 +105,11 @@ The latencies above are for requests sent back to back. Measured on the M1 Pro:
   does not do this.
 - **New input lengths.** The first request of a length the worker has not seen costs about 15 ms more
   once with the options (6 ms without). It is not a recompile (`recompiled_after_ready` stays `false`).
-- **Memory grows with the lengths seen.** With both options, what PyTorch caches per input length adds
-  about 5 MB each: the 3 GB below became 3.3 GB after 100 new lengths and 5.3 GB after all 477, more than
-  the 4.0 GB of a worker without the options, whose footprint did not grow. `torch.mps.empty_cache()`
-  releases it, and those lengths then pay their first-request cost again.
+- **Memory grows with the lengths seen.** With `--compile`, PyTorch keeps host memory for every input
+  length the compiled model has run, about 5 MB each (fp16 weights alone add little): the 3 GB above became
+  3.3 GB after 100 new lengths and 5.3 GB after all 477, more than the 4.0 GB of a worker without the
+  options. `torch.mps.empty_cache()` releases most of it, and those lengths then pay their first-request
+  cost again.
 
 `/health` reports under `compile` how many graphs existed when the worker became ready and how many
 exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup.
@@ -185,6 +186,7 @@ Runs labelled anything other than `feasibility` refuse to start on battery power
 - `device_mismatch: true` on a worker that started on MPS: Laya fell back to the CPU after a GPU
   out-of-memory error. It keeps answering, several times slower; free memory and restart the worker
   to get back on the GPU.
-- The worker process uses about 4 GB, or 3 GB with fp16 weights growing towards 5 GB as it sees more input
-  lengths (Activity Monitor's Memory column, which counts MPS allocations), with one checkpoint loaded; a second one Laya loads later adds its own. On a 16 GB Mac, close other large applications before benchmarking.
+- The worker process uses about 4 GB, or 3 GB with fp16 weights (Activity Monitor's Memory column, which
+  counts MPS allocations), with one checkpoint loaded; with `--compile` it grows towards 5 GB as it sees
+  more input lengths (see "What the warm numbers leave out"); a second one Laya loads later adds its own. On a 16 GB Mac, close other large applications before benchmarking.
 - `Address already in use`: another worker or frontend still holds port 8000 or 8080.

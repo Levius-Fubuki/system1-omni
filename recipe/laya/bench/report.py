@@ -177,17 +177,20 @@ TOLERANCE = {"fp32": 1e-3, "fp16": 1e-2}
 
 
 def read_answers(records):
-    """Per (config, run): the env record, the answers per workload, and the probes that failed."""
-    envs, answers, errors = {}, {}, {}
+    """Per (config, run): the env record, the answers per workload, the probes that failed, and which runs are
+    benchmark runs (bench_inproc/bench_http write a phase record before any answers; profile_mps never answers)."""
+    envs, answers, errors, benchmarks = {}, {}, {}, set()
     for r in records:
         key = (r["config"], r["run"])
         if r["type"] == "env":
             envs[key] = r
+        elif r["type"] == "phase":
+            benchmarks.add(key)
         elif r["type"] == "answers":
             answers.setdefault(key, {})[r["workload"]] = r["answers"]
         elif r["type"] == "answers_error":
             errors.setdefault(key, {})[r["workload"]] = f"status {r.get('status')}: {r.get('detail')}"
-    return envs, answers, errors
+    return envs, answers, errors, benchmarks
 
 
 def outcome(answer):
@@ -220,7 +223,7 @@ def path(env, rows):
 
 def parity(records, ref):
     """Answers of every run against the reference config, with the tolerances declared in advance."""
-    envs, answers, errors = read_answers(records)
+    envs, answers, errors, benchmarks = read_answers(records)
     refs = sorted(k for k in answers if k[0] == ref)
     if not refs:
         return f"no answers for reference config {ref}"
@@ -233,7 +236,7 @@ def parity(records, ref):
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     failed = total = 0
-    for key in sorted(envs.keys() | answers.keys() | errors.keys()):  # a run with no answers at all still counts
+    for key in sorted(benchmarks | answers.keys() | errors.keys()):  # a benchmark run without answers still counts
         if key == ref_key:
             continue
         env = envs.get(key, {})
