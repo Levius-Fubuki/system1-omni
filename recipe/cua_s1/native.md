@@ -41,6 +41,3 @@ cargo test -p omni-cua-s1-native
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
   cargo test --release -p omni-cua-s1-native --test kernels -- --ignored
 ```
-
-For CPU-only structural inspection of the separate vision base weights and
-multimodal adapter, see [native vision checkpoint inspection](native_vision.md).
