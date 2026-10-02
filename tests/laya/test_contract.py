@@ -88,7 +88,6 @@ def worker():
     ]
     process = subprocess.Popen(command, env=env)
     deadline = time.monotonic() + 600
-    startup["refused"] = 0
     while time.monotonic() < deadline:
         assert process.poll() is None, f"worker exited with {process.returncode}"
         try:
@@ -97,7 +96,6 @@ def worker():
                 startup["first_health"] = json.loads(body)
                 break
         except OSError:
-            startup["refused"] += 1
             time.sleep(0.1)
     else:
         pytest.fail("worker not ready in 600 s")
@@ -133,8 +131,9 @@ def test_health_reports_the_loaded_model(worker):
     assert len(health["revision"]) == 40
 
 
-def test_the_port_opens_only_after_the_warmup(worker):
-    assert startup["refused"] > 0  # nothing listened while the model loaded and warmed up
+def test_the_first_health_answer_comes_after_the_warmup(worker):
+    # laya-serve also refuses connections while it loads, then answers /health before any forward pass;
+    # the worker's first answer must already report a finished warmup.
     assert startup["first_health"]["ready"] is True and startup["first_health"]["warmup_ms"] > 0
 
 

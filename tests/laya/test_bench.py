@@ -125,3 +125,31 @@ def test_parity_lists_benchmark_runs_but_not_runs_that_never_answer():
     assert "| C3 | x | W1 | | | | missing | | | FAIL |" in out
     assert "| C4 | x | W1 | | | | status 500: x | | | FAIL |" in out
     assert out.endswith("0/2 questions within tolerance.")
+
+
+# ---------------------------------------------------------------------------------------------- paired.py
+import paired  # noqa: E402
+
+CHOICE_ANSWER = {"type": "choice", "choice": "a", "probabilities": {"a": 0.7, "b": 0.3}}
+
+
+def summary_of(tmp_path, capsys, a, b):
+    records = [{"type": "env", "run": "x", "a": "A", "b": "B", "loadavg_1m": 1.0}]
+    records += [{"type": "answers", "side": side, "workload": "W1", "answers": ans, "error": None}
+                for side, ans in (("A", a), ("B", b))]  # fmt: skip
+    records.append({"type": "end", "health": {"A": {"device": "mps"}, "B": {"device": "mps"}}, "footprint_mb": {}})
+    path = tmp_path / "paired_x.jsonl"
+    path.write_text("\n".join(json.dumps(r) for r in records))
+    paired.summarize([str(path)])
+    return capsys.readouterr().out
+
+
+def test_paired_summary_reports_a_question_missing_on_either_side(tmp_path, capsys):
+    both = {"q": CHOICE_ANSWER, "r": {"type": "noul", "noul": 0.9}}
+    assert "errors ['W1/r']" in summary_of(tmp_path, capsys, both, {"q": CHOICE_ANSWER})
+    assert "errors ['W1/r']" in summary_of(tmp_path, capsys, {"q": CHOICE_ANSWER}, both)
+
+
+def test_paired_summary_reports_answers_of_different_shape(tmp_path, capsys):
+    out = summary_of(tmp_path, capsys, {"q": CHOICE_ANSWER}, {"q": {"type": "noul", "noul": 0.9}})
+    assert "errors ['W1/q']" in out

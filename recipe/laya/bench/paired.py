@@ -195,9 +195,10 @@ def summarize(paths):
             if any(sides.get(s, {"error": "missing"}).get("error") for s in "AB"):
                 errors.append(wid)
                 continue
-            for q, a in sides["A"]["answers"].items():
-                b = sides["B"]["answers"].get(q)
-                if b is None:
+            a_answers, b_answers = sides["A"]["answers"], sides["B"]["answers"]
+            for q in sorted(a_answers.keys() | b_answers.keys()):
+                a, b = a_answers.get(q), b_answers.get(q)
+                if a is None or b is None or a.get("type") != b.get("type"):
                     errors.append(f"{wid}/{q}")
                     continue
                 worst = max(worst, max(abs(flat(a)[k] - flat(b).get(k, 0.0)) for k in flat(a)))
