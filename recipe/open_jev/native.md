@@ -77,11 +77,10 @@ Requests are bounded to 4 MiB, 4096 questions, and 65536 candidate sequences.
 
 ## Validation and optimization scope
 
-Tests and fixtures live with their components under `src`: Open-Jev's typed
+Tests and fixtures live in the repository-level `tests/` tree: Open-Jev's typed
 contract and tokenizer cases are in
-[`src/models/open_jev/native/`](../../src/models/open_jev/native/), and shared
-Qwen configuration and CUDA reference tests are in
-[`src/models/qwen3_5/native/tests/`](../../src/models/qwen3_5/native/tests/).
+[`tests/open_jev/`](../../tests/open_jev/), and shared Qwen JSON, configuration
+and CUDA reference tests are in [`tests/qwen3_5/`](../../tests/qwen3_5/).
 The default suites below run on CPU without downloading model weights:
 
 ```sh
