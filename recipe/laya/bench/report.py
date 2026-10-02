@@ -177,14 +177,17 @@ TOLERANCE = {"fp32": 1e-3, "fp16": 1e-2}
 
 
 def read_answers(records):
-    envs, answers = {}, {}
+    """Per (config, run): the env record, the answers per workload, and the probes that failed."""
+    envs, answers, errors = {}, {}, {}
     for r in records:
         key = (r["config"], r["run"])
         if r["type"] == "env":
             envs[key] = r
         elif r["type"] == "answers":
             answers.setdefault(key, {})[r["workload"]] = r["answers"]
-    return envs, answers
+        elif r["type"] == "answers_error":
+            errors.setdefault(key, {})[r["workload"]] = f"status {r.get('status')}: {r.get('detail')}"
+    return envs, answers, errors
 
 
 def outcome(answer):
@@ -217,7 +220,7 @@ def path(env, rows):
 
 def parity(records, ref):
     """Answers of every run against the reference config, with the tolerances declared in advance."""
-    envs, answers = read_answers(records)
+    envs, answers, errors = read_answers(records)
     refs = sorted(k for k in answers if k[0] == ref)
     if not refs:
         return f"no answers for reference config {ref}"
@@ -230,20 +233,25 @@ def parity(records, ref):
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     failed = total = 0
-    for key in sorted(answers):
+    for key in sorted(envs.keys() | answers.keys() | errors.keys()):  # a run with no answers at all still counts
         if key == ref_key:
             continue
         env = envs.get(key, {})
         for workload, questions in sorted(reference.items()):
-            got = answers[key].get(workload)
+            got = answers.get(key, {}).get(workload)
             if got is None:
-                lines.append(f"| {key[0]} | {key[1]} | {workload} | | | | missing | | | FAIL |")
+                why = errors.get(key, {}).get(workload, "missing")
+                lines.append(f"| {key[0]} | {key[1]} | {workload} | | | | {why} | | | FAIL |")
                 failed += 1
                 total += 1
                 continue
             precision = path(env, len(questions))
             for qid, ref_answer in sorted(questions.items()):
                 total += 1
+                if qid not in got:
+                    lines.append(f"| {key[0]} | {key[1]} | {workload} | {qid} | | | missing | | | FAIL |")
+                    failed += 1
+                    continue
                 ref_decision, ref_probs = outcome(ref_answer)
                 decision, probs = outcome(got[qid])
                 delta = max(abs(ref_probs.get(o, 0.0) - probs.get(o, 0.0)) for o in ref_probs.keys() | probs.keys())

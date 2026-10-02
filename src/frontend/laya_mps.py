@@ -84,6 +84,7 @@ def build_app(
         """Warm the checkpoint up and start describing it. Returns where it is if not on the requested device."""
         nonlocal graphs_at_ready
         warmed = engine.warmup(router, name)
+        warmed["revision"] = engine.loaded_revision(revisions, warmed["routing"])  # fixed here: see engine
         resident[name] = (agent, warmed)
         autocast_rows = getattr(agent, "mps_amp_min_rows", None)
         if str(agent.device).startswith("mps") and autocast_rows and autocast_rows > engine.WARMUP_MAX_ROWS:
@@ -96,7 +97,7 @@ def build_app(
             )
         if compile:
             graphs_at_ready = graph_counter()
-        described = engine.describe(agent, requested, warmed["routing"], revisions)
+        described = engine.describe(agent, requested, warmed["routing"], warmed["revision"])
         return f"{name} is on {described['device']}" if described["device_mismatch"] else None
 
     def check_device(misplaced: list[str]) -> None:
@@ -149,7 +150,10 @@ def build_app(
     def current() -> dict[str, Any]:
         """The agents as they are now, not as they were at startup (see the module docstring)."""
         models = {
-            name: {**engine.describe(agent, requested, warmed["routing"], revisions), "warmup_ms": warmed["warmup_ms"]}
+            name: {
+                **engine.describe(agent, requested, warmed["routing"], warmed["revision"]),
+                "warmup_ms": warmed["warmup_ms"],
+            }
             for name, (agent, warmed) in list(resident.items())
         }
         return {

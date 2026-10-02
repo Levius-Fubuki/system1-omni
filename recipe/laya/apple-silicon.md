@@ -30,7 +30,8 @@ The last command must print `True`. The standard macOS arm64 wheel of torch incl
 PYTHONPATH=src .venv/bin/python -m frontend.laya_mps --device mps --model english --require-device --port 8000
 ```
 
-First startup downloads the checkpoint (about 850 MB). The worker loads the model, runs a warmup
+First startup downloads the checkpoint (846 MB; 97 s into an empty cache at 8.7 MB/s when measured). The
+worker loads the model, runs a warmup
 over short, long and multi-question requests, and only then listens on port 8000, so the first
 request it accepts is already warm: on an M1 Pro the first request after ready took 70–81 ms, against
 0.7–1.1 s from plain laya-serve. `--require-device` makes it exit instead of silently serving on the CPU
@@ -82,7 +83,7 @@ together lowered warm p50 against the worker without them by 37–38% for a 68-t
 request (about 57 → 35 ms in those runs), 17–20% at 198–484 tokens, 14% for three questions and 18% for
 six. Answers stayed within 0.0031 of the fp32 worker's. A worker running on its own uses about 3 GB
 with the options instead of 4.2 GB (2.8 GB against 3.5 GB in those paired runs, where the two workers
-shared the machine). The price is startup: the worker became ready after 35–39 s instead of 8–10 s, and
+shared the machine), measured on the six benchmark inputs; see below for how it grows. The price is startup: the worker became ready after 35–39 s instead of 8–10 s, and
 its first request after that took 62–78 ms.
 
 On an M5 the same paired comparison gave median ratios of 0.51–0.53 for one-question requests at
@@ -90,6 +91,24 @@ On an M5 the same paired comparison gave median ratios of 0.51–0.53 for one-qu
 the fp16 weights, which on that GPU speed up every input even without compile. There the worker was
 ready after 19 s instead of 3 s; its first request took 21–36 ms in 21 of 23 fresh starts and 327 and
 409 ms in the other two, not yet explained (132–143 ms from plain laya-serve).
+
+### What the warm numbers leave out
+
+The latencies above are for requests sent back to back. Measured on the M1 Pro:
+
+- **Idle gaps.** A request that follows a pause is slower, with or without the options, because the GPU
+  has slowed down in the meantime. For a short one-question request (25 ms back to back with the options,
+  40 ms without) it took about 50 ms after 0.2–1 s of idle and 105–115 ms after 2–5 s (60–68 ms and
+  114–127 ms without the options). This is also why the first request after ready costs more than a warm
+  one. An agent that asks once every few seconds sees these numbers, not the back-to-back ones. A
+  heartbeat of one forward pass every 0.5 s held it at about 45 ms in a probe, for 8% GPU load; the worker
+  does not do this.
+- **New input lengths.** The first request of a length the worker has not seen costs about 15 ms more
+  once with the options (6 ms without). It is not a recompile (`recompiled_after_ready` stays `false`).
+- **Memory grows with the lengths seen.** With both options, what PyTorch caches per input length adds
+  about 5 MB each: the 3 GB below became 3.3 GB after 100 new lengths and 5.3 GB after all 477, more than
+  the 4.0 GB of a worker without the options, whose footprint did not grow. `torch.mps.empty_cache()`
+  releases it, and those lengths then pay their first-request cost again.
 
 `/health` reports under `compile` how many graphs existed when the worker became ready and how many
 exist now; `recompiled_after_ready: true` means a request shape was not covered by the warmup.
@@ -130,6 +149,16 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/laya                    # unit t
 LAYA_CONTRACT=1 PYTHONPATH=src .venv/bin/python -m pytest tests/laya    # plus contract tests against a CPU worker
 ```
 
+The contract tests start a real worker and check readiness, the three decision types, error responses, and
+that its answers match Laya run directly in fp32 on the CPU. On an Apple Silicon Mac, run them against the
+GPU as well, without and with the options:
+
+```sh
+LAYA_CONTRACT=1 LAYA_CONTRACT_DEVICE=mps PYTHONPATH=src .venv/bin/python -m pytest tests/laya/test_contract.py
+LAYA_CONTRACT=1 LAYA_CONTRACT_DEVICE=mps LAYA_CONTRACT_FLAGS="--compile --weights fp16" \
+  PYTHONPATH=src .venv/bin/python -m pytest tests/laya/test_contract.py
+```
+
 ## Benchmark
 
 Stop the worker and frontend first; the benchmark starts its own. The scripts are listed in
@@ -156,6 +185,6 @@ Runs labelled anything other than `feasibility` refuse to start on battery power
 - `device_mismatch: true` on a worker that started on MPS: Laya fell back to the CPU after a GPU
   out-of-memory error. It keeps answering, several times slower; free memory and restart the worker
   to get back on the GPU.
-- The worker process uses about 4 GB, or 3 GB with fp16 weights (Activity Monitor's Memory column,
-  which counts MPS allocations), with one checkpoint loaded; a second one Laya loads later adds its own. On a 16 GB Mac, close other large applications before benchmarking.
+- The worker process uses about 4 GB, or 3 GB with fp16 weights growing towards 5 GB as it sees more input
+  lengths (Activity Monitor's Memory column, which counts MPS allocations), with one checkpoint loaded; a second one Laya loads later adds its own. On a 16 GB Mac, close other large applications before benchmarking.
 - `Address already in use`: another worker or frontend still holds port 8000 or 8080.

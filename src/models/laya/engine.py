@@ -42,12 +42,24 @@ def warmup(router: Any, model: str, shapes=WARMUP_SHAPES, repeats: int = WARMUP_
     return {"warmup_ms": round((time.perf_counter() - started) * 1000, 1), "routing": routing}
 
 
+def _checkpoint_name(repo_id: str, allow_patterns: Any) -> str:
+    """laya's name for what one download fetched: "<repo>", or "<repo>/<subfolder>" for a bundled checkpoint.
+    laya restricts each download to one checkpoint's files, which all sit under its subfolder if it has one."""
+    patterns = [allow_patterns] if isinstance(allow_patterns, str) else list(allow_patterns or [""])
+    folders = {pattern.split("/")[0] if "/" in pattern else "" for pattern in patterns}
+    subfolder = folders.pop() if len(folders) == 1 else ""
+    return f"{repo_id}/{subfolder}" if subfolder else repo_id
+
+
 def record_snapshot_revisions() -> dict[str, str]:
-    """Record the commit each Hugging Face checkpoint is loaded from, keyed by repo id.
+    """Record the commit each Hugging Face checkpoint was last downloaded at, keyed by laya's name for it
+    (`routing["repo"]`).
 
     laya calls huggingface_hub.snapshot_download while loading and keeps only the repo id; the
     returned path (.../snapshots/<commit>/...) is the only place the loaded revision appears. Call this
-    before the router loads anything. A checkpoint loaded from a local path records nothing.
+    before the router loads anything. A checkpoint loaded from a local path records nothing. An entry
+    changes when the same checkpoint is downloaded again, so read it with `loaded_revision` right after a
+    checkpoint has loaded and keep that value.
     """
     import huggingface_hub
 
@@ -58,15 +70,21 @@ def record_snapshot_revisions() -> dict[str, str]:
         path = original(repo_id, *args, **kwargs)
         parts = Path(path).parts
         if "snapshots" in parts[:-1]:
-            revisions[repo_id] = parts[parts.index("snapshots") + 1]
+            name = _checkpoint_name(repo_id, kwargs.get("allow_patterns"))
+            revisions[name] = parts[parts.index("snapshots") + 1]
         return path
 
     huggingface_hub.snapshot_download = recording
     return revisions
 
 
+def loaded_revision(revisions: dict[str, str] | None, routing: dict[str, Any] | None) -> str | None:
+    """The commit of the checkpoint that has just loaded, if it was downloaded."""
+    return (revisions or {}).get((routing or {}).get("repo"))
+
+
 def describe(
-    agent: Any, requested: str | None, routing: dict[str, Any] | None, revisions: dict[str, str] | None = None
+    agent: Any, requested: str | None, routing: dict[str, Any] | None, revision: str | None = None
 ) -> dict[str, Any]:
     """What /health reports about one loaded agent, read from the agent as it is now."""
     device = str(getattr(agent, "device", "unknown"))
@@ -76,9 +94,6 @@ def describe(
     except (AttributeError, StopIteration, TypeError):
         weights = None
     repo = (routing or {}).get("repo")
-    # laya names a bundled checkpoint "<owner>/<repo>/<subfolder>"; the download is recorded under "<owner>/<repo>".
-    revisions = revisions or {}
-    revision = revisions.get(repo) or revisions.get("/".join(str(repo).split("/")[:2]))
     requested_type = requested.split(":")[0] if requested else None
     return {
         "device": device,

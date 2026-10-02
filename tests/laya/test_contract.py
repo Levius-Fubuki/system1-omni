@@ -1,12 +1,17 @@
-"""Contract tests against a real worker process on CPU. They load the Laya checkpoint, so they only run
-with LAYA_CONTRACT=1:
+"""Contract tests against a real worker process. They load the Laya checkpoint, so they only run with
+LAYA_CONTRACT=1. The worker runs on the CPU unless LAYA_CONTRACT_DEVICE says otherwise; on an Apple Silicon
+Mac the same contract is checked on the GPU, with and without the options:
 
     LAYA_CONTRACT=1 PYTHONPATH=src python -m pytest tests/laya/test_contract.py
+    LAYA_CONTRACT=1 LAYA_CONTRACT_DEVICE=mps PYTHONPATH=src python -m pytest tests/laya/test_contract.py
+    LAYA_CONTRACT=1 LAYA_CONTRACT_DEVICE=mps LAYA_CONTRACT_FLAGS="--compile --weights fp16" \
+        PYTHONPATH=src python -m pytest tests/laya/test_contract.py
 """
 
 import http.client
 import json
 import os
+import shlex
 import socket
 import statistics
 import subprocess
@@ -19,6 +24,9 @@ import pytest
 pytestmark = pytest.mark.skipif(os.environ.get("LAYA_CONTRACT") != "1", reason="set LAYA_CONTRACT=1")
 
 SRC = Path(__file__).resolve().parents[2] / "src"
+DEVICE = os.environ.get("LAYA_CONTRACT_DEVICE", "cpu")
+FLAGS = shlex.split(os.environ.get("LAYA_CONTRACT_FLAGS", ""))
+CHECKPOINT = "convaiinnovations/laya"
 TOKEN = "contract-test-token"
 STATE = "I was charged twice for my order. Please refund the duplicate today."
 CHOICE = {
@@ -68,23 +76,28 @@ def worker():
         "-m",
         "frontend.laya_mps",
         "--device",
-        "cpu",
+        DEVICE,
+        "--require-device",
         "--model",
         "english",
         "--port",
         str(port),
         "--log-level",
         "warning",
+        *FLAGS,
     ]
     process = subprocess.Popen(command, env=env)
     deadline = time.monotonic() + 600
+    startup["refused"] = 0
     while time.monotonic() < deadline:
         assert process.poll() is None, f"worker exited with {process.returncode}"
         try:
-            status, _, _ = call(port, "GET", "/health")
+            status, body, _ = call(port, "GET", "/health")
             if status == 200:
+                startup["first_health"] = json.loads(body)
                 break
         except OSError:
+            startup["refused"] += 1
             time.sleep(0.1)
     else:
         pytest.fail("worker not ready in 600 s")
@@ -95,23 +108,51 @@ def worker():
     process.wait(timeout=30)
 
 
+startup = {}
+
+
+@pytest.fixture(scope="module")
+def reference():
+    """Laya itself, in this process on the CPU in fp32: what the worker's answers are compared with."""
+    import laya
+
+    return laya.load(CHECKPOINT, device="cpu")
+
+
 def test_health_reports_the_loaded_model(worker):
     port, _ = worker
     status, body, _ = call(port, "GET", "/health")
     health = json.loads(body)
     assert status == 200
     assert health["ready"] is True
-    assert health["device"] == "cpu"
+    assert health["device"] == DEVICE
     assert health["device_mismatch"] is False
-    assert health["checkpoint"] == "convaiinnovations/laya"
+    assert health["checkpoint"] == CHECKPOINT
     assert health["loaded"] == ["english"]
+    assert health["weights_dtype"] == ("torch.float16" if "fp16" in FLAGS else "torch.float32")
+    assert len(health["revision"]) == 40
 
 
-def test_first_request_after_ready_is_warm(worker):
+def test_the_port_opens_only_after_the_warmup(worker):
+    assert startup["refused"] > 0  # nothing listened while the model loaded and warmed up
+    assert startup["first_health"]["ready"] is True and startup["first_health"]["warmup_ms"] > 0
+
+
+def test_the_checkpoint_stays_loaded_across_requests(worker):
+    port, _ = worker
+    for _ in range(5):
+        assert decide(port, {"q": NOUL})[0] == 200
+    health = json.loads(call(port, "GET", "/health")[1])
+    assert health["loaded"] == ["english"] and health["warmup_ms"] == startup["first_health"]["warmup_ms"]
+
+
+def test_first_request_after_ready_is_not_a_cold_start(worker):
     port, (status, _, first_ms) = worker
     assert status == 200
-    warm = [decide(port, {"q": CHOICE})[2] for _ in range(20)]
-    assert first_ms <= 2 * statistics.median(warm), f"first {first_ms:.0f} ms, warm p50 {statistics.median(warm):.0f}"
+    warm = statistics.median(decide(port, {"q": CHOICE})[2] for _ in range(20))
+    # Without the warmup the first request costs several hundred ms more than a warm one. A few tens of ms
+    # remain on MPS: the GPU has been idle since the warmup, and any request after a pause pays that.
+    assert first_ms <= warm + 100, f"first {first_ms:.0f} ms, warm p50 {warm:.0f} ms"
 
 
 @pytest.mark.parametrize(
@@ -140,6 +181,37 @@ def test_decisions(worker, questions, kinds):
             assert sum(answer["probabilities"].values()) == pytest.approx(1.0, abs=1e-3)
         if kind == "choice":
             assert answer["choice"] in CHOICE["criteria"]
+
+
+SIX = {f"q{i}": q for i, q in enumerate([CHOICE, SCORE, NOUL, CHOICE, SCORE, NOUL])}
+
+
+@pytest.mark.parametrize(
+    "questions",
+    [{"q": CHOICE}, {"q": SCORE}, {"q": NOUL}, {"a": CHOICE, "b": SCORE, "c": NOUL}, SIX],
+    ids=["choice", "score", "noul", "combined", "six-questions"],
+)
+def test_answers_match_laya_itself(worker, reference, questions):
+    port, _ = worker
+    status, body, _ = decide(port, questions)
+    assert status == 200
+    served = json.loads(body)
+    expected = reference.system_one(STATE, questions)
+    assert set(expected) <= set(served)  # the worker adds `routing`, it drops nothing
+    assert served["usage"] == expected["usage"]
+    reduced = "fp16" in FLAGS or (DEVICE == "mps" and len(questions) >= startup["first_health"]["mps_amp_min_rows"])
+    tolerance = 1e-2 if reduced else 1e-3
+    for qid, want in expected["answers"].items():
+        got = served["answers"][qid]
+        assert set(got) == set(want)
+        if want["type"] == "noul":
+            assert got["noul"] == pytest.approx(want["noul"], abs=tolerance)
+            continue
+        assert set(got["probabilities"]) == set(want["probabilities"])
+        for option, p in want["probabilities"].items():
+            assert got["probabilities"][option] == pytest.approx(p, abs=tolerance)
+        if want["type"] == "choice":
+            assert got["choice"] == want["choice"] == max(got["probabilities"], key=got["probabilities"].get)
 
 
 def test_same_request_same_answer(worker):

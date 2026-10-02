@@ -192,15 +192,22 @@ def summarize(paths):
                 answers.setdefault(r["workload"], {})[r["side"]] = r
         worst, flips, errors = 0.0, [], []
         for wid, sides in answers.items():
-            if sides["A"]["error"] or sides["B"]["error"]:
+            if any(sides.get(s, {"error": "missing"}).get("error") for s in "AB"):
                 errors.append(wid)
                 continue
             for q, a in sides["A"]["answers"].items():
-                b = sides["B"]["answers"][q]
-                worst = max(worst, max(abs(flat(a)[k] - flat(b)[k]) for k in flat(a)))
+                b = sides["B"]["answers"].get(q)
+                if b is None:
+                    errors.append(f"{wid}/{q}")
+                    continue
+                worst = max(worst, max(abs(flat(a)[k] - flat(b).get(k, 0.0)) for k in flat(a)))
                 if decision(a) != decision(b):
                     flips.append((wid, q, round(margin(a), 4)))
-        end = next(r for r in records if r["type"] == "end")
+        print(f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}; failed pairs: {failed}")
+        end = next((r for r in records if r["type"] == "end"), None)
+        if end is None:
+            print("**The run did not finish: no end record, so no device, recompile or memory check.**\n")
+            continue
         compile_state = {s: h.get("compile", {}).get("recompiled_after_ready") for s, h in end["health"].items()}
         devices = {s: h.get("device") for s, h in end["health"].items()}
         off_gpu = [
@@ -209,7 +216,6 @@ def summarize(paths):
             if h.get("device_mismatch")
             or (h.get("compile", {}).get("enabled") and not h["compile"].get("active", True))
         ]
-        print(f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}; failed pairs: {failed}")
         print(f"recompiled after ready: {compile_state}; device at end: {devices}; footprint MB: {end['footprint_mb']}")
         if off_gpu:
             print(
