@@ -35,13 +35,16 @@ over short, long and multi-question requests, and only then listens on port 8000
 request it accepts is already warm: on an M1 Pro the first request after ready took 70–81 ms, against
 0.7–1.1 s from plain laya-serve. `--require-device` makes it exit instead of silently serving on the CPU
 when the model cannot be placed on MPS; without it the worker logs a warning and serves from the CPU.
-laya-serve's environment variables still apply, e.g. `LAYA_API_KEY` for bearer authentication.
+Of laya-serve's environment variables, `LAYA_API_KEY` (bearer authentication) still applies. Those its
+launcher reads do not: device, model, host, port and log level are the flags above, and `LAYA_THREADS` and
+`LAYA_AUTO_TASK` are not read. The worker warns at startup if any of them is set.
 
 Laya loads another checkpoint when a request names it (`"model": "multilingual"`) or its routing picks it
 (a non-English state). The worker prepares that checkpoint the same way inside that first request, so
 that request takes seconds (other requests wait behind it; `/health` names it under `preparing`
 meanwhile), and `/health` lists it from then on. With `--require-device`, a checkpoint
-that does not land on the requested device is unloaded again and the request fails with 500.
+that does not land on the requested device is unloaded again and the request fails with 500. If Laya
+evicted another checkpoint to make room for it (it keeps two by default), the worker loads that one again.
 
 Check what it is running on:
 

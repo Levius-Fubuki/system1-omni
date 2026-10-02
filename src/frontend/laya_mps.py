@@ -16,19 +16,43 @@ It is laya-serve (`laya[serve]==0.3.20`) with its request handling unchanged and
 - `--compile` and `--weights fp16` make the GPU path faster (models/laya/optimize.py). Both apply on
   the GPU only; on the CPU, including after a fallback, the worker runs laya's fp32 model uncompiled.
 
-laya-serve's own environment variables still apply, notably LAYA_API_KEY for bearer authentication.
+Of laya-serve's environment variables, the ones its app reads still apply, notably LAYA_API_KEY for bearer
+authentication. The ones its launcher reads do not, because the flags above replace it: LAYA_DEVICE,
+LAYA_MODELS, LAYA_PRELOAD, LAYA_HOST, LAYA_PORT, LAYA_LOG_LEVEL, LAYA_THREADS and LAYA_AUTO_TASK. The
+worker warns at startup about any of those that are set.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from typing import Any
 
 from models.laya import engine, optimize
 
 log = logging.getLogger("laya-worker")
+
+# Read by laya-serve's launcher (laya.serve.build_router and main), which this worker does not run.
+UNREAD_LAYA_SERVE_VARIABLES = (
+    "LAYA_DEVICE",
+    "LAYA_MODELS",
+    "LAYA_PRELOAD",
+    "LAYA_HOST",
+    "LAYA_PORT",
+    "LAYA_LOG_LEVEL",
+    "LAYA_THREADS",
+    "LAYA_AUTO_TASK",
+)
+
+
+class Lifecycle:
+    """laya Router hooks that hand checkpoint loads and evictions to one worker app."""
+
+    def __init__(self, on_load, on_evict):
+        self.on_load = on_load
+        self.on_evict = on_evict
 
 
 def build_app(
@@ -82,31 +106,42 @@ def build_app(
                 raise RuntimeError(message)
             log.warning(message)
 
-    class Lifecycle:
-        """laya Router hooks: a checkpoint loaded while serving is prepared like the ones loaded at startup,
-        or not kept at all; an evicted one is no longer described."""
+    evicted: list[str] = []  # what laya dropped to make room for the checkpoint it is loading
 
-        def on_load(self, ctx: Any) -> None:
-            preparing.add(ctx.model)
-            try:
-                apply_options(ctx.model, ctx.agent)
-                check_device(list(filter(None, [make_ready(ctx.model, ctx.agent)])))
-            except Exception:
-                log.exception("%s could not be prepared and is unloaded", ctx.model)
-                router.unload(ctx.model)
-                raise
-            finally:
-                preparing.discard(ctx.model)
+    def on_evict(ctx: Any) -> None:
+        resident.pop(ctx.model, None)
+        evicted.append(ctx.model)
 
-        def on_evict(self, ctx: Any) -> None:
-            resident.pop(ctx.model, None)
+    def on_load(ctx: Any) -> None:
+        """A checkpoint loaded while serving is prepared like the ones loaded at startup, or not kept at all;
+        in that case the checkpoints laya evicted for it are loaded again."""
+        made_room = [name for name in evicted if name != ctx.model]
+        evicted.clear()
+        preparing.add(ctx.model)
+        try:
+            apply_options(ctx.model, ctx.agent)
+            check_device(list(filter(None, [make_ready(ctx.model, ctx.agent)])))
+        except Exception:
+            log.exception("%s could not be prepared and is unloaded", ctx.model)
+            router.unload(ctx.model)
+            evicted.clear()
+            for name in made_room:
+                try:
+                    router.load(name)
+                except Exception:  # noqa: BLE001 -- the request fails for the first reason either way
+                    log.exception("%s was evicted for %s and could not be loaded again", name, ctx.model)
+            raise
+        finally:
+            preparing.discard(ctx.model)
 
     names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
     startup = {name: router.load(name) for name in names}
     for name, agent in startup.items():
         apply_options(name, agent)
     check_device(list(filter(None, [make_ready(name, agent) for name, agent in startup.items()])))
-    router.add_hook(Lifecycle())
+    for hook in [h for h in getattr(router, "hooks", ()) if isinstance(h, Lifecycle)]:
+        router.remove_hook(hook)  # an app built earlier on this router
+    router.add_hook(Lifecycle(on_load, on_evict))
 
     def current() -> dict[str, Any]:
         """The agents as they are now, not as they were at startup (see the module docstring)."""
@@ -175,6 +210,9 @@ def main() -> None:
     import uvicorn
 
     logging.basicConfig(level=args.log_level.upper(), format="%(name)s: %(message)s")
+    unread = [name for name in UNREAD_LAYA_SERVE_VARIABLES if os.environ.get(name)]
+    if unread:
+        log.warning("%s: read by laya-serve's launcher, not by this worker; use the flags", ", ".join(unread))
     revisions = engine.record_snapshot_revisions()
     try:
         app = build_app(

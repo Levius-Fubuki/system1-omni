@@ -12,6 +12,7 @@ through the Rust frontend). The summary reports, per input, the median of the pe
 """
 
 import argparse
+import http.client
 import json
 import os
 import random
@@ -106,7 +107,10 @@ def run(args):
                     first, second = ("A", "B") if i % 2 == 0 else ("B", "A")
                     ms = {}
                     for s in (first, second):
-                        t, status, _ = clients[s].request("POST", "/v1/systemone", body, retry=True)
+                        try:
+                            t, status, _ = clients[s].request("POST", "/v1/systemone", body)
+                        except (OSError, http.client.HTTPException):
+                            t, status = None, 0
                         ms[s] = t if status == 200 else None
                     if i >= args.discard:
                         emit(
@@ -131,7 +135,11 @@ def run(args):
     finally:
         for p in procs.values():
             p.terminate()
-            p.wait(timeout=30)
+        for p in procs.values():
+            try:
+                p.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                p.kill()
     print(out_dir / f"paired_{args.run}.jsonl")
 
 
@@ -165,10 +173,12 @@ def summarize(paths):
         env = next(r for r in records if r["type"] == "env")
         print(f"## {env['run']}: A = `{env['a']}`, B = `{env['b']}`, load at start {env['loadavg_1m']}\n")
         print("| input | pairs | A p50 ms | B p50 ms | median B/A | 95% interval |\n|---|---|---|---|---|---|")
-        pairs = {}
+        pairs, failed = {}, 0
         for r in records:
             if r["type"] == "pair" and r["a_ms"] and r["b_ms"]:
                 pairs.setdefault(r["workload"], []).append(r)
+            elif r["type"] == "pair":
+                failed += 1
         for wid in sorted(pairs):
             ps = pairs[wid]
             med, lo, hi = median_interval([p["b_ms"] / p["a_ms"] for p in ps])
@@ -192,8 +202,20 @@ def summarize(paths):
                     flips.append((wid, q, round(margin(a), 4)))
         end = next(r for r in records if r["type"] == "end")
         compile_state = {s: h.get("compile", {}).get("recompiled_after_ready") for s, h in end["health"].items()}
-        print(f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}")
-        print(f"recompiled after ready: {compile_state}; footprint MB: {end['footprint_mb']}\n")
+        devices = {s: h.get("device") for s, h in end["health"].items()}
+        off_gpu = [
+            s
+            for s, h in end["health"].items()
+            if h.get("device_mismatch")
+            or (h.get("compile", {}).get("enabled") and not h["compile"].get("active", True))
+        ]
+        print(f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}; failed pairs: {failed}")
+        print(f"recompiled after ready: {compile_state}; device at end: {devices}; footprint MB: {end['footprint_mb']}")
+        if off_gpu:
+            print(
+                f"**Side {', '.join(off_gpu)} left its device or compiled path during the run; the ratios above mix both.**"
+            )
+        print()
 
 
 def main():

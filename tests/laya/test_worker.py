@@ -49,6 +49,9 @@ class FakeRouter:
     def add_hook(self, hook):
         self.hooks.append(hook)
 
+    def remove_hook(self, hook):
+        self.hooks.remove(hook)
+
     def unload(self, name):
         self.agents.pop(name, None)
         for hook in self.hooks:
@@ -481,3 +484,57 @@ def test_health_names_a_checkpoint_while_it_is_being_prepared():
     router.load_while_serving("multilingual", FakeAgent())
     assert seen[0] == ["multilingual"]
     assert client.get("/health").json()["preparing"] == []
+
+
+class StubAgent:
+    """Stands in for laya.agent.Agent under laya's real Router: no weights, fixed answers."""
+
+    devices: dict = {}  # subfolder -> the device that checkpoint lands on
+
+    def __init__(self, repo, device=None, token=None, subfolder=None):
+        self.device = self.devices.get(subfolder, device)
+        self.dtype = "torch.float16"
+        self.mps_amp_min_rows = 5
+
+    def system_one(self, state, questions, lang=None, **_):
+        return {"model": "stub", "answers": {qid: ANSWER for qid in questions}, "usage": {}}
+
+
+def test_a_failed_late_load_gives_back_the_checkpoint_laya_evicted_for_it(monkeypatch):
+    import laya.agent
+    from laya.router import Router
+
+    monkeypatch.setattr(laya.agent, "Agent", StubAgent)
+    monkeypatch.setattr(StubAgent, "devices", {"typed-decisions": "cpu"})
+    router = Router(device="mps")
+    router.preload(["english", "multilingual"])  # laya keeps two checkpoints by default
+    client = TestClient(worker.build_app(router, "english", "mps", require_device=True))
+    with pytest.raises(RuntimeError, match="typed-decisions is on cpu"):
+        router.predict("refund me", {"r": {"type": "noul", "instructions": "?"}}, model="typed-decisions")
+    assert sorted(router.loaded) == ["english", "multilingual"]
+    health = client.get("/health").json()
+    assert set(health["models"]) == {"english", "multilingual"}
+    assert health["preparing"] == []
+
+
+def test_building_a_second_app_on_a_router_replaces_the_first_apps_hooks():
+    router = FakeRouter()
+    worker.build_app(router, "english", "mps")
+    worker.build_app(router, "english", "mps")
+    assert len(router.hooks) == 1
+    before = len(router.calls)
+    router.load_while_serving("multilingual", FakeAgent())
+    assert len(router.calls) - before == len(engine.WARMUP_SHAPES) * engine.WARMUP_REPEATS
+
+
+def test_main_warns_about_laya_serve_variables_it_does_not_read(monkeypatch, caplog):
+    monkeypatch.setattr(worker, "make_router", lambda device, model: FakeRouter())
+    monkeypatch.setattr(worker.logging, "basicConfig", lambda **kw: None)
+    monkeypatch.setattr("uvicorn.run", lambda app, **kw: None)
+    monkeypatch.setattr(sys, "argv", ["laya_mps", "--device", "mps"])
+    monkeypatch.setenv("LAYA_THREADS", "4")
+    monkeypatch.setenv("LAYA_API_KEY", "k")
+    with caplog.at_level("WARNING", logger="laya-worker"):
+        worker.main()
+    assert "LAYA_THREADS" in caplog.text
+    assert "LAYA_API_KEY" not in caplog.text

@@ -81,7 +81,7 @@ def wait_ready(url, processes, timeout_s):
             _, status, body = client.request("GET", "/health")
             if status == 200:
                 return time.perf_counter() - started, json.loads(body)
-        except OSError:
+        except (OSError, http.client.HTTPException):
             pass
         finally:
             client.close()
@@ -315,7 +315,11 @@ def main():
     finally:
         for proc in processes.values():
             proc.terminate()
-            proc.wait(timeout=30)
+        for proc in processes.values():
+            try:
+                proc.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                proc.kill()
     print(out)
 
 
