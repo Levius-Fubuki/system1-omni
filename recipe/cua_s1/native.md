@@ -44,3 +44,6 @@ CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
 
 For CPU-only structural inspection of the separate vision base weights and
 multimodal adapter, see [native vision checkpoint inspection](native_vision.md).
+
+For the separate decoded-RGB8 CPU preprocessing API and example, see
+[native image preprocessing](native_image_preprocess.md).

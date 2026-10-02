@@ -26,3 +26,10 @@ tokio = { version = "1.49.0", features = ["macros", "net", "rt-multi-thread", "s
 [[test]]
 name = "vision_loader"
 path = "../../../../tests/cua_s1/vision_loader.rs"
+
+[[test]]
+name = "image_preprocess"
+path = "../../../../tests/cua_s1/image_preprocess.rs"
+
+[dev-dependencies]
+sha2 = "0.10"

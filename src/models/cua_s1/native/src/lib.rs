@@ -5,6 +5,7 @@
 pub mod contract;
 pub mod cuda;
 pub mod engine;
+pub mod image_preprocess;
 pub mod json;
 pub mod model;
 
