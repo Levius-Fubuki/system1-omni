@@ -98,16 +98,13 @@ preserving both BF16 rounding points and removing one launch and one output
 read/write pass per full-attention layer (16 layers for this model). Residual
 RMSNorm keeps thread values in registers at widths 2560/5120. MLP SiLU uses
 16-byte BF16 loads/stores when width, stride and pointers permit it, retaining
-both BF16 rounding points; other layouts use the scalar path. See the
-[L20X validation](validation.md) for the measured scope and variability.
+both BF16 rounding points; other layouts use the scalar path.
 
 This recipe leaves `CUA_S1_GRAPH` unset and runs one eager forward pass per
 candidate. The shared backend retains Cua-S1's opt-in CUDA Graph path, but
 Open-Jev graph replay remains unvalidated. Prefix sharing, GEMM autotuning,
-quantization and multimodal inference are not implemented. The L20X comparison does not establish a general speedup over OpenJev-Fast. Merged
-weights, CUDA attention/Gated DeltaNet, and the CPU head's accumulation order
-can change probabilities; full-checkpoint comparisons are required before
-treating this worker as an accuracy-validated replacement.
-
-[OpenJev-Fast](https://yiqilyu.me/open-jev-fast/) motivates the fusion approach;
-its B300 measurements do not apply to this worker.
+quantization and multimodal inference are not implemented. The
+[L20X validation](validation.md) reports full-checkpoint results for 74
+single-candidate requests, including probability differences and timing
+variability. It does not establish general accuracy parity or a speedup over
+OpenJev-Fast; the author's B300 results use different hardware and workloads.

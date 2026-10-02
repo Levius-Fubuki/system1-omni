@@ -1,7 +1,7 @@
 # Open-Jev L20X validation, 2026-10-02
 
 A matched comparison of 74 real JevBench `noul` requests, each with one candidate,
-validated the shared CUDA residual RMSNorm and packed MLP SiLU changes.
+measured packed MLP SiLU with cached residual RMSNorm fixed in both native variants.
 All 74 native decisions and probabilities were exactly unchanged by packed SiLU;
 the native worker scored 64/74 correct. OpenJev-Fast scored 63/74, with one different
 decision (`hard-opus-a-temporal_numeric-09`) and maximum native/Fast probability
@@ -46,8 +46,7 @@ tables, so this does not imply identical rows, fusion boundaries or arithmetic.
 The prespecified acceptance gates were five GPU tests, unchanged native decisions,
 maximum probability delta ≤0.01, ≥25% long SiLU duration reduction and ≥2% warm HTTP
 mean reduction with disjoint observed ranges. All passed; no extra measured runs
-were added. An earlier TF32 inverse candidate failed the probability gate; a
-512-thread GDN candidate missed the performance gates. Neither is included here.
+were added. Final integration also passed the six-test shared CUDA ABI 4 suite.
 
 ## Frozen controls and reproduction
 
@@ -78,10 +77,10 @@ packed native and Fast once each, reusing each server for one excluded feasibili
 and two measured passes. Separately trace two requests at each 107/936/3399 tokens
 per configuration with Nsight Systems CUDA/node tracing: 18 traces total.
 
-Local raw bodies, timing rows, SHA256 manifests, complete reproduction commands,
-18 `.nsys-rep`/SQLite pairs and plots are archived in
-`profile/jev-single-candidate-silu-pack8-20261002/`; profiling artifacts are not
-tracked in Git. Nsight Compute counters are denied by the host policy. Geometry,
+Raw bodies, timing rows, SHA256 manifests, reproduction commands,
+18 `.nsys-rep`/SQLite pairs and plots are archived locally in the benchmark
+worktree's `profile/jev-single-candidate-silu-pack8-20261002/`, outside this PR.
+Nsight Compute counters are denied by the host policy. Geometry,
 register/shared-memory metadata and CUDA timelines are available; achieved
 occupancy, per-SM tails, stalls, Tensor Core utilization and bandwidth/cache
 efficiency are unmeasured. No hardware-cause claim follows from timeline data alone.

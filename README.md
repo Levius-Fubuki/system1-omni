@@ -66,8 +66,9 @@ CUDA and Metal coverage will be documented per model as implementations are adde
 ## Benchmarks
 
 See the [GPU serving benchmark](benchmarks/README.md) for request replay,
-output-fidelity checks, and the CUDA comparison protocol. GPU performance
-measurements are pending.
+output-fidelity checks, and the CUDA comparison protocol. The
+[Open-Jev L20X results](recipe/open_jev/validation.md) cover 74 single-candidate
+requests and a matched comparison with OpenJev-Fast.
 
 ## Stay Tuned with Us
 

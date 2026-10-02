@@ -1,4 +1,4 @@
-# Qwen3.5 prefill operations
+# Qwen3.5/3.8 prefill operations
 
 CUDA kernels for a prefill-only Qwen3.5/3.8 forward pass, built into `libqwen3_5_cuda.so` with a C interface ([`ops.h`](ops.h)), so that a Rust model engine loads it at run time and builds without a CUDA toolkit. The Cua-S1 and Open-Jev native workers share the layer loop and buffers in [`src/models/qwen3_5/native/`](../../../models/qwen3_5/native/).
 

@@ -22,29 +22,14 @@ pub struct Question {
     pub legend: Option<Value>,
 }
 
-fn sorted(value: &Value) -> Value {
-    match value {
-        Value::Object(map) => {
-            let mut entries: Vec<_> = map.iter().collect();
-            entries.sort_by(|a, b| a.0.cmp(b.0));
-            Value::Object(
-                entries
-                    .into_iter()
-                    .map(|(k, v)| (k.clone(), sorted(v)))
-                    .collect(),
-            )
-        }
-        Value::Array(items) => Value::Array(items.iter().map(sorted).collect()),
-        _ => value.clone(),
-    }
-}
-
 /// Python json.dumps(ensure_ascii=False, sort_keys=True), or the string itself.
 fn render(value: &Value) -> String {
-    value
-        .as_str()
-        .map(str::to_owned)
-        .unwrap_or_else(|| json::dumps(&sorted(value)))
+    if let Some(text) = value.as_str() {
+        return text.to_owned();
+    }
+    let mut sorted = value.clone();
+    sorted.sort_all_objects();
+    json::dumps(&sorted)
 }
 
 fn description(value: &Value) -> Result<String> {
@@ -157,7 +142,14 @@ pub fn compile(raw: &[u8]) -> Result<Vec<Question>> {
         let prompts = if kind == Kind::Noul {
             vec![prefix + "Is the answer to this question yes? Answer Yes or No."]
         } else {
-            options.into_iter().map(|option| format!("{prefix}Proposed answer: {option}\nIs this proposed answer correct? Answer Yes or No.")).collect()
+            options
+                .into_iter()
+                .map(|option| {
+                    format!(
+                        "{prefix}Proposed answer: {option}\nIs this proposed answer correct? Answer Yes or No."
+                    )
+                })
+                .collect()
         };
         candidates += prompts.len();
         ensure!(candidates <= 65536, "request exceeds the candidate limit");

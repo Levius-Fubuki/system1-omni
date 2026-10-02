@@ -163,14 +163,20 @@ fn encode_questions(
     questions
         .iter()
         .map(|q| {
-            q.prompts.iter().map(|prompt| {
-        let chat = format!("{prefix}{}{suffix}", prompt.trim());
-        let enc = tokenizer.encode(chat, true).map_err(anyhow::Error::msg)?;
-        ensure!(enc.len() <= max_length,
-            "question {}: {} tokens exceeds max_length={max_length}; no silent truncation",
-            q.id, enc.len());
-        Ok(enc.get_ids().to_vec())
-    }).collect()
+            q.prompts
+                .iter()
+                .map(|prompt| {
+                    let chat = format!("{prefix}{}{suffix}", prompt.trim());
+                    let enc = tokenizer.encode(chat, true).map_err(anyhow::Error::msg)?;
+                    ensure!(
+                        enc.len() <= max_length,
+                        "question {}: {} tokens exceeds max_length={max_length}; no silent truncation",
+                        q.id,
+                        enc.len()
+                    );
+                    Ok(enc.get_ids().to_vec())
+                })
+                .collect()
         })
         .collect()
 }
