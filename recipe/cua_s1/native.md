@@ -24,13 +24,11 @@ CUA_S1_MODEL=weights/cua-s1-4b-0.2-text-merged target/release/omni-cua-s1-native
 ```
 
 For the local CUDA Graph experiment, also set `CUA_S1_GRAPH=1`. The first use of
-each exact prompt length warms the GEMM plans and captures the forward pass.
-The first call returns the eager result; later requests replay it after fresh
-token embedding. The graph contains the language layers, which update residuals
-in place, so a cache miss must not replay those layers over its eager result.
-At most eight lengths are cached. Growing the scratch allocation clears the captures before freeing
+each exact prompt length warms the GEMM plans and captures the forward pass;
+later requests replay it with freshly uploaded token ids. At most eight lengths
+are cached. Growing the scratch allocation clears the captures before freeing
 their buffers. Capture adds first-use latency; leave the variable unset to use
-the eager control. Rebuild both the worker and CUDA library together (ABI 4).
+the eager control. Rebuild both the worker and CUDA library together (ABI 3).
 If capture fails, the worker returns the completed eager result and disables
 Graph capture/replay for its remaining lifetime, logging the failure to stderr.
 
@@ -43,92 +41,3 @@ cargo test -p omni-cua-s1-native
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
   cargo test --release -p omni-cua-s1-native --test kernels -- --ignored
 ```
-
-For CPU-only structural inspection of the separate vision base weights and
-multimodal adapter, see [native vision checkpoint inspection](native_vision.md).
-
-For the separate decoded-RGB8 CPU preprocessing API and example, see
-[native image preprocessing](native_image_preprocess.md).
-## Multimodal language boundary
-
-`Model::forward_multimodal` consumes token IDs, adapted BF16 image features
-`[image_tokens, hidden_size]`, their sorted placeholder indices, and the T/H/W
-slices of int64 `position_ids [3, 1, sequence]`. It returns the last position's
-final-normalized hidden state, like `Model::forward`.
-
-Inputs are one unpadded prompt. Every image placeholder must have exactly one
-feature row; all other rows come from the token embedding table. The caller
-calculates positions and runs the image processor, vision tower and vision LoRA.
-Positions must be nonnegative and below `max_position_embeddings`. The language
-path uses Qwen3.5's interleaved MRoPE sections, not three contiguous rotary blocks.
-Text calls and their captured graphs use immutable text-position tables;
-multimodal calls use separate device tables, so returning to text requires no
-host table rebuild or restoration copy. Multimodal calls execute eagerly even
-when `CUA_S1_GRAPH=1`. The extra tables use
-`4 * scratch_capacity * rotary_half` bytes (2 MiB at 16,384 rows).
-
-This is a Rust model API for integrating a vision producer. The HTTP worker
-above continues to serve the text adapter. For native vision and image HTTP requests use the separate
-[screenshot worker](native_multimodal.md). Padding, video and batching remain unsupported.
-
-### Prepare a matching language checkpoint
-
-The language weights must contain the **multimodal** adapter, not the `text`
-adapter. In the pinned reference environment, with upstream-verified weights,
-export just the merged language model (about 7.5 GB) to a new directory:
-
-```sh
-PYTHONPATH=src .venv/bin/python recipe/cua_s1/export_multimodal_language.py \
-  --base weights/Qwen3.5-4B --adapter weights/cua-s1-4b-0.2/multimodal \
-  --out weights/cua-s1-4b-0.2-multimodal-language-merged
-```
-
-No `cua_s1_export.json` text-worker marker is created. The low-level `Model` API
-does not verify checkpoint provenance; retain the export metadata and use the
-matching adapter for the supplied features. Standalone language safetensors
-names and the existing full-model prefixes are supported.
-
-### Replay a reference boundary
-
-This optional example consumes the `cua-s1-multimodal-reference-v1` format
-from [#53](https://github.com/ThinkFlowLab/system1-omni/pull/53), which is still
-open. The exporter and checksum verifier are not yet available on `main`.
-Use a separate checkout of exporter revision
-`1b64fa2ceb0a82b6a66a69ecdc9bc5cc1b1a0b66` to generate and verify the bundle;
-the Rust model API itself does not depend on that PR being merged.
-Its eight questions include different image grids and question lengths, JPEG,
-structured/non-ASCII text, and 1/3/26 candidates. Then run:
-
-```sh
-CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
-  cargo run --release --locked -p omni-cua-s1-native \
-  --example multimodal_boundary -- \
-  weights/cua-s1-4b-0.2-multimodal-language-merged \
-  /path/to/verified-reference-bundle /tmp/native-language.json
-
-CUA_S1_MODEL=$PWD/weights/cua-s1-4b-0.2-multimodal-language-merged \
-CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
-  cargo test --release --locked -p omni-cua-s1-native \
-  --test multimodal -- --ignored
-
-# Compare graph misses, hits, eviction and scratch growth with eager hidden states.
-CUA_S1_MODEL=$PWD/weights/cua-s1-4b-0.2-multimodal-language-merged \
-CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
-  cargo test --release --locked -p omni-cua-s1-native \
-  --lib graph_tests::graph_misses_hits_eviction_growth_and_multimodal_match_eager -- --ignored
-```
-
-The example checks repeated native hidden-state equality and writes last hidden
-states, candidate logits and probabilities. It uses the text engine's FP32
-letter-row readout with FP64 accumulation. Output must be a new file. Verify
-bundle integrity before invoking the example; it checks tensor shapes and input
-contracts but is not the bundle checksum verifier.
-
-For accuracy validation, compare against an unmerged FP32 **language** control
-with TF32 disabled, feeding the same fixed exported embeddings and positions.
-Use the [declared native tolerance](../../src/models/cua_s1/README.md#validation):
-maximum probability error over the set must be at most twice the BF16 reference
-error plus 0.01, and the top option must match for FP32 margins at least 0.05.
-The FP32 control starts after the BF16-exported vision boundary; it does not
-validate a full FP32 vision pipeline. Native kernel and LoRA-merge rounding can
-change hidden states and logits; bitwise equality to Transformers is not claimed.

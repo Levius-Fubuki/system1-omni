@@ -7,8 +7,3 @@ src/backends/cuda/qwen3_5/build.sh <output dir> [compute capability, default 89]
 ```
 
 The norm, elementwise and q/k preparation kernels round to bfloat16 where Transformers (`modeling_qwen3_5.py`) does. Attention (FlashAttention-2 style, on tensor cores) and the chunked gated delta rule keep some intermediate results in bfloat16, as FlashAttention and flash-linear-attention do. GEMMs go through cuBLASLt with its first heuristic choice. Tensor-core kernels need sm_80 or newer; only sm_89 has been run.
-
-ABI 4 adds native vision LayerNorm, patch/biased projection, spatial rotary,
-bidirectional attention, GELU, residual operations and FP32 LoRA GEMMs. Vision
-GEMMs disable split-K BF16 reduction; existing language GEMM dispatch is preserved.
-Rebuild the library and native workers together after ABI changes.

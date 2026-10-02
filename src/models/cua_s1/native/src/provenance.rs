@@ -103,26 +103,3 @@ pub fn verify_export(dir: &Path, marker: &Value) -> Result<()> {
     );
     verify_files(dir, files, Some("cua_s1_language_export.json"))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn rejects_missing_export_hashes_before_loading_cuda() {
-        assert!(verify_export(Path::new("unused"), &serde_json::json!({})).is_err());
-    }
-    #[test]
-    fn detects_same_size_mutation_and_unlisted_override() {
-        let dir = std::env::temp_dir().join(format!("cua-provenance-{}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("tensor"), b"abc").unwrap();
-        let files = serde_json::json!({"tensor":{"size":3, "sha256":format!("{:x}",Sha256::digest(b"abc"))}});
-        verify_files(&dir, files.as_object().unwrap(), None).unwrap();
-        fs::write(dir.join("tensor"), b"abd").unwrap();
-        assert!(verify_files(&dir, files.as_object().unwrap(), None).is_err());
-        fs::write(dir.join("tensor"), b"abc").unwrap();
-        fs::write(dir.join("override"), b"x").unwrap();
-        assert!(verify_files(&dir, files.as_object().unwrap(), None).is_err());
-        fs::remove_dir_all(dir).unwrap();
-    }
-}

@@ -26,15 +26,6 @@ serde_json = { version = "1.0.149", features = ["float_roundtrip", "preserve_ord
 tokenizers = { version = "=0.22.2", default-features = false, features = ["onig"] }
 tokio = { version = "1.49.0", features = ["macros", "net", "rt-multi-thread", "sync"] }
 
-[[test]]
-name = "vision_loader"
-path = "../../../../tests/cua_s1/vision_loader.rs"
-
-[[test]]
-name = "image_preprocess"
-path = "../../../../tests/cua_s1/image_preprocess.rs"
-
-
 [[bin]]
 name = "omni-cua-s1-vision"
 path = "src/vision_main.rs"

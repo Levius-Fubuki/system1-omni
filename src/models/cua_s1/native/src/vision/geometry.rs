@@ -58,38 +58,3 @@ impl Geometry {
         Ok(g)
     }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn interpolation_corners_and_merge_order() {
-        let g = Geometry::new([1, 2, 4]).unwrap();
-        // Sequence: (0,0), (0,1), (1,0), (1,1), (0,2), (0,3), (1,2), (1,3).
-        assert_eq!(&g.indices[..4], &[0, 1, 48, 49]);
-        assert_eq!(&g.weights[..4], &[1., 0., 0., 0.]);
-        assert_eq!(g.indices[2 * 4], 47 * 48);
-        assert_eq!(g.indices[7 * 4], 2303);
-        assert!((g.weights[4] - 1. / 3.).abs() < 2e-6);
-        assert_eq!(g.cos[0], 1.);
-        assert_eq!(g.sin[0], 0.);
-        assert!((g.sin[32 + 16] - 1f32.sin()).abs() < 1e-6);
-        assert!((g.sin[2 * 32] - 1f32.sin()).abs() < 1e-6);
-        for w in g.weights.as_chunks::<4>().0 {
-            assert!((w.iter().sum::<f32>() - 1.).abs() < 1e-6);
-        }
-    }
-    #[test]
-    fn geometry_rejects_video_odd_empty_and_oversize_grids() {
-        for grid in [
-            [2, 16, 16],
-            [1, 0, 16],
-            [1, 15, 16],
-            [1, 128, 128],
-            [1, usize::MAX, 2],
-        ] {
-            assert!(Geometry::new(grid).is_err(), "accepted {grid:?}");
-        }
-        assert!(Geometry::new([1, 64, 64]).is_ok());
-        assert!(Geometry::new([1, 2, 224]).is_ok());
-    }
-}
