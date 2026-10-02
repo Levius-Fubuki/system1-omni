@@ -1,4 +1,5 @@
-//! CPU-only, structurally validated vision checkpoint storage. No LoRA merge or execution.
+//! Structurally validated vision checkpoints and native CUDA vision execution.
+//! `VisionCheckpoint` loads on CPU; `VisionModel` uploads separate base/LoRA tensors.
 //!
 //! Callers must keep checkpoint files immutable (including no truncation) for the
 //! lifetime of the checkpoint and its borrowed views. Structural checks do not
@@ -475,3 +476,7 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for UniqueMap<T> {
         deserializer.deserialize_map(UniqueVisitor(std::marker::PhantomData))
     }
 }
+
+mod geometry;
+mod model;
+pub use model::VisionModel;

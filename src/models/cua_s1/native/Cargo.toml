@@ -11,8 +11,11 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.100"
+sha2 = "0.10"
 axum = "0.8.8"
+base64 = "0.22.1"
 half = "2.7.1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 # the CUDA kernels live in libqwen3_5_cuda.so, loaded at run time
 libloading = "0.8"
 memmap2 = "0.9.9"
@@ -31,5 +34,7 @@ path = "../../../../tests/cua_s1/vision_loader.rs"
 name = "image_preprocess"
 path = "../../../../tests/cua_s1/image_preprocess.rs"
 
-[dev-dependencies]
-sha2 = "0.10"
+
+[[bin]]
+name = "omni-cua-s1-vision"
+path = "src/vision_main.rs"

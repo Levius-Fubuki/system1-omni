@@ -22,3 +22,9 @@ bounded dimensions, standard-library buffers, and a standalone CPU API.
 No upstream runtime or image decoder is linked by this module. The above
 notices and license texts must accompany redistributed adaptations as required
 by their respective licenses.
+
+The native vision geometry, rotary, block and merger execution in
+`src/vision/` follows Transformers 5.17.0 `modeling_qwen3_5.py`, Copyright
+2025 The Qwen team, Alibaba Group and the HuggingFace Inc. team, under the
+[Apache License, Version 2.0](licenses/APACHE-2.0). The implementation is
+adapted to Rust/CUDA and separate FP32 visual LoRA execution.

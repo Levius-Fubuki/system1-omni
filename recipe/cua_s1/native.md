@@ -30,7 +30,7 @@ token embedding. The graph contains the language layers, which update residuals
 in place, so a cache miss must not replay those layers over its eager result.
 At most eight lengths are cached. Growing the scratch allocation clears the captures before freeing
 their buffers. Capture adds first-use latency; leave the variable unset to use
-the eager control. Rebuild both the worker and CUDA library together (ABI 3).
+the eager control. Rebuild both the worker and CUDA library together (ABI 4).
 If capture fails, the worker returns the completed eager result and disables
 Graph capture/replay for its remaining lifetime, logging the failure to stderr.
 
@@ -68,8 +68,8 @@ when `CUA_S1_GRAPH=1`. The extra tables use
 `4 * scratch_capacity * rotary_half` bytes (2 MiB at 16,384 rows).
 
 This is a Rust model API for integrating a vision producer. The HTTP worker
-above continues to serve the text adapter. A native vision encoder, image HTTP
-requests, padding, video and batching are not implemented by this API.
+above continues to serve the text adapter. For native vision and image HTTP requests use the separate
+[screenshot worker](native_multimodal.md). Padding, video and batching remain unsupported.
 
 ### Prepare a matching language checkpoint
 
@@ -78,29 +78,9 @@ adapter. In the pinned reference environment, with upstream-verified weights,
 export just the merged language model (about 7.5 GB) to a new directory:
 
 ```sh
-PYTHONPATH=src HF_HUB_OFFLINE=1 .venv/bin/python - <<'PY'
-import json
-from pathlib import Path
-from models.cua_s1.multimodal.model import (
-    ADAPTER_REVISION, BASE_REVISION, MultimodalEngine,
-)
-
-out = Path("weights/cua-s1-4b-0.2-multimodal-language-merged")
-if out.exists():
-    raise FileExistsError(out)
-engine = MultimodalEngine(
-    "weights/Qwen3.5-4B", "weights/cua-s1-4b-0.2/multimodal"
-)
-merged = engine.model.merge_and_unload()
-merged.model.language_model.save_pretrained(out, max_shard_size="5GB")
-# Preserve the root image_token_id and text_config for the native input contract.
-merged.config.to_json_file(out / "config.json")
-(out / "cua_s1_language_export.json").write_text(json.dumps({
-    "format": "cua-s1-multimodal-language-merged/1",
-    "base_revision": BASE_REVISION,
-    "adapter_revision": ADAPTER_REVISION,
-}))
-PY
+PYTHONPATH=src .venv/bin/python recipe/cua_s1/export_multimodal_language.py \
+  --base weights/Qwen3.5-4B --adapter weights/cua-s1-4b-0.2/multimodal \
+  --out weights/cua-s1-4b-0.2-multimodal-language-merged
 ```
 
 No `cua_s1_export.json` text-worker marker is created. The low-level `Model` API

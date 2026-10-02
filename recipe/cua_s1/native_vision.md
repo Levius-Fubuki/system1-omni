@@ -4,8 +4,8 @@ The model-owned Rust module `omni_cua_s1_native::vision` loads and structurally
 validates the Qwen3.5-4B vision weights and Cua-S1 4B 0.2 **multimodal** LoRA on
 CPU. It keeps the 297 BF16 base tensors and 100 FP32 adapter tensors separate.
 The adapter contains 50 A/B pairs, rank 16, alpha 32, and scale 2. No weights are
-merged or converted. This increment does not preprocess images, run the vision
-encoder, call CUDA, or enable image requests in the native text worker.
+merged or converted. This CPU inspection API is separate from the
+[native CUDA vision encoder and screenshot worker](native_multimodal.md).
 
 Prepare checkpoints from these pinned upstream revisions:
 

@@ -1,0 +1,65 @@
+{
+  "passed": true,
+  "questions": 8,
+  "max_native_error": 0.0033132433891296387,
+  "max_bf16_reference_error": 0.005263864994049072,
+  "allowance": 0.020527729988098146,
+  "choices": [
+    {
+      "case": "26-options",
+      "question": "next",
+      "fp32_margin": 0.4796072989702225,
+      "same_choice": true,
+      "max_probability_error": 0.0033132433891296387
+    },
+    {
+      "case": "jpeg",
+      "question": "next",
+      "fp32_margin": 0.9943915181793272,
+      "same_choice": true,
+      "max_probability_error": 0.0004887116374447942
+    },
+    {
+      "case": "portrait",
+      "question": "next",
+      "fp32_margin": 0.9951829832280055,
+      "same_choice": true,
+      "max_probability_error": 0.0002958049299195409
+    },
+    {
+      "case": "single-option",
+      "question": "next",
+      "fp32_margin": 1.0,
+      "same_choice": true,
+      "max_probability_error": 0.0
+    },
+    {
+      "case": "small",
+      "question": "next",
+      "fp32_margin": 0.994548179442063,
+      "same_choice": true,
+      "max_probability_error": 0.00012633949518203735
+    },
+    {
+      "case": "two-questions",
+      "question": "next",
+      "fp32_margin": 0.994548179442063,
+      "same_choice": true,
+      "max_probability_error": 0.00012633949518203735
+    },
+    {
+      "case": "two-questions",
+      "question": "second",
+      "fp32_margin": 0.997789517743513,
+      "same_choice": true,
+      "max_probability_error": 5.620718002319336e-05
+    },
+    {
+      "case": "wide",
+      "question": "next",
+      "fp32_margin": 0.9933466790243983,
+      "same_choice": true,
+      "max_probability_error": 7.712841033935547e-05
+    }
+  ]
+}
