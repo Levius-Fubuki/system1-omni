@@ -77,8 +77,24 @@ Requests are bounded to 4 MiB, 4096 questions, and 65536 candidate sequences.
 
 ## Validation and optimization scope
 
+Tests and fixtures live with their components under `src`: Open-Jev's typed
+contract and tokenizer cases are in
+[`src/models/open_jev/native/`](../../src/models/open_jev/native/), and shared
+Qwen configuration and CUDA reference tests are in
+[`src/models/qwen3_5/native/tests/`](../../src/models/qwen3_5/native/tests/).
+The default suites below run on CPU without downloading model weights:
+
 ```sh
-cargo test --workspace --locked
+cargo test --locked -p omni-open-jev-native -p omni-qwen3-5-native
+cargo test --locked -p omni-jev --test frontend
+```
+
+The frontend mock-worker API coverage is tracked in
+[issue #46](https://github.com/ThinkFlowLab/system1-omni/issues/46) and
+[PR #58](https://github.com/ThinkFlowLab/system1-omni/pull/58). Checkpoint tokenizer
+and CUDA kernel tests are opt-in; the latter require a GPU reservation:
+
+```sh
 # Inside a GPU reservation, after building the library:
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
   cargo test --release --locked -p omni-qwen3-5-native --test kernels -- --ignored
