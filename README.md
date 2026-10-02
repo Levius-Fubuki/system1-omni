@@ -49,7 +49,7 @@ Implementation code lives under `src/`; recipes and documentation stay at the re
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend, both native workers, and their shared Qwen3.5/3.8 prefill implementation are Cargo workspace members. The other model and backend directories currently document planned work; they do not prescribe process boundaries.
+The frontend, both native workers, their shared Qwen3.5/3.8 prefill implementation and the Laya checkpoint reader are Cargo workspace members. The other model and backend directories currently document planned work; they do not prescribe process boundaries.
 
 ## Supported models
 
@@ -57,7 +57,7 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 
 | Model | Status |
 | --- | --- |
-| LAYA | [External worker](recipe/laya/README.md); model engine planned |
+| LAYA | [External worker](recipe/laya/README.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates, full-checkpoint validation pending |
 
