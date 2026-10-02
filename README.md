@@ -59,7 +59,7 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 | --- | --- |
 | LAYA | [External worker](recipe/laya/README.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
-| Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates, full-checkpoint validation pending |
+| Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [L20X validation](recipe/open_jev/validation.md) |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 

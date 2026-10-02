@@ -87,19 +87,24 @@ CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
 CPU golden fixtures come from Open-Jev's request compiler and response formatter
 at the revision above. Kernel tests compare attention and Gated DeltaNet with
 float64 references and require exact BF16 equality between fused attention gating
-and a separate gate pass. The shared kernel tests retain PR #19's
+and a separate gate pass. Residual RMSNorm and packed SiLU are checked against
+rounded references, including odd widths and unaligned pointers. The shared
+kernel tests retain PR #19's
 `CUA_S1_CUDA_LIB` environment variable.
 
 The worker reuses PR #19's fused norm, activation, QK/RoPE and chunked Gated
 DeltaNet operations. Attention's sigmoid gate is fused into its output epilogue,
 preserving both BF16 rounding points and removing one launch and one output
-read/write pass per full-attention layer (16 layers for this model).
+read/write pass per full-attention layer (16 layers for this model). Residual
+RMSNorm keeps thread values in registers at widths 2560/5120. MLP SiLU uses
+16-byte BF16 loads/stores when width, stride and pointers permit it, retaining
+both BF16 rounding points; other layouts use the scalar path. See the
+[L20X validation](validation.md) for the measured scope and variability.
 
 This recipe leaves `CUA_S1_GRAPH` unset and runs one eager forward pass per
 candidate. The shared backend retains Cua-S1's opt-in CUDA Graph path, but
 Open-Jev graph replay remains unvalidated. Prefix sharing, GEMM autotuning,
-quantization and multimodal inference are not implemented. No latency
-improvement over the reference is claimed. Merged
+quantization and multimodal inference are not implemented. The L20X comparison does not establish a general speedup over OpenJev-Fast. Merged
 weights, CUDA attention/Gated DeltaNet, and the CPU head's accumulation order
 can change probabilities; full-checkpoint comparisons are required before
 treating this worker as an accuracy-validated replacement.
