@@ -31,7 +31,7 @@ WARMUP_MAX_ROWS = max(len(questions) for _, questions in WARMUP_SHAPES)
 
 
 def warmup(router: Any, model: str, shapes=WARMUP_SHAPES, repeats: int = WARMUP_REPEATS) -> dict[str, Any]:
-    """Run every shape `repeats` times. Any failure propagates: a worker that cannot answer must not bind."""
+    """Any failure propagates: a worker that cannot answer must not bind."""
     started = time.perf_counter()
     routing = None
     for words, questions in shapes:

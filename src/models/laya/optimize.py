@@ -90,7 +90,7 @@ def _on_cpu(agent: Any) -> bool:
 
 
 def apply(agent: Any, *, fp16: bool, compile: bool) -> bool:
-    """Apply the requested options to one agent. Does nothing and returns False for a model on the CPU."""
+    """Does nothing and returns False for a model on the CPU."""
     if _on_cpu(agent):
         return False
     if fp16:
@@ -106,7 +106,6 @@ def compile_active(agent: Any) -> bool:
 
 
 def compiled_graphs() -> int:
-    """Graphs torch.compile has produced in this process."""
     from torch._dynamo.utils import counters
 
     return int(counters["stats"]["unique_graphs"])

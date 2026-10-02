@@ -81,7 +81,7 @@ def test_warmup_covers_short_long_and_fp16_multi_question_shapes():
     words = {len(state.split()) for state, _, _ in router.calls}
     rows = {len(questions) for _, questions, _ in router.calls}
     assert min(words) <= 20 and max(words) >= 400
-    assert max(rows) >= router.agent.mps_amp_min_rows  # crosses laya's fp16 autocast threshold on MPS
+    assert max(rows) >= router.agent.mps_amp_min_rows
     assert {q["type"] for _, questions, _ in router.calls for q in questions.values()} == {"choice", "score", "noul"}
     assert len(router.calls) == len(engine.WARMUP_SHAPES) * engine.WARMUP_REPEATS
     assert all(model == "english" for _, _, model in router.calls)
@@ -165,7 +165,7 @@ def test_compile_wraps_the_model_before_warmup(monkeypatch):
     order = []
     monkeypatch.setattr(optimize, "compile_agent", lambda agent: order.append((agent, len(router.calls))))
     worker.build_app(router, "english", "mps", compile=True, graph_counter=lambda: 3)
-    assert order == [(router.agent, 0)]  # before the first warmup request
+    assert order == [(router.agent, 0)]
 
 
 def test_health_reports_compile_off_by_default():
@@ -232,9 +232,9 @@ def test_compiled_paths_by_batch_rows(monkeypatch):
     model = Model()
     agent.model = model
     optimize.compile_agent(agent)
-    assert agent.model(on_gpu(1)) == "whole model compiled"  # one question
-    assert agent.model(on_gpu(3)) == ("head", "compiled encoder")  # several: eager head, compiled encoder
-    assert agent.model(torch.zeros(1, 7)) == ("head", "eager encoder")  # on the CPU: laya's model as it is
+    assert agent.model(on_gpu(1)) == "whole model compiled"
+    assert agent.model(on_gpu(3)) == ("head", "compiled encoder")
+    assert agent.model(torch.zeros(1, 7)) == ("head", "eager encoder")
     assert model.encoder(torch.zeros(1, 7)) == "eager encoder"  # the original model is left as it was
     assert len(list(agent.model.parameters())) == len(list(model.parameters()))  # one set of weights
 
@@ -249,7 +249,7 @@ def test_every_loaded_model_is_warmed_and_described():
     assert set(health["models"]) == {"english", "multilingual"}
     assert health["device"] == "mps"  # the top level summarises --model
     assert health["models"]["multilingual"]["device"] == "cpu"
-    assert health["device_mismatch"] is True  # one model off the requested device is enough
+    assert health["device_mismatch"] is True
 
 
 def test_a_model_that_is_not_preloaded_is_not_loaded_for_warmup():
@@ -352,7 +352,7 @@ def test_after_a_fallback_to_cpu_the_model_runs_fp32_and_uncompiled(monkeypatch)
     optimize.compile_agent(agent)
     assert agent.model(on_gpu(1)) == "compiled"
     assert next(agent.model.parameters()).dtype == torch.float16
-    assert agent.model(torch.zeros(1, 7)) == ("eager", torch.float32)  # inputs on the CPU: laya fell back
+    assert agent.model(torch.zeros(1, 7)) == ("eager", torch.float32)
     assert {p.dtype for p in agent.model.parameters()} == {torch.float32}
     assert agent.model(torch.zeros(3, 7)) == ("eager", torch.float32)
 
@@ -361,7 +361,7 @@ def test_health_follows_a_fallback_to_cpu_after_startup():
     agent = FakeAgent(device="mps")
     client = TestClient(worker.build_app(FakeRouter(agent), "english", "mps", require_device=True))
     assert client.get("/health").json()["device_mismatch"] is False
-    agent.device = "cpu"  # what laya does when a request runs out of GPU memory
+    agent.device = "cpu"
     agent.dtype = "torch.float32"
     health = client.get("/health").json()
     assert health["device"] == "cpu"
@@ -425,7 +425,7 @@ def test_a_checkpoint_loaded_while_serving_is_prepared_and_described(monkeypatch
     assert health["models"]["multilingual"]["device"] == "cpu"
     assert health["device_mismatch"] is True
     assert health["preparing"] == []
-    router.unload("multilingual")  # eviction
+    router.unload("multilingual")
     health = client.get("/health").json()
     assert set(health["models"]) == {"english"}
     assert health["device_mismatch"] is False
@@ -439,7 +439,7 @@ def test_a_late_checkpoint_that_cannot_be_prepared_is_not_kept():
     assert router.loaded == ["english"]
     assert set(client.get("/health").json()["models"]) == {"english"}
     router.fail_on_call = len(router.calls) + 1
-    with pytest.raises(RuntimeError, match="out of memory"):  # warmup fails
+    with pytest.raises(RuntimeError, match="out of memory"):
         router.load_while_serving("multilingual", FakeAgent())
     assert router.loaded == ["english"]
 
