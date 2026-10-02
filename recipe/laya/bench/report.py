@@ -176,19 +176,14 @@ def memory(phases, ends):
 TOLERANCE = {"fp32": 1e-3, "fp16": 1e-2}
 
 
-def read_answers(paths):
+def read_answers(records):
     envs, answers = {}, {}
-    for path in paths:
-        with open(path) as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                r = json.loads(line)
-                key = (r["config"], r["run"])
-                if r["type"] == "env":
-                    envs[key] = r
-                elif r["type"] == "answers":
-                    answers.setdefault(key, {})[r["workload"]] = r["answers"]
+    for r in records:
+        key = (r["config"], r["run"])
+        if r["type"] == "env":
+            envs[key] = r
+        elif r["type"] == "answers":
+            answers.setdefault(key, {})[r["workload"]] = r["answers"]
     return envs, answers
 
 
@@ -220,9 +215,9 @@ def path(env, rows):
     return "fp16" if autocast or env.get("weights_dtype") == "torch.float16" else "fp32"
 
 
-def parity(paths, ref):
+def parity(records, ref):
     """Answers of every run against the reference config, with the tolerances declared in advance."""
-    envs, answers = read_answers(paths)
+    envs, answers = read_answers(records)
     refs = sorted(k for k in answers if k[0] == ref)
     if not refs:
         return f"no answers for reference config {ref}"
@@ -282,7 +277,7 @@ def main():
     if any(r["type"] == "throughput" for r in records):
         print("\n## Throughput\n\n" + throughput(records))
     print("\n## Memory (MB)\n\n" + memory(phases, ends))
-    print(f"\n## Parity against {args.ref}\n\n" + parity(args.files, args.ref))
+    print(f"\n## Parity against {args.ref}\n\n" + parity(records, args.ref))
 
 
 if __name__ == "__main__":

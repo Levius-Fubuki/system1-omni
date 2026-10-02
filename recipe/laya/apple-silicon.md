@@ -37,6 +37,12 @@ request it accepts is already warm: on an M1 Pro the first request after ready t
 when the model cannot be placed on MPS; without it the worker logs a warning and serves from the CPU.
 laya-serve's environment variables still apply, e.g. `LAYA_API_KEY` for bearer authentication.
 
+Laya loads another checkpoint when a request names it (`"model": "multilingual"`) or its routing picks it
+(a non-English state). The worker prepares that checkpoint the same way inside that first request, so
+that request takes seconds (other requests wait behind it; `/health` names it under `preparing`
+meanwhile), and `/health` lists it from then on. With `--require-device`, a checkpoint
+that does not land on the requested device is unloaded again and the request fails with 500.
+
 Check what it is running on:
 
 ```sh

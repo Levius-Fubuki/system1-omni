@@ -5,7 +5,9 @@ PYTHONPATH=src python -m frontend.laya_mps --device mps --model english [--compi
 It is laya-serve (`laya[serve]==0.3.20`) with its request handling unchanged and three changes:
 
 - It binds only after every loaded model has run a warmup over short, long and multi-question requests,
-  so a reachable worker is a warm one. laya-serve answers /health before any forward pass.
+  so a reachable worker is a warm one. laya-serve answers /health before any forward pass. A checkpoint
+  laya loads later (a request that names another model, or routes to it) gets the same options and
+  warmup inside that first request.
 - /health describes the loaded models as they are now: device, weight and autocast dtypes, checkpoint
   and the revision the weights were loaded from, and `device_mismatch` when a model is not on the
   requested device. laya-serve reports the configured device, and laya moves a model to the CPU on a
@@ -40,37 +42,25 @@ def build_app(
     graph_counter=optimize.compiled_graphs,
     revisions: dict[str, str] | None = None,
 ):
-    """Apply the options, warm up every loaded model, then return laya's app with /health replaced.
-    `model` is the one summarised at the top of /health, and the one loaded if nothing is preloaded.
-    Raises if an option or the warmup fails, so the caller never binds a worker that cannot answer."""
+    """Prepare every loaded model (options, warmup, device check), then return laya's app with /health
+    replaced. A checkpoint laya loads later, for a request that names or routes to it, is prepared the same
+    way before it answers. `model` is the one summarised at the top of /health, and the one loaded if
+    nothing is preloaded. Raises if preparing fails, so the caller never binds a worker that cannot answer."""
     from laya.serve import create_app
 
-    names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
-    if fp16 or compile:
-        for name in names:
-            if not optimize.apply(router.load(name), fp16=fp16, compile=compile):
-                log.warning("%s is on the CPU: --compile and --weights fp16 apply on the GPU only", name)
-    warmed = {name: engine.warmup(router, name) for name in names}
-    agents = {name: router.load(name) for name in names}
-    primary = model if model in agents else names[0]
+    resident: dict[str, tuple[Any, dict[str, Any]]] = {}  # prepared checkpoints: name -> (agent, warmup result)
+    preparing: set[str] = set()
+    graphs_at_ready = None
 
-    def current() -> dict[str, Any]:
-        """The agents as they are now, not as they were at startup (see the module docstring)."""
-        models = {
-            name: {
-                **engine.describe(agent, requested, warmed[name]["routing"], revisions),
-                "warmup_ms": warmed[name]["warmup_ms"],
-            }
-            for name, agent in agents.items()
-        }
-        return {
-            **models[primary],
-            "device_mismatch": any(m["device_mismatch"] for m in models.values()),
-            "warmup_ms": round(sum(m["warmup_ms"] for m in models.values()), 1),
-            "models": models,
-        }
+    def apply_options(name: str, agent: Any) -> None:
+        if (fp16 or compile) and not optimize.apply(agent, fp16=fp16, compile=compile):
+            log.warning("%s is on the CPU: --compile and --weights fp16 apply on the GPU only", name)
 
-    for name, agent in agents.items():
+    def make_ready(name: str, agent: Any) -> str | None:
+        """Warm the checkpoint up and start describing it. Returns where it is if not on the requested device."""
+        nonlocal graphs_at_ready
+        warmed = engine.warmup(router, name)
+        resident[name] = (agent, warmed)
         autocast_rows = getattr(agent, "mps_amp_min_rows", None)
         if str(agent.device).startswith("mps") and autocast_rows and autocast_rows > engine.WARMUP_MAX_ROWS:
             log.warning(
@@ -80,15 +70,56 @@ def build_app(
                 autocast_rows,
                 engine.WARMUP_MAX_ROWS,
             )
+        if compile:
+            graphs_at_ready = graph_counter()
+        described = engine.describe(agent, requested, warmed["routing"], revisions)
+        return f"{name} is on {described['device']}" if described["device_mismatch"] else None
 
-    info = current()
-    graphs_at_ready = graph_counter() if compile else None
-    if info["device_mismatch"]:
-        wrong = ", ".join(f"{n} is on {m['device']}" for n, m in info["models"].items() if m["device_mismatch"])
-        message = f"asked for {info['requested_device']}, {wrong}"
-        if require_device:
-            raise RuntimeError(message)
-        log.warning(message)
+    def check_device(misplaced: list[str]) -> None:
+        if misplaced:
+            message = f"asked for {requested}, {', '.join(misplaced)}"
+            if require_device:
+                raise RuntimeError(message)
+            log.warning(message)
+
+    class Lifecycle:
+        """laya Router hooks: a checkpoint loaded while serving is prepared like the ones loaded at startup,
+        or not kept at all; an evicted one is no longer described."""
+
+        def on_load(self, ctx: Any) -> None:
+            preparing.add(ctx.model)
+            try:
+                apply_options(ctx.model, ctx.agent)
+                check_device(list(filter(None, [make_ready(ctx.model, ctx.agent)])))
+            except Exception:
+                log.exception("%s could not be prepared and is unloaded", ctx.model)
+                router.unload(ctx.model)
+                raise
+            finally:
+                preparing.discard(ctx.model)
+
+        def on_evict(self, ctx: Any) -> None:
+            resident.pop(ctx.model, None)
+
+    names = list(router.loaded) or [model]  # never load a model the worker was not asked to serve
+    startup = {name: router.load(name) for name in names}
+    for name, agent in startup.items():
+        apply_options(name, agent)
+    check_device(list(filter(None, [make_ready(name, agent) for name, agent in startup.items()])))
+    router.add_hook(Lifecycle())
+
+    def current() -> dict[str, Any]:
+        """The agents as they are now, not as they were at startup (see the module docstring)."""
+        models = {
+            name: {**engine.describe(agent, requested, warmed["routing"], revisions), "warmup_ms": warmed["warmup_ms"]}
+            for name, (agent, warmed) in list(resident.items())
+        }
+        return {
+            **models.get(model, next(iter(models.values()), {})),
+            "device_mismatch": any(m["device_mismatch"] for m in models.values()),
+            "warmup_ms": round(sum(m["warmup_ms"] for m in models.values()), 1),
+            "models": models,
+        }
 
     app = create_app(router)
     app.router.routes[:] = [r for r in app.router.routes if getattr(r, "path", None) != "/health"]
@@ -99,18 +130,24 @@ def build_app(
         if compile:
             now = graph_counter()
             compiled.update(
-                active=any(optimize.compile_active(agent) for agent in agents.values()),
+                active=any(optimize.compile_active(agent) for agent, _ in list(resident.values())),
                 graphs_at_ready=graphs_at_ready,
                 graphs_now=now,
-                recompiled_after_ready=now > graphs_at_ready,
+                recompiled_after_ready=now > graphs_at_ready and not preparing,
             )
-        return {"status": "ok", "ready": True, "loaded": router.loaded, **current(), "compile": compiled}
+        return {
+            "status": "ok",
+            "ready": True,
+            "loaded": router.loaded,
+            "preparing": sorted(preparing),
+            **current(),
+            "compile": compiled,
+        }
 
     return app
 
 
 def make_router(device: str | None, model: str) -> Any:
-    """laya's Router with one checkpoint preloaded."""
     from laya.router import Router
 
     router = Router(device=device)

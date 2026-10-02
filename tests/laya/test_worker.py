@@ -35,6 +35,7 @@ class FakeRouter:
         self.agents = agents if agents is not None else {"english": self.agent}
         self.calls = []
         self.loads = []
+        self.hooks = []
         self.fail_on_call = fail_on_call
 
     @property
@@ -44,6 +45,20 @@ class FakeRouter:
     def load(self, name):
         self.loads.append(name)
         return self.agents.setdefault(name, self.agent)
+
+    def add_hook(self, hook):
+        self.hooks.append(hook)
+
+    def unload(self, name):
+        self.agents.pop(name, None)
+        for hook in self.hooks:
+            hook.on_evict(SimpleNamespace(model=name))
+
+    def load_while_serving(self, name, agent):
+        """What laya's Router.load does for a checkpoint that is not resident yet."""
+        self.agents[name] = agent
+        for hook in self.hooks:
+            hook.on_load(SimpleNamespace(model=name, agent=agent))
 
     def predict(self, state, questions, model=None):
         self.calls.append((state, questions, model))
@@ -388,3 +403,81 @@ def test_log_level_applies_to_the_workers_own_log(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["laya_mps", "--device", "mps", "--log-level", "warning"])
     worker.main()
     assert (seen["level"], seen["uvicorn"]) == ("WARNING", "warning")
+
+
+def test_a_checkpoint_loaded_while_serving_is_prepared_and_described(monkeypatch):
+    applied = []
+    monkeypatch.setattr(optimize, "use_fp16_weights", lambda agent: applied.append(agent))
+    router = FakeRouter()
+    client = TestClient(worker.build_app(router, "english", "mps", fp16=True))
+    before = len(router.calls)
+    late = FakeAgent(device="cpu", dtype="torch.float32")
+    router.load_while_serving("multilingual", late)
+    assert applied == [router.agent]  # the late one is on the CPU, where the options do not apply
+    assert [m for _, _, m in router.calls[before:]] == ["multilingual"] * (
+        len(engine.WARMUP_SHAPES) * engine.WARMUP_REPEATS
+    )
+    health = client.get("/health").json()
+    assert set(health["models"]) == {"english", "multilingual"}
+    assert health["models"]["multilingual"]["device"] == "cpu"
+    assert health["device_mismatch"] is True
+    assert health["preparing"] == []
+    router.unload("multilingual")  # eviction
+    health = client.get("/health").json()
+    assert set(health["models"]) == {"english"}
+    assert health["device_mismatch"] is False
+
+
+def test_a_late_checkpoint_that_cannot_be_prepared_is_not_kept():
+    router = FakeRouter()
+    client = TestClient(worker.build_app(router, "english", "mps", require_device=True))
+    with pytest.raises(RuntimeError, match="multilingual is on cpu"):
+        router.load_while_serving("multilingual", FakeAgent(device="cpu"))
+    assert router.loaded == ["english"]
+    assert set(client.get("/health").json()["models"]) == {"english"}
+    router.fail_on_call = len(router.calls) + 1
+    with pytest.raises(RuntimeError, match="out of memory"):  # warmup fails
+        router.load_while_serving("multilingual", FakeAgent())
+    assert router.loaded == ["english"]
+
+
+def test_compile_baseline_moves_when_a_late_checkpoint_compiles(monkeypatch):
+    monkeypatch.setattr(optimize, "compile_agent", lambda agent: None)
+    graphs = iter([3, 7, 7])  # startup, after the late checkpoint compiled, /health
+    router = FakeRouter()
+    client = TestClient(worker.build_app(router, "english", "mps", compile=True, graph_counter=lambda: next(graphs)))
+    router.load_while_serving("multilingual", FakeAgent())
+    compiled = client.get("/health").json()["compile"]
+    assert (compiled["graphs_at_ready"], compiled["recompiled_after_ready"]) == (7, False)
+
+
+def test_revision_of_a_bundled_checkpoint_is_found_under_the_download_repo():
+    routing = {"repo": "convaiinnovations/laya/multilingual"}
+    described = engine.describe(FakeAgent(), "mps", routing, {"convaiinnovations/laya": "abc123"})
+    assert (described["checkpoint"], described["revision"]) == ("convaiinnovations/laya/multilingual", "abc123")
+    assert (
+        engine.describe(FakeAgent(), "mps", {"repo": "/models/laya"}, {"convaiinnovations/laya": "abc123"})["revision"]
+        is None
+    )
+
+
+def test_startup_error_names_every_checkpoint_off_the_requested_device():
+    agents = {"english": FakeAgent(device="cpu"), "multilingual": FakeAgent(device="cpu")}
+    with pytest.raises(RuntimeError, match="asked for mps, english is on cpu, multilingual is on cpu"):
+        worker.build_app(FakeRouter(agents=agents), "english", "mps", require_device=True)
+
+
+def test_health_names_a_checkpoint_while_it_is_being_prepared():
+    router = FakeRouter()
+    client = TestClient(worker.build_app(router, "english", "mps"))
+    seen = []
+    predict = router.predict
+
+    def predict_and_look(state, questions, model=None):
+        seen.append(client.get("/health").json()["preparing"])
+        return predict(state, questions, model=model)
+
+    router.predict = predict_and_look
+    router.load_while_serving("multilingual", FakeAgent())
+    assert seen[0] == ["multilingual"]
+    assert client.get("/health").json()["preparing"] == []

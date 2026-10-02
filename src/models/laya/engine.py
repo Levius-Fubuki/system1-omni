@@ -76,6 +76,9 @@ def describe(
     except (AttributeError, StopIteration, TypeError):
         weights = None
     repo = (routing or {}).get("repo")
+    # laya names a bundled checkpoint "<owner>/<repo>/<subfolder>"; the download is recorded under "<owner>/<repo>".
+    revisions = revisions or {}
+    revision = revisions.get(repo) or revisions.get("/".join(str(repo).split("/")[:2]))
     requested_type = requested.split(":")[0] if requested else None
     return {
         "device": device,
@@ -85,5 +88,5 @@ def describe(
         "autocast_dtype": str(getattr(agent, "dtype", None)),
         "mps_amp_min_rows": getattr(agent, "mps_amp_min_rows", None),
         "checkpoint": repo,
-        "revision": (revisions or {}).get(repo),
+        "revision": revision,
     }

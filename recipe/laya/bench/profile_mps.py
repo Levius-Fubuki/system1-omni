@@ -162,7 +162,6 @@ def main():
             )
         )
 
-        # 1. Length sweep.
         print("## Length sweep (1 choice question, 5 options)\n")
         print("| words | tokens | p50 ms |\n|---|---|---|")
         points = []
@@ -191,7 +190,6 @@ def main():
         emit({"type": "fit", "a_ms": round(a, 3), "b_ms_per_token": round(b, 5), "r2": round(r2, 4)})
         print(f"\nwall ≈ {a:.1f} ms + {b:.3f} ms/token × tokens (R² {r2:.3f})")
 
-        # 2. Stage split.
         print("\n## Stages (median ms per request)\n")
         columns = ["wall", *STAGES, "gpu_exec"]
         print("| workload | tokens | rows | " + " | ".join(columns) + " |\n|" + "---|" * (len(columns) + 3))
@@ -219,7 +217,6 @@ def main():
             cells = " | ".join(f"{medians[c]:.1f}" if c in medians else "" for c in columns)
             print(f"| {wid} | {tokens} | {len(w['questions'])} | {cells} |")
 
-        # 3. Operators on the host.
         print("\n## Host operators for W1 (torch.profiler, CPU)\n")
         w = workloads["W1"]
         with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU]) as prof:

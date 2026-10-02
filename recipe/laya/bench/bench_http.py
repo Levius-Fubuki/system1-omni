@@ -221,7 +221,7 @@ def main():
             def emit(record):
                 f.write(json.dumps({**common, **record}) + "\n")
 
-            # /health's device is what the worker reports; laya-serve 0.3.20 echoes LAYA_DEVICE (issue #3, G2).
+            # /health's device is what the worker reports; laya-serve 0.3.20 echoes LAYA_DEVICE.
             emit(
                 header(
                     CHECKPOINT,
@@ -299,7 +299,7 @@ def main():
                             "n": len(results),
                             "errors": len(results) - ok,
                             "elapsed_s": round(elapsed, 3),
-                            "rps": round(ok / elapsed, 2),  # successful requests only
+                            "rps": round(ok / elapsed, 2),
                         }
                     )
 
