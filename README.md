@@ -6,6 +6,15 @@ A community-maintained inference engine for prefill-only System1-Omni models, de
 
 The Rust frontend forwards requests to a separately running model worker. The Cua-S1 4B 0.2 `text` adapter and Open-Jev-27B-v1.1 have native workers using shared CUDA kernels in this repository.
 
+## News
+
+- **2026-10-03:** Added [Open-Jev-27B-v1.1](recipe/open_jev/native.md)
+  support through a native Rust/CUDA worker. On one L20X, warm HTTP inference
+  averaged **48.30 ms**, with **24.66–24.93 ms P50** across two measured passes
+  over 74 single-candidate JevBench `noul` requests per pass (BF16, concurrency 1).
+  Packed SiLU lowered mean latency **2.48%** versus the native scalar-SiLU baseline.
+  See the [results and OpenJev-Fast comparison](recipe/open_jev/validation.md).
+
 ## Run the frontend
 
 From the repository root, with stable Rust installed:
