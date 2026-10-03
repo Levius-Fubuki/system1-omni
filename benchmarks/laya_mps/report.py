@@ -1,6 +1,6 @@
 """Turn benchmark JSONL into markdown tables. The only place numbers are computed from raw data.
 
-    python recipe/laya/bench/report.py recipe/laya/bench/results/*.jsonl
+    python benchmarks/laya_mps/report.py benchmarks/laya_mps/results/*.jsonl
 
 The parity section compares every run's answers with the reference config's (`--ref`, default C1): the
 decision must match (choice: option; score: most likely level; noul: side of 0.5) and the largest |Δp|

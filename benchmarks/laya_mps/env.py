@@ -12,7 +12,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[2]
 
 
 def _run(*cmd):
@@ -72,7 +72,7 @@ def noise_problems(max_load):
 
 
 def header(checkpoint, **extra):
-    status = _run("git", "-C", str(REPO), "status", "--porcelain", "--", ".", ":!recipe/laya/bench/results")
+    status = _run("git", "-C", str(REPO), "status", "--porcelain", "--", ".", ":!benchmarks/laya_mps/results")
     return {
         "type": "env",
         "utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),

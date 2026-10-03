@@ -1,6 +1,6 @@
-# Laya benchmark scripts
+# Laya on Apple Silicon: benchmark scripts
 
-Scripts behind the numbers in the [Apple Silicon recipe](../apple-silicon.md). Each run writes raw
+Scripts behind the numbers in the [Apple Silicon recipe](../../recipe/laya/apple-silicon.md). Each run writes raw
 JSONL to `results/` (kept out of the repository); `report.py` builds the tables from it.
 
 | file | purpose |
@@ -18,16 +18,16 @@ JSONL to `results/` (kept out of the repository); `report.py` builds the tables 
 From the repository root, in the recipe's environment (`.venv`), with the frontend built:
 
 ```sh
-python recipe/laya/bench/bench_inproc.py --device cpu --config C1 --run m1
-python recipe/laya/bench/bench_inproc.py --device mps --config C2 --run m1
-python recipe/laya/bench/bench_http.py --config C3 --run m1 --spawn .venv/bin/laya-serve
-python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
+python benchmarks/laya_mps/bench_inproc.py --device cpu --config C1 --run m1
+python benchmarks/laya_mps/bench_inproc.py --device mps --config C2 --run m1
+python benchmarks/laya_mps/bench_http.py --config C3 --run m1 --spawn .venv/bin/laya-serve
+python benchmarks/laya_mps/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
   --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
-python recipe/laya/bench/bench_http.py --config C3w --run m1 \
+python benchmarks/laya_mps/bench_http.py --config C3w --run m1 \
   --spawn .venv/bin/python -m frontend.laya_mps --device {device} --model {model} --port {port}
-python recipe/laya/bench/bench_http.py --config C3o --run m1 \
+python benchmarks/laya_mps/bench_http.py --config C3o --run m1 \
   --spawn .venv/bin/python -m frontend.laya_mps --device {device} --model {model} --compile --weights fp16 --port {port}
-python recipe/laya/bench/report.py recipe/laya/bench/results/*_m[0-9].jsonl --ref C1
+python benchmarks/laya_mps/report.py benchmarks/laya_mps/results/*_m[0-9].jsonl --ref C1
 ```
 
 Repeat with `--run m2` for a second measured run. Runs refuse to start on battery power or above a
@@ -38,9 +38,9 @@ Two configurations compared request by request, which holds up under background 
 separate runs:
 
 ```sh
-python recipe/laya/bench/paired.py --run p1 --a "" --b "--compile --weights fp16"
-python recipe/laya/bench/paired.py --run f1 --a-url http://127.0.0.1:8000 --b-url http://127.0.0.1:8080
-python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_p1.jsonl
+python benchmarks/laya_mps/paired.py --run p1 --a "" --b "--compile --weights fp16"
+python benchmarks/laya_mps/paired.py --run f1 --a-url http://127.0.0.1:8000 --b-url http://127.0.0.1:8080
+python benchmarks/laya_mps/paired.py --summarize benchmarks/laya_mps/results/paired_p1.jsonl
 ```
 
 ## Results

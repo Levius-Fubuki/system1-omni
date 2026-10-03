@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-BENCH = REPO / "recipe/laya/bench"
+BENCH = REPO / "benchmarks/laya_mps"
 sys.path.insert(0, str(BENCH))
 
 import env as bench_env  # noqa: E402
@@ -50,10 +50,10 @@ def test_the_fixed_inputs_span_question_types_lengths_and_option_counts():
     assert {q["type"] for w in parity for q in w["questions"].values()} == {"choice", "score", "noul"}
 
 
-DOCUMENTS = ["recipe/laya/apple-silicon.md", "recipe/laya/bench/README.md", "src/models/laya/README.md"]
+DOCUMENTS = ["recipe/laya/apple-silicon.md", "benchmarks/laya_mps/README.md", "src/models/laya/README.md"]
 SCRIPTS = {
     "frontend.laya_mps": "src/frontend/laya_mps.py",
-    **{f"recipe/laya/bench/{name}.py": f"recipe/laya/bench/{name}.py"
+    **{f"benchmarks/laya_mps/{name}.py": f"benchmarks/laya_mps/{name}.py"
        for name in ("bench_http", "bench_inproc", "paired", "profile_mps", "report")},
 }  # fmt: skip
 
@@ -78,8 +78,8 @@ def test_documented_commands_use_flags_and_files_that_exist():
     for document, command, name, source in commands:
         assert (REPO / source).exists(), f"{document}: {source}"
         options = set(re.findall(r'add_argument\(\s*"(--?[a-z][a-z-]*)"', (REPO / source).read_text()))
-        ours = command.split("--spawn")[0] if name.startswith("recipe") else command.split(name, 1)[1]
-        if name == "recipe/laya/bench/paired.py":
+        ours = command.split("--spawn")[0] if name.endswith(".py") else command.split(name, 1)[1]
+        if name == "benchmarks/laya_mps/paired.py":
             ours = re.sub(r'"[^"]*"', "", ours)  # --a/--b carry flags of the worker, checked below
             for worker_flags in re.findall(r'--[ab] "([^"]*)"', command):
                 assert set(re.findall(r"--[a-z-]+", worker_flags)) <= set(

@@ -6,10 +6,10 @@ With --spawn the script starts the worker itself and times process start to the 
 --url in front of it; readiness is then the frontend's /health, which proxies the worker's. Each
 workload runs at every --concurrency level; each client thread keeps one keep-alive connection.
 
-    python recipe/laya/bench/bench_http.py --config C3 --run m1 --spawn .venv/bin/laya-serve
-    python recipe/laya/bench/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
+    python benchmarks/laya_mps/bench_http.py --config C3 --run m1 --spawn .venv/bin/laya-serve
+    python benchmarks/laya_mps/bench_http.py --config C4 --run m1 --url http://127.0.0.1:8080 \
         --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
-    python recipe/laya/bench/bench_http.py --config C3o --run m1 \
+    python benchmarks/laya_mps/bench_http.py --config C3o --run m1 \
         --spawn .venv/bin/python -m frontend.laya_mps --device {device} --model {model} \
         --compile --weights fp16 --port {port}
 
@@ -32,7 +32,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
+REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 from env import footprint_mb, header, noise_problems  # noqa: E402
 

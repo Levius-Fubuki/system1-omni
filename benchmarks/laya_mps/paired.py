@@ -1,9 +1,9 @@
 """Paired comparison of two worker configurations: both run at once, and every request goes to A and to B
 back to back, alternating which goes first, so background load that shifts both cancels out.
 
-    python recipe/laya/bench/paired.py --run p1 --a "" --b "--compile --weights fp16"
-    python recipe/laya/bench/paired.py --run f1 --a-url http://127.0.0.1:8000 --b-url http://127.0.0.1:8080
-    python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_p1.jsonl
+    python benchmarks/laya_mps/paired.py --run p1 --a "" --b "--compile --weights fp16"
+    python benchmarks/laya_mps/paired.py --run f1 --a-url http://127.0.0.1:8000 --b-url http://127.0.0.1:8080
+    python benchmarks/laya_mps/paired.py --summarize benchmarks/laya_mps/results/paired_p1.jsonl
 
 `--a`/`--b` are extra flags for `frontend.laya_mps`, which the script starts on MPS with the english
 model; `--a-url`/`--b-url` compare two servers that are already running (e.g. a worker directly and
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[2]
+REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 from bench_http import Client, body_for, fetch_answers, wait_ready  # noqa: E402
 from env import footprint_mb, header, noise_problems  # noqa: E402

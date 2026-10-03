@@ -163,16 +163,16 @@ LAYA_CONTRACT=1 LAYA_CONTRACT_DEVICE=mps LAYA_CONTRACT_FLAGS="--compile --weight
 ## Benchmark
 
 Stop the worker and frontend first; the benchmark starts its own. The scripts are listed in
-[`bench/`](bench/README.md). A first pass that checks everything runs:
+[`benchmarks/laya_mps/`](../../benchmarks/laya_mps/README.md). A first pass that checks everything runs:
 
 ```sh
-.venv/bin/python recipe/laya/bench/bench_inproc.py --device mps --config C2 --run feasibility
-.venv/bin/python recipe/laya/bench/bench_http.py --config C3 --run feasibility --spawn .venv/bin/laya-serve
-.venv/bin/python recipe/laya/bench/bench_http.py --config C4 --run feasibility \
+.venv/bin/python benchmarks/laya_mps/bench_inproc.py --device mps --config C2 --run feasibility
+.venv/bin/python benchmarks/laya_mps/bench_http.py --config C3 --run feasibility --spawn .venv/bin/laya-serve
+.venv/bin/python benchmarks/laya_mps/bench_http.py --config C4 --run feasibility \
   --url http://127.0.0.1:8080 --frontend target/release/omni-jev --spawn .venv/bin/laya-serve
-.venv/bin/python recipe/laya/bench/paired.py --run feasibility --a "" --b "--compile --weights fp16"
-.venv/bin/python recipe/laya/bench/report.py recipe/laya/bench/results/*_feasibility.jsonl --ref C2
-.venv/bin/python recipe/laya/bench/paired.py --summarize recipe/laya/bench/results/paired_feasibility.jsonl
+.venv/bin/python benchmarks/laya_mps/paired.py --run feasibility --a "" --b "--compile --weights fp16"
+.venv/bin/python benchmarks/laya_mps/report.py benchmarks/laya_mps/results/*_feasibility.jsonl --ref C2
+.venv/bin/python benchmarks/laya_mps/paired.py --summarize benchmarks/laya_mps/results/paired_feasibility.jsonl
 ```
 
 Runs labelled anything other than `feasibility` refuse to start on battery power or when the
