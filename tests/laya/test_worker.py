@@ -1,6 +1,6 @@
 """Unit tests for the Laya worker. A fake Router stands in for laya's; no model is loaded.
 
-python -m pytest src/models/laya/tests
+PYTHONPATH=src python -m pytest tests/laya
 """
 
 import sys

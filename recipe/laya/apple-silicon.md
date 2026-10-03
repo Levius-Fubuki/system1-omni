@@ -7,7 +7,9 @@ runs the benchmarks. The model-side code is in [`src/models/laya/`](../../src/mo
 
 Validated on an M1 Pro (16 GB, 16-core GPU), macOS 26.1, Python 3.12, `laya[serve]==0.3.20`,
 torch 2.14.0 and the `english` checkpoint (`convaiinnovations/laya` at `55cf4c4`), and by another
-contributor on an M5 (10-core GPU, 32 GB, macOS 26.5.2). Other M-series Macs have not been tested.
+contributor on an M5 (10-core GPU, 32 GB, macOS 26.5.2). A reviewer ran the tests on an M4 (10-core GPU,
+16 GB, macOS 26, Python 3.13), including the contract tests on the GPU. Other M-series Macs have not been
+tested.
 
 Run all commands from the repository root.
 
@@ -142,12 +144,15 @@ The frontend forwards the worker's response unchanged; `compare_with_backend.py`
 
 ## Test
 
-The tests need `pytest` and `httpx2` (Starlette's `TestClient`; `httpx` works with a deprecation warning):
+The tests need `pytest` and `httpx2` (Starlette's `TestClient`; `httpx` works with a deprecation warning);
+`requirements-mps.txt` pins them and ruff:
 
 ```sh
-.venv/bin/python -m pip install pytest httpx2
+.venv/bin/python -m pip install -r recipe/laya/requirements-mps.txt
 PYTHONPATH=src .venv/bin/python -m pytest tests/laya                    # unit tests, no model
 LAYA_CONTRACT=1 PYTHONPATH=src .venv/bin/python -m pytest tests/laya    # plus contract tests against a CPU worker
+.venv/bin/ruff format --check src/frontend/laya_mps.py src/models/laya benchmarks/laya_mps tests/laya
+.venv/bin/ruff check --select E4,E7,E9,F src/frontend/laya_mps.py src/models/laya benchmarks/laya_mps tests/laya
 ```
 
 The contract tests start a real worker and check readiness, the three decision types, error responses, and

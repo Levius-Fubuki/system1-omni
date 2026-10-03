@@ -13,7 +13,6 @@ import json
 import os
 import shlex
 import socket
-import statistics
 import subprocess
 import sys
 import time
@@ -161,13 +160,16 @@ def test_the_checkpoint_stays_loaded_across_requests(worker):
     )
 
 
-def test_first_request_after_ready_is_not_a_cold_start(worker):
-    port, (status, _, first_ms) = worker
+def test_the_first_request_after_ready_succeeds(worker):
+    # Its latency is measured by the benchmarks, not asserted here: on MPS it depends on
+    # how long the GPU has been idle since the warmup (tens to over a hundred ms on an
+    # M1 Pro), and on an M5 even a worker without warmup answered its first request in
+    # 132-143 ms, so no bound separates warm from cold on every Mac. That the warmup ran
+    # before ready is checked above.
+    _, (status, body, _) = worker
     assert status == 200
-    warm = statistics.median(decide(port, {"q": CHOICE})[2] for _ in range(20))
-    # Without the warmup the first request costs several hundred ms more than a warm one. A few tens of ms
-    # remain on MPS: the GPU has been idle since the warmup, and any request after a pause pays that.
-    assert first_ms <= warm + 100, f"first {first_ms:.0f} ms, warm p50 {warm:.0f} ms"
+    answer = json.loads(body)["answers"]["q"]
+    assert answer["type"] == "choice" and answer["choice"] in CHOICE["criteria"]
 
 
 @pytest.mark.parametrize(
