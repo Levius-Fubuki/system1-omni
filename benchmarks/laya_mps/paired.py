@@ -48,7 +48,9 @@ def spawn(flags, port, python, model, log_path):
         *shlex.split(flags),
     ]
     log = open(log_path, "w")  # noqa: SIM115
-    return subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT, cwd=REPO)
+    return subprocess.Popen(
+        command, env=env, stdout=log, stderr=subprocess.STDOUT, cwd=REPO
+    )
 
 
 def run(args):
@@ -74,8 +76,19 @@ def run(args):
     try:
         if not (args.a_url or args.b_url):
             for s, (flags, port) in sides.items():
-                procs[s] = spawn(flags, port, args.python, args.model, out_dir / f"paired_{args.run}_{s}.log")
-        health = {s: wait_ready(urls[s], {s: procs[s]} if s in procs else {}, args.ready_timeout)[1] for s in sides}
+                procs[s] = spawn(
+                    flags,
+                    port,
+                    args.python,
+                    args.model,
+                    out_dir / f"paired_{args.run}_{s}.log",
+                )
+        health = {
+            s: wait_ready(
+                urls[s], {s: procs[s]} if s in procs else {}, args.ready_timeout
+            )[1]
+            for s in sides
+        }
         with open(out_dir / f"paired_{args.run}.jsonl", "w") as f:
 
             def emit(record):
@@ -98,7 +111,15 @@ def run(args):
                 body = body_for(w, args.model)
                 for s in sides:
                     answers, error = fetch_answers(clients[s], body)
-                    emit({"type": "answers", "side": s, "workload": w["id"], "answers": answers, "error": error})
+                    emit(
+                        {
+                            "type": "answers",
+                            "side": s,
+                            "workload": w["id"],
+                            "answers": answers,
+                            "error": error,
+                        }
+                    )
             order = bench[:]
             random.Random(args.seed).shuffle(order)
             for w in order:
@@ -108,7 +129,9 @@ def run(args):
                     ms = {}
                     for s in (first, second):
                         try:
-                            t, status, _ = clients[s].request("POST", "/v1/systemone", body)
+                            t, status, _ = clients[s].request(
+                                "POST", "/v1/systemone", body
+                            )
                         except (OSError, http.client.HTTPException):
                             t, status = None, 0
                         ms[s] = t if status == 200 else None
@@ -124,12 +147,17 @@ def run(args):
                                 "rows": len(w["questions"]),
                             }
                         )
-            end_health = {s: json.loads(clients[s].request("GET", "/health", retry=True)[2]) for s in sides}
+            end_health = {
+                s: json.loads(clients[s].request("GET", "/health", retry=True)[2])
+                for s in sides
+            }
             emit(
                 {
                     "type": "end",
                     "health": end_health,
-                    "footprint_mb": {s: footprint_mb(procs[s].pid).get("footprint_mb") for s in procs},
+                    "footprint_mb": {
+                        s: footprint_mb(procs[s].pid).get("footprint_mb") for s in procs
+                    },
                 }
             )
     finally:
@@ -145,8 +173,14 @@ def run(args):
 
 def median_interval(ratios, seed=0, resamples=2000):
     rng = random.Random(seed)
-    meds = sorted(statistics.median(rng.choices(ratios, k=len(ratios))) for _ in range(resamples))
-    return statistics.median(ratios), meds[int(0.025 * resamples)], meds[int(0.975 * resamples) - 1]
+    meds = sorted(
+        statistics.median(rng.choices(ratios, k=len(ratios))) for _ in range(resamples)
+    )
+    return (
+        statistics.median(ratios),
+        meds[int(0.025 * resamples)],
+        meds[int(0.975 * resamples) - 1],
+    )
 
 
 def flat(answer):
@@ -171,8 +205,12 @@ def summarize(paths):
         with open(path) as f:
             records = [json.loads(line) for line in f if line.strip()]
         env = next(r for r in records if r["type"] == "env")
-        print(f"## {env['run']}: A = `{env['a']}`, B = `{env['b']}`, load at start {env['loadavg_1m']}\n")
-        print("| input | pairs | A p50 ms | B p50 ms | median B/A | 95% interval |\n|---|---|---|---|---|---|")
+        print(
+            f"## {env['run']}: A = `{env['a']}`, B = `{env['b']}`, load at start {env['loadavg_1m']}\n"
+        )
+        print(
+            "| input | pairs | A p50 ms | B p50 ms | median B/A | 95% interval |\n|---|---|---|---|---|---|"
+        )
         pairs, failed = {}, 0
         for r in records:
             if r["type"] == "pair" and r["a_ms"] and r["b_ms"]:
@@ -201,23 +239,37 @@ def summarize(paths):
                 if a is None or b is None or a.get("type") != b.get("type"):
                     errors.append(f"{wid}/{q}")
                     continue
-                worst = max(worst, max(abs(flat(a)[k] - flat(b).get(k, 0.0)) for k in flat(a)))
+                worst = max(
+                    worst, max(abs(flat(a)[k] - flat(b).get(k, 0.0)) for k in flat(a))
+                )
                 if decision(a) != decision(b):
                     flips.append((wid, q, round(margin(a), 4)))
-        print(f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}; failed pairs: {failed}")
+        print(
+            f"\nB vs A answers: max |Δp| {worst:.4f}, flips {flips}, errors {errors}; failed pairs: {failed}"
+        )
         end = next((r for r in records if r["type"] == "end"), None)
         if end is None:
-            print("**The run did not finish: no end record, so no device, recompile or memory check.**\n")
+            print(
+                "**The run did not finish: no end record, so no device, recompile or memory check.**\n"
+            )
             continue
-        compile_state = {s: h.get("compile", {}).get("recompiled_after_ready") for s, h in end["health"].items()}
+        compile_state = {
+            s: h.get("compile", {}).get("recompiled_after_ready")
+            for s, h in end["health"].items()
+        }
         devices = {s: h.get("device") for s, h in end["health"].items()}
         off_gpu = [
             s
             for s, h in end["health"].items()
             if h.get("device_mismatch")
-            or (h.get("compile", {}).get("enabled") and not h["compile"].get("active", True))
+            or (
+                h.get("compile", {}).get("enabled")
+                and not h["compile"].get("active", True)
+            )
         ]
-        print(f"recompiled after ready: {compile_state}; device at end: {devices}; footprint MB: {end['footprint_mb']}")
+        print(
+            f"recompiled after ready: {compile_state}; device at end: {devices}; footprint MB: {end['footprint_mb']}"
+        )
         if off_gpu:
             print(
                 f"**Side {', '.join(off_gpu)} left its device or compiled path during the run; the ratios above mix both.**"
@@ -229,9 +281,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--summarize", nargs="+", metavar="JSONL")
     parser.add_argument("--run")
-    parser.add_argument("--a", help="extra frontend.laya_mps flags for side A (default: none)")
-    parser.add_argument("--b", help="extra frontend.laya_mps flags for side B (default: --compile --weights fp16)")
-    parser.add_argument("--a-url", help="instead of starting workers: an already running server for side A")
+    parser.add_argument(
+        "--a", help="extra frontend.laya_mps flags for side A (default: none)"
+    )
+    parser.add_argument(
+        "--b",
+        help="extra frontend.laya_mps flags for side B (default: --compile --weights fp16)",
+    )
+    parser.add_argument(
+        "--a-url",
+        help="instead of starting workers: an already running server for side A",
+    )
     parser.add_argument("--b-url", help="... and for side B")
     parser.add_argument("--port-a", type=int, default=8000)
     parser.add_argument("--port-b", type=int, default=8001)

@@ -44,7 +44,9 @@ class Client:
 
     def __init__(self, url, token=None):
         parts = urlsplit(url)
-        self.conn = http.client.HTTPConnection(parts.hostname, parts.port or 80, timeout=120)
+        self.conn = http.client.HTTPConnection(
+            parts.hostname, parts.port or 80, timeout=120
+        )
         self.headers = {"Content-Type": "application/json"}
         if token:
             self.headers["Authorization"] = f"Bearer {token}"
@@ -107,18 +109,24 @@ def fetch_answers(client, body):
 
 
 def body_for(workload, model):
-    return json.dumps({"model": model, "state": workload["state"], "questions": workload["questions"]}).encode()
+    return json.dumps(
+        {"model": model, "state": workload["state"], "questions": workload["questions"]}
+    ).encode()
 
 
 def run_level(url, token, body, n, concurrency):
     """n requests split over `concurrency` threads. Returns [(thread, ms, status)], elapsed seconds."""
     per_thread = [n // concurrency + (i < n % concurrency) for i in range(concurrency)]
     results, lock = [], threading.Lock()
-    barrier = threading.Barrier(concurrency + 1, timeout=120)  # a thread that fails to connect breaks it
+    barrier = threading.Barrier(
+        concurrency + 1, timeout=120
+    )  # a thread that fails to connect breaks it
 
     def worker(index, count):
         client = Client(url, token)
-        client.request("POST", "/v1/systemone", body, retry=True)  # connect outside the timed window
+        client.request(
+            "POST", "/v1/systemone", body, retry=True
+        )  # connect outside the timed window
         barrier.wait()
         mine = []
         for _ in range(count):
@@ -131,7 +139,9 @@ def run_level(url, token, body, n, concurrency):
         with lock:
             results.extend(mine)
 
-    threads = [threading.Thread(target=worker, args=(i, c)) for i, c in enumerate(per_thread)]
+    threads = [
+        threading.Thread(target=worker, args=(i, c)) for i, c in enumerate(per_thread)
+    ]
     for t in threads:
         t.start()
     barrier.wait()
@@ -146,24 +156,58 @@ def main():
     parser.add_argument("--config", required=True, help="label, e.g. C3 or C4")
     parser.add_argument("--run", required=True, help="feasibility, m1, m2, ...")
     parser.add_argument("--url", default="http://127.0.0.1:8000")
-    parser.add_argument("--model", default="english", help="model name the worker serves")
-    parser.add_argument("--frontend", help="Rust frontend binary to start on --url in front of the spawned worker")
-    parser.add_argument("--backend-port", type=int, default=8000, help="worker port when --frontend is used")
-    parser.add_argument("--spawn", nargs=argparse.REMAINDER, help="start this worker command, then benchmark it")
-    parser.add_argument("--device", default="mps", help="device for a spawned worker: LAYA_DEVICE and {device}")
+    parser.add_argument(
+        "--model", default="english", help="model name the worker serves"
+    )
+    parser.add_argument(
+        "--frontend",
+        help="Rust frontend binary to start on --url in front of the spawned worker",
+    )
+    parser.add_argument(
+        "--backend-port",
+        type=int,
+        default=8000,
+        help="worker port when --frontend is used",
+    )
+    parser.add_argument(
+        "--spawn",
+        nargs=argparse.REMAINDER,
+        help="start this worker command, then benchmark it",
+    )
+    parser.add_argument(
+        "--device",
+        default="mps",
+        help="device for a spawned worker: LAYA_DEVICE and {device}",
+    )
     parser.add_argument("--ready-timeout", type=float, default=600)
     parser.add_argument("--workloads", default=str(HERE / "workloads.jsonl"))
-    parser.add_argument("--only", nargs="*", help="bench workload ids to run (default: all)")
-    parser.add_argument("-n", type=int, default=300, help="timed requests per workload and concurrency level")
-    parser.add_argument("--discard", type=int, default=20, help="warmup requests per workload")
+    parser.add_argument(
+        "--only", nargs="*", help="bench workload ids to run (default: all)"
+    )
+    parser.add_argument(
+        "-n",
+        type=int,
+        default=300,
+        help="timed requests per workload and concurrency level",
+    )
+    parser.add_argument(
+        "--discard", type=int, default=20, help="warmup requests per workload"
+    )
     parser.add_argument("--concurrency", type=int, nargs="+", default=[1, 4])
     parser.add_argument("--seed", type=int, default=0, help="workload order seed")
     parser.add_argument("--out", default=str(HERE / "results"))
-    parser.add_argument("--max-load", type=float, default=2.0, help="1-min load average allowed for measured runs")
+    parser.add_argument(
+        "--max-load",
+        type=float,
+        default=2.0,
+        help="1-min load average allowed for measured runs",
+    )
     args = parser.parse_args()
     token = os.environ.get("OMNI_JEV_TEST_TOKEN")
     if args.frontend and not args.spawn:
-        parser.error("--frontend needs --spawn: the frontend is started in front of a spawned worker")
+        parser.error(
+            "--frontend needs --spawn: the frontend is started in front of a spawned worker"
+        )
     if args.frontend and urlsplit(args.url).port == args.backend_port:
         parser.error("--url and --backend-port must differ when --frontend is used")
 
@@ -175,7 +219,11 @@ def main():
 
     with open(args.workloads) as f:
         workloads = [json.loads(line) for line in f if line.strip()]
-    bench = [w for w in workloads if w["kind"] == "bench" and (not args.only or w["id"] in args.only)]
+    bench = [
+        w
+        for w in workloads
+        if w["kind"] == "bench" and (not args.only or w["id"] in args.only)
+    ]
     parity = [w for w in workloads if w["kind"] == "parity"]
 
     Path(args.out).mkdir(parents=True, exist_ok=True)
@@ -184,7 +232,9 @@ def main():
     def memory():
         mem = footprint_mb(processes["worker"].pid) if "worker" in processes else {}
         if "frontend" in processes:
-            mem["frontend_footprint_mb"] = footprint_mb(processes["frontend"].pid).get("footprint_mb")
+            mem["frontend_footprint_mb"] = footprint_mb(processes["frontend"].pid).get(
+                "footprint_mb"
+            )
         return mem
 
     out = Path(args.out) / f"http_{args.config}_{args.run}.jsonl"
@@ -201,12 +251,20 @@ def main():
                 "LAYA_PRELOAD": "1",
                 "LAYA_LOG_LEVEL": "warning",
             }
-            env["PYTHONPATH"] = str(REPO / "src") + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-            placeholders = {"{port}": str(port), "{device}": args.device, "{model}": args.model}
+            env["PYTHONPATH"] = str(REPO / "src") + (
+                os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+            )
+            placeholders = {
+                "{port}": str(port),
+                "{device}": args.device,
+                "{model}": args.model,
+            }
             command = list(args.spawn)
             for placeholder, value in placeholders.items():
                 command = [arg.replace(placeholder, value) for arg in command]
-            spawn_log = open(Path(args.out) / f"http_{args.config}_{args.run}.worker.log", "w")  # noqa: SIM115
+            spawn_log = open(
+                Path(args.out) / f"http_{args.config}_{args.run}.worker.log", "w"
+            )  # noqa: SIM115
             processes["worker"] = subprocess.Popen(
                 command, env=env, stdout=spawn_log, stderr=subprocess.STDOUT, cwd=REPO
             )
@@ -217,7 +275,9 @@ def main():
                 "OMNI_JEV_BIND": f"{parts.hostname}:{parts.port}",
                 "OMNI_JEV_BACKEND_URL": f"http://127.0.0.1:{args.backend_port}",
             }
-            frontend_log = open(Path(args.out) / f"http_{args.config}_{args.run}.frontend.log", "w")  # noqa: SIM115
+            frontend_log = open(
+                Path(args.out) / f"http_{args.config}_{args.run}.frontend.log", "w"
+            )  # noqa: SIM115
             processes["frontend"] = subprocess.Popen(
                 [args.frontend], env=env, stdout=frontend_log, stderr=subprocess.STDOUT
             )
@@ -240,11 +300,20 @@ def main():
                     health=health,
                     device_actual=health.get("device"),
                     # The worker reports these in /health; laya-serve does not, so its values are assumed.
-                    mps_amp_min_rows=health.get("mps_amp_min_rows", int(os.environ.get("LAYA_MPS_AMP_MIN_ROWS", "5"))),
+                    mps_amp_min_rows=health.get(
+                        "mps_amp_min_rows",
+                        int(os.environ.get("LAYA_MPS_AMP_MIN_ROWS", "5")),
+                    ),
                     amp_dtype=health.get("autocast_dtype")
-                    or ("torch.float16" if health.get("device") == "mps" else "torch.float32"),
+                    or (
+                        "torch.float16"
+                        if health.get("device") == "mps"
+                        else "torch.float32"
+                    ),
                     weights_dtype=health.get("weights_dtype") or "torch.float32",
-                    dtype_source=None if "weights_dtype" in health else "assumed: laya 0.3.20 defaults",
+                    dtype_source=None
+                    if "weights_dtype" in health
+                    else "assumed: laya 0.3.20 defaults",
                 )
             )
 
@@ -252,18 +321,24 @@ def main():
             started = time.perf_counter()
             first_ms, routing = {}, None
             for w in bench:
-                ms, status, data = client.request("POST", "/v1/systemone", body_for(w, args.model), retry=True)
+                ms, status, data = client.request(
+                    "POST", "/v1/systemone", body_for(w, args.model), retry=True
+                )
                 if status != 200:
                     sys.exit(f"{w['id']}: status {status}: {data[:200]!r}")
                 first_ms[w["id"]] = ms
                 routing = json.loads(data).get("routing")
                 for _ in range(args.discard - 1):
-                    client.request("POST", "/v1/systemone", body_for(w, args.model), retry=True)
+                    client.request(
+                        "POST", "/v1/systemone", body_for(w, args.model), retry=True
+                    )
             warmup_s = time.perf_counter() - started
             emit(
                 {
                     "type": "phase",
-                    "process_to_ready_s": round(ready_s, 3) if "worker" in processes else None,
+                    "process_to_ready_s": round(ready_s, 3)
+                    if "worker" in processes
+                    else None,
                     "warmup_s": round(warmup_s, 3),
                     "first_ms": {k: round(v, 2) for k, v in first_ms.items()},
                     "routing": routing,
@@ -277,12 +352,16 @@ def main():
             for w in order:
                 body = body_for(w, args.model)
                 answers, error = fetch_answers(client, body)
-                if error:  # the parity section of report.py reports the workload as missing
+                if (
+                    error
+                ):  # the parity section of report.py reports the workload as missing
                     emit({"type": "answers_error", "workload": w["id"], **error})
                 else:
                     emit({"type": "answers", "workload": w["id"], "answers": answers})
                 for concurrency in args.concurrency:
-                    results, elapsed = run_level(args.url, token, body, args.n, concurrency)
+                    results, elapsed = run_level(
+                        args.url, token, body, args.n, concurrency
+                    )
                     ok = sum(s == 200 for _, _, s in results)
                     for i, (thread, ms, status) in enumerate(results):
                         emit(

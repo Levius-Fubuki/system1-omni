@@ -21,7 +21,9 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.skipif(os.environ.get("LAYA_CONTRACT") != "1", reason="set LAYA_CONTRACT=1")
+pytestmark = pytest.mark.skipif(
+    os.environ.get("LAYA_CONTRACT") != "1", reason="set LAYA_CONTRACT=1"
+)
 
 SRC = Path(__file__).resolve().parents[2] / "src"
 DEVICE = os.environ.get("LAYA_CONTRACT_DEVICE", "cpu")
@@ -64,7 +66,13 @@ def call(port, method, path, body=None, token=TOKEN, raw=False):
 
 
 def decide(port, questions, **kwargs):
-    return call(port, "POST", "/v1/systemone", {"model": "english", "state": STATE, "questions": questions}, **kwargs)
+    return call(
+        port,
+        "POST",
+        "/v1/systemone",
+        {"model": "english", "state": STATE, "questions": questions},
+        **kwargs,
+    )
 
 
 @pytest.fixture(scope="module")
@@ -127,14 +135,19 @@ def test_health_reports_the_loaded_model(worker):
     assert health["device_mismatch"] is False
     assert health["checkpoint"] == CHECKPOINT
     assert health["loaded"] == ["english"]
-    assert health["weights_dtype"] == ("torch.float16" if "fp16" in FLAGS else "torch.float32")
+    assert health["weights_dtype"] == (
+        "torch.float16" if "fp16" in FLAGS else "torch.float32"
+    )
     assert len(health["revision"]) == 40
 
 
 def test_the_first_health_answer_comes_after_the_warmup(worker):
     # laya-serve also refuses connections while it loads, then answers /health before any forward pass;
     # the worker's first answer must already report a finished warmup.
-    assert startup["first_health"]["ready"] is True and startup["first_health"]["warmup_ms"] > 0
+    assert (
+        startup["first_health"]["ready"] is True
+        and startup["first_health"]["warmup_ms"] > 0
+    )
 
 
 def test_the_checkpoint_stays_loaded_across_requests(worker):
@@ -142,7 +155,10 @@ def test_the_checkpoint_stays_loaded_across_requests(worker):
     for _ in range(5):
         assert decide(port, {"q": NOUL})[0] == 200
     health = json.loads(call(port, "GET", "/health")[1])
-    assert health["loaded"] == ["english"] and health["warmup_ms"] == startup["first_health"]["warmup_ms"]
+    assert (
+        health["loaded"] == ["english"]
+        and health["warmup_ms"] == startup["first_health"]["warmup_ms"]
+    )
 
 
 def test_first_request_after_ready_is_not_a_cold_start(worker):
@@ -160,7 +176,10 @@ def test_first_request_after_ready_is_not_a_cold_start(worker):
         ({"q": CHOICE}, {"q": "choice"}),
         ({"q": SCORE}, {"q": "score"}),
         ({"q": NOUL}, {"q": "noul"}),
-        ({"a": CHOICE, "b": SCORE, "c": NOUL}, {"a": "choice", "b": "score", "c": "noul"}),
+        (
+            {"a": CHOICE, "b": SCORE, "c": NOUL},
+            {"a": "choice", "b": "score", "c": "noul"},
+        ),
     ],
     ids=["choice", "score", "noul", "combined"],
 )
@@ -187,7 +206,13 @@ SIX = {f"q{i}": q for i, q in enumerate([CHOICE, SCORE, NOUL, CHOICE, SCORE, NOU
 
 @pytest.mark.parametrize(
     "questions",
-    [{"q": CHOICE}, {"q": SCORE}, {"q": NOUL}, {"a": CHOICE, "b": SCORE, "c": NOUL}, SIX],
+    [
+        {"q": CHOICE},
+        {"q": SCORE},
+        {"q": NOUL},
+        {"a": CHOICE, "b": SCORE, "c": NOUL},
+        SIX,
+    ],
     ids=["choice", "score", "noul", "combined", "six-questions"],
 )
 def test_answers_match_laya_itself(worker, reference, questions):
@@ -198,7 +223,10 @@ def test_answers_match_laya_itself(worker, reference, questions):
     expected = reference.system_one(STATE, questions)
     assert set(expected) <= set(served)  # the worker adds `routing`, it drops nothing
     assert served["usage"] == expected["usage"]
-    reduced = "fp16" in FLAGS or (DEVICE == "mps" and len(questions) >= startup["first_health"]["mps_amp_min_rows"])
+    reduced = "fp16" in FLAGS or (
+        DEVICE == "mps"
+        and len(questions) >= startup["first_health"]["mps_amp_min_rows"]
+    )
     tolerance = 1e-2 if reduced else 1e-3
     for qid, want in expected["answers"].items():
         got = served["answers"][qid]
@@ -210,12 +238,19 @@ def test_answers_match_laya_itself(worker, reference, questions):
         for option, p in want["probabilities"].items():
             assert got["probabilities"][option] == pytest.approx(p, abs=tolerance)
         if want["type"] == "choice":
-            assert got["choice"] == want["choice"] == max(got["probabilities"], key=got["probabilities"].get)
+            assert (
+                got["choice"]
+                == want["choice"]
+                == max(got["probabilities"], key=got["probabilities"].get)
+            )
 
 
 def test_same_request_same_answer(worker):
     port, _ = worker
-    first, second = (json.loads(decide(port, {"a": CHOICE, "b": NOUL})[1])["answers"] for _ in range(2))
+    first, second = (
+        json.loads(decide(port, {"a": CHOICE, "b": NOUL})[1])["answers"]
+        for _ in range(2)
+    )
     assert first == second
 
 
@@ -225,16 +260,37 @@ def test_same_request_same_answer(worker):
         (b"{not json", True, TOKEN, 400),
         ({"model": "english", "state": STATE}, False, TOKEN, 400),
         (
-            {"model": "english", "state": STATE, "questions": {"q": {"type": "bogus", "instructions": "?"}}},
+            {
+                "model": "english",
+                "state": STATE,
+                "questions": {"q": {"type": "bogus", "instructions": "?"}},
+            },
             False,
             TOKEN,
             422,
         ),
         (b"x" * (2 * 1024 * 1024 + 1), True, TOKEN, 413),
-        ({"model": "english", "state": STATE, "questions": {"q": NOUL}}, False, "wrong", 401),
-        ({"model": "english", "state": STATE, "questions": {"q": NOUL}}, False, None, 401),
+        (
+            {"model": "english", "state": STATE, "questions": {"q": NOUL}},
+            False,
+            "wrong",
+            401,
+        ),
+        (
+            {"model": "english", "state": STATE, "questions": {"q": NOUL}},
+            False,
+            None,
+            401,
+        ),
     ],
-    ids=["malformed-json", "no-questions", "bad-question", "too-large", "wrong-token", "no-token"],
+    ids=[
+        "malformed-json",
+        "no-questions",
+        "bad-question",
+        "too-large",
+        "wrong-token",
+        "no-token",
+    ],
 )
 def test_errors(worker, body, raw, token, expected):
     port, _ = worker
