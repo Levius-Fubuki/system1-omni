@@ -57,7 +57,7 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 
 | Model | Status |
 | --- | --- |
-| LAYA | [External worker](recipe/laya/README.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
+| LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 
 [Supported models and hardware](docs/supported-models.md) lists the devices and where each worker has been run.
