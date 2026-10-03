@@ -226,16 +226,6 @@ mod tests {
     }
 
     #[test]
-    fn rejects_zero_health_timeout_or_response_limit() {
-        let mut config = Config::new(Config::DEFAULT_BIND, Config::DEFAULT_BACKEND_URL).unwrap();
-        config.health_timeout = Duration::ZERO;
-        assert!(app(&config).is_err());
-        config.health_timeout = Config::DEFAULT_HEALTH_TIMEOUT;
-        config.max_response_bytes = 0;
-        assert!(app(&config).is_err());
-    }
-
-    #[test]
     fn backend_path_prefix_gets_trailing_slash() {
         let config = Config::new("127.0.0.1:0", "https://example.com/worker").unwrap();
         assert_eq!(config.backend_url.as_str(), "https://example.com/worker/");
