@@ -116,8 +116,14 @@ RMSNorm keeps thread values in registers at widths 2560/5120. MLP SiLU uses
 both BF16 rounding points; other layouts use the scalar path.
 
 This recipe leaves `CUA_S1_GRAPH` unset and runs one eager forward pass per
-candidate. The shared backend retains Cua-S1's opt-in CUDA Graph path, but
-Open-Jev graph replay remains unvalidated. Prefix sharing, GEMM autotuning,
+candidate. Set `CUA_S1_GRAPH=1` on the worker to enable CUDA Graph replay. The
+shared backend retains at most 64 graphs, keyed by exact candidate token length;
+growing the scratch buffer clears them. Capturing a new length first runs an
+eager forward to initialize its plans, then captures and replays the forward.
+This adds cost for new lengths, so graph mode remains opt-in. Warm replay is
+validated on the 74-case H200 workload: its mean HTTP latency is 2.03% below
+eager execution after all workload lengths are warmed. Tokenization, transfers
+and the CPU scalar head remain outside the graph. Prefix sharing, GEMM autotuning,
 quantization and multimodal inference are not implemented. The
 [H200 validation](validation.md) reports full-checkpoint results for 74
 single-candidate requests, including probability differences and timing

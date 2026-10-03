@@ -42,9 +42,9 @@ feasibility pass are excluded. No Nsight launcher or trace collection was used.
 P50 is the median; P95 uses JevBench's `sorted[int(0.95*N)-1]` rank.
 The observed mean pass ranges are disjoint; two-pass ranges are not confidence
 intervals. Native's mean is 4.78% below Fast in this run, while Fast has a lower
-median. Multi-candidate prefix sharing, broader JevBench coverage and native
-Open-Jev CUDA Graph replay remain unmeasured. The author's 17.3 ms B300 result
-uses different hardware and workload.
+median. Multi-candidate prefix sharing and broader JevBench coverage remain
+unmeasured; native CUDA Graph replay is reported separately below. The author's
+17.3 ms B300 result uses different hardware and workload.
 
 ### Frozen controls and reproduction
 
@@ -75,6 +75,67 @@ all HF/native measurements were saved. Only the remaining Fast configuration
 continued on a second reservation of the same GPU and affinity; no measured
 passes were repeated or added. All task-owned processes exited and GPU 2 returned
 to 0 MB used. The October 2 timings below are a separate experiment.
+
+## Native CUDA Graph replay, 2026-10-03
+
+Warm graph replay reduces mean HTTP latency from **48.086 to 47.112 ms (2.03%)**
+on the same 74-case workload. The shared backend now retains up to 64 exact-length
+graphs, enough for these 57 distinct lengths. Its previous eight-entry cache
+regressed the mixed workload because evicted lengths require another eager
+forward and graph capture. Graph mode remains opt-in with `CUA_S1_GRAPH=1`.
+
+| Workload | Configuration | Mean (ms) | Mean, pass 1 / pass 2 (ms) |
+| --- | --- | ---: | ---: |
+| Fixed 107-token request | Eager | 19.829 | 19.835 / 19.823 |
+| Fixed 107-token request | Graph, eight entries | 18.882 | 18.902 / 18.863 |
+| Fixed 107-token request | Graph, 64 entries | 19.081 | 18.968 / 19.194 |
+| 74 mixed-length requests | Eager | 48.086 | 48.062 / 48.110 |
+| 74 mixed-length requests | Graph, eight entries | 95.289 | 95.425 / 95.153 |
+| 74 mixed-length requests | Graph, 64 entries | 47.112 | 47.050 / 47.174 |
+
+All 74 probabilities and decisions remain exactly unchanged (maximum delta 0.0).
+The 64-entry candidate also reduces the fixed-short mean by 3.77%. Both measured
+passes improve over eager for both workloads, satisfying the prespecified 3%
+short and 2% mixed mean gates. The mixed improvement only narrowly exceeds its
+gate; two passes are observed variability, not confidence intervals or evidence
+for a general workload winner. Observed device memory after mixed passes is
+50,947 / 50,967 / 51,089 MB for eager / graph-eight / graph-64: 122 MB more for
+64 entries than eight. These are scheduler samples, not peak-memory measurements.
+
+This is a separate native A/B experiment, not a newly measured HF/Fast comparison.
+It keeps H200 GPU 2, UUID, NUMA affinity, BF16, max length 16384, model export,
+CUDA library, frontend and request order fixed. Both graph capacities are built
+with identical rustc options and the frozen `202c0e1` dependency artifacts;
+their source copies differ only in the cache limit. Eager uses the eight-entry
+binary with graph mode disabled. Each configuration validates its first long
+inference after readiness to allocate the workload's maximum scratch size, then
+validates the short request. One server is reused for an excluded 32-request
+short feasibility pass and two measured 32-request passes, followed by an excluded
+74-case feasibility pass and two measured 74-case passes. HTTP timing has no
+Nsight launcher and uses the same boundary as the raw HF comparison above.
+
+New-length capture cost remains significant: excluded mixed feasibility means
+are 50.130 / 97.694 / 110.255 ms for eager / graph-eight / graph-64. These are
+single feasibility observations, not measured cold-latency comparisons. Scratch
+growth invalidates graphs, and more than 64 distinct lengths can still evict them.
+No model downloads, cache drops or clock changes occur. All owned processes exit
+and GPU 2 returns to 0 MB used.
+
+A preceding experiment proves warm replay in Nsight Systems: one graph launch,
+zero recaptures and zero individual runtime kernel-launch calls per short request,
+with the same 834 kernels. Node-level graph tracing reports larger gaps despite
+lower unprofiled HTTP latency; use unprofiled measurements for the speedup.
+[NVIDIA documents graph-node tracing overhead](https://docs.nvidia.com/nsight-systems/UserGuide/index.html#cuda-graph-trace).
+Hardware counters and per-SM utilization remain unmeasured.
+
+Raw plans, source copies, build commands, requests/responses, traces, memory
+samples and verified input hashes are archived outside this PR in
+`profile/jev-cuda-graph-20261003-074613/` and
+`profile/jev-cuda-graph-cache64-20261003-075238/`. Run the native worker with
+`CUA_S1_GRAPH=0/1` under the same reservation and affinity documented above;
+warm the maximum workload length and all tested lengths before measured passes.
+For new comparisons, declare the budget first and retain capture costs whenever
+they occur inside measured requests.
 
 ## Packed-SiLU A/B, 2026-10-02
 

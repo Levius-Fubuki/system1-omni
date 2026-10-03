@@ -662,7 +662,7 @@ impl Model {
                 cuda::synchronize(self.stream)?;
                 match cuda::Graph::capture(self.stream, || self.run(s, t)) {
                     Ok(graph) => {
-                        if self.graphs.len() == 8 {
+                        if self.graphs.len() == 64 {
                             self.graphs.pop_front();
                         }
                         self.graphs.push_back((t, graph));
