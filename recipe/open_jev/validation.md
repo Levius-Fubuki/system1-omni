@@ -1,4 +1,4 @@
-# Open-Jev L20X validation, 2026-10-02
+# Open-Jev H200 validation, 2026-10-02
 
 A matched comparison of 74 real JevBench `noul` requests, each with one candidate,
 measured packed MLP SiLU with cached residual RMSNorm fixed in both native variants.
@@ -51,7 +51,8 @@ were added. Final integration also passed the six-test shared CUDA ABI 4 suite.
 ## Frozen controls and reproduction
 
 - Device: exact scheduler GPU 2, UUID `GPU-cbf66259-f4ab-0ede-1811-82037dde5924`,
-  NVIDIA L20X 143771 MiB; CUDA driver and Nsight identify SM90 / 132 SMs. NUMA 0, CPUs 0–15.
+  NVIDIA H200, 143771 MiB (reported as `NVIDIA L20X` in the archived device metadata);
+  CUDA driver and Nsight identify SM90 / 132 SMs. NUMA 0, CPUs 0–15.
 - BF16, max length 16384, HTTP concurrency 1, native `CUA_S1_GRAPH=0`. Fast retains
   its original graph/kernel stack. Build with nvcc 13.0.88, SM90, `-O3 -std=c++17
   -lineinfo`; use the same cuBLASLt/runtime libraries for both native variants.

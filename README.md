@@ -9,7 +9,7 @@ The Rust frontend forwards requests to a separately running model worker. The Cu
 ## News
 
 - **2026-10-03:** Added [Open-Jev-27B-v1.1](recipe/open_jev/native.md)
-  support through a native Rust/CUDA worker. On one L20X, warm HTTP inference
+  support through a native Rust/CUDA worker. On one H200, warm HTTP inference
   averaged **48.30 ms**, with **24.66–24.93 ms P50** across two measured passes
   over 74 single-candidate JevBench `noul` requests per pass (BF16, concurrency 1).
   Packed SiLU lowered mean latency **2.48%** versus the native scalar-SiLU baseline.
@@ -68,7 +68,7 @@ LAYA can run as an external Python worker for text requests; its in-repository m
 | --- | --- |
 | LAYA | [External worker](recipe/laya/README.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
-| Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [L20X validation](recipe/open_jev/validation.md) |
+| Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
 
 CUDA and Metal coverage will be documented per model as implementations are added and validated.
 
@@ -76,7 +76,7 @@ CUDA and Metal coverage will be documented per model as implementations are adde
 
 See the [GPU serving benchmark](benchmarks/README.md) for request replay,
 output-fidelity checks, and the CUDA comparison protocol. The
-[Open-Jev L20X results](recipe/open_jev/validation.md) cover 74 single-candidate
+[Open-Jev H200 results](recipe/open_jev/validation.md) cover 74 single-candidate
 requests and a matched comparison with OpenJev-Fast.
 
 ## Stay Tuned with Us

@@ -119,7 +119,7 @@ This recipe leaves `CUA_S1_GRAPH` unset and runs one eager forward pass per
 candidate. The shared backend retains Cua-S1's opt-in CUDA Graph path, but
 Open-Jev graph replay remains unvalidated. Prefix sharing, GEMM autotuning,
 quantization and multimodal inference are not implemented. The
-[L20X validation](validation.md) reports full-checkpoint results for 74
+[H200 validation](validation.md) reports full-checkpoint results for 74
 single-candidate requests, including probability differences and timing
 variability. It does not establish general accuracy parity or a speedup over
 OpenJev-Fast; the author's B300 results use different hardware and workloads.
