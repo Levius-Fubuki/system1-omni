@@ -9,11 +9,11 @@ The Rust frontend forwards requests to a separately running model worker. The Cu
 ## News
 
 - **2026-10-03:** Added [Open-Jev-27B-v1.1](recipe/open_jev/native.md)
-  support through a native Rust/CUDA worker. On one H200, warm HTTP inference
-  averaged **48.30 ms**, with **24.66–24.93 ms P50** across two measured passes
-  over 74 single-candidate JevBench `noul` requests per pass (BF16, concurrency 1).
-  Packed SiLU lowered mean latency **2.48%** versus the native scalar-SiLU baseline.
-  See the [results and OpenJev-Fast comparison](recipe/open_jev/validation.md).
+  support through a native Rust/CUDA worker: **7.47× faster than raw HF Transformers**
+  by mean warm HTTP latency, **362.21→48.50 ms** on one H200. Measured over
+  74 single-candidate JevBench `noul` requests per pass, with two measured passes
+  per backend (BF16, concurrency 1). See the
+  [HF Transformers baseline, results and OpenJev-Fast comparison](recipe/open_jev/validation.md).
 
 ## Run the frontend
 
@@ -77,7 +77,7 @@ CUDA and Metal coverage will be documented per model as implementations are adde
 See the [GPU serving benchmark](benchmarks/README.md) for request replay,
 output-fidelity checks, and the CUDA comparison protocol. The
 [Open-Jev H200 results](recipe/open_jev/validation.md) cover 74 single-candidate
-requests and a matched comparison with OpenJev-Fast.
+requests and a matched comparison with raw HF Transformers and OpenJev-Fast.
 
 ## Stay Tuned with Us
 

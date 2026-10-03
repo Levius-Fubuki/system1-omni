@@ -1,4 +1,82 @@
-# Open-Jev H200 validation, 2026-10-02
+# Open-Jev H200 validation
+
+## Raw HF Transformers comparison, 2026-10-03
+
+The native Rust/CUDA worker delivers a **7.47× speedup over raw HF Transformers**
+by mean warm HTTP latency: **362.21→48.50 ms (86.61% lower)** on one H200.
+This comparison covers 74 real JevBench `noul` requests, one candidate each,
+80–3399 tokens, BF16, max length 16384 and concurrency 1. Each backend reuses
+one server for an excluded feasibility pass and two measured passes:
+148 measured requests per backend.
+
+| Configuration | Overall mean (ms) | Mean, pass 1 / pass 2 (ms) | P50, pass 1 / pass 2 (ms) | P95, pass 1 / pass 2 (ms) | Correct / 74 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Raw HF Transformers (unmerged LoRA; PyTorch fallback) | 362.209 | 362.238 / 362.180 | 324.822 / 321.321 | 651.999 / 652.911 | 64 |
+| Native Rust/CUDA (cached RMSNorm + packed SiLU) | 48.503 | 48.471 / 48.535 | 25.797 / 24.895 | 215.696 / 218.882 | 64 |
+| Original OpenJev-Fast | 50.936 | 51.097 / 50.775 | 24.651 / 24.622 | 248.121 / 251.193 | 63 |
+
+Native and HF agree on all 74 thresholded decisions and both score **64/74**;
+their maximum probability difference is **0.020423**. Fast scores 63/74 with
+one different decision (`hard-opus-a-temporal_numeric-09`); maximum native/Fast
+probability difference is 0.034353. Each backend's probabilities are exactly
+unchanged across its feasibility and measured passes. These counts do not
+establish statistical accuracy superiority or full numerical parity.
+
+**Raw HF baseline:** the original Open-Jev server and `DecisionModel`, with
+160 unmerged PEFT LoRA modules, the trained scalar head and saved temperature.
+Full attention uses stock SDPA; runtime assertions verify all 48 linear-attention
+layers use `torch_chunk_gated_delta_rule`, stock convolution and
+`Qwen3_5RMSNormGated`. Because the shared environment contains optional kernels,
+the baseline makes Transformers' `is_flash_linear_attention_available` and
+`is_causal_conv1d_available` checks return false before importing model classes.
+It uses no custom Fast model, `torch.compile`, CUDA Graph replay or prefix cache.
+Native uses merged LoRA and eager execution (`CUA_S1_GRAPH=0`); original Fast
+retains its custom kernels and CUDA Graph stack, reporting 30 retained graphs.
+This comparison changes the complete backend; it does not isolate one optimization.
+
+Timing includes localhost HTTP through the same frozen Rust frontend,
+tokenization, worker execution and UTF8 response decoding. Client body
+serialization and response JSON parsing are excluded. Downloads, preparation,
+process-to-readiness, warmup, first inference after readiness and the complete
+feasibility pass are excluded. No Nsight launcher or trace collection was used.
+P50 is the median; P95 uses JevBench's `sorted[int(0.95*N)-1]` rank.
+The observed mean pass ranges are disjoint; two-pass ranges are not confidence
+intervals. Native's mean is 4.78% below Fast in this run, while Fast has a lower
+median. Multi-candidate prefix sharing, broader JevBench coverage and native
+Open-Jev CUDA Graph replay remain unmeasured. The author's 17.3 ms B300 result
+uses different hardware and workload.
+
+### Frozen controls and reproduction
+
+- Exact H200 GPU 2, UUID `GPU-cbf66259-f4ab-0ede-1811-82037dde5924`, NUMA 0,
+  CPUs 0–15. The archived driver name is `NVIDIA L20X`, with 143771 MiB and
+  SM90 / 132 SMs. The same device, affinity, requests, model and prepared
+  environment are used for all three backends; no shared caches are dropped.
+- Frozen native worker/frontend: `202c0e163f868334a99d88407056ebe61dbb2dce`;
+  accepted packed-SiLU CUDA library SHA256:
+  `e033315d4c67127809e62f41d991a149ac8ee0ce81827997af063815fd00d435`.
+  PR source at measurement: `ad1cb818d2ea001bbd8c84643e1a7241d0fc26c8`.
+- [Original Open-Jev](https://github.com/Zefan-Cai/Open-Jev/tree/3308a15ccd7eea1df7a37d6ddc39b023b801ba16)
+  at `3308a15ccd7eea1df7a37d6ddc39b023b801ba16`. Fast, JevBench, request JSON,
+  base, adapter and temperature use the same pins recorded in the October 2
+  controls below and the [native recipe](native.md).
+- Actual runtime: Torch 2.13.0+cu130, CUDA 13.0, Transformers 5.10.2,
+  PEFT 0.19.1. Reuse prepared weights and SM90 extensions offline.
+- Use `gpu run --gpu-ids 2 --wait 10m --timeout 45m --note <label> --`, then
+  `numactl --membind=0 --physcpubind=0-15`. Run raw HF, native and Fast,
+  preserving the 74-case request order, with one excluded feasibility pass
+  and exactly two measured passes per configuration.
+
+Raw commands, request/token IDs, timing rows, source snapshots and 48 verified
+input hashes are archived locally in the benchmark worktree's
+`profile/jev-hf-transformers-comparison-20261003/`, outside this PR.
+A collector cleanup assertion rejected native's intentional SIGTERM exit after
+all HF/native measurements were saved. Only the remaining Fast configuration
+continued on a second reservation of the same GPU and affinity; no measured
+passes were repeated or added. All task-owned processes exited and GPU 2 returned
+to 0 MB used. The October 2 timings below are a separate experiment.
+
+## Packed-SiLU A/B, 2026-10-02
 
 A matched comparison of 74 real JevBench `noul` requests, each with one candidate,
 measured packed MLP SiLU with cached residual RMSNorm fixed in both native variants.
@@ -7,7 +85,7 @@ the native worker scored 64/74 correct. OpenJev-Fast scored 63/74, with one diff
 decision (`hard-opus-a-temporal_numeric-09`) and maximum native/Fast probability
 difference 0.03435. These counts do not establish statistical accuracy superiority.
 
-## Warm HTTP latency
+### Warm HTTP latency
 
 | Configuration | Mean, pass 1 / pass 2 (ms) | P50, pass 1 / pass 2 (ms) |
 | --- | --- | --- |
@@ -28,7 +106,7 @@ one complete 74-case feasibility pass are excluded; two subsequent passes are
 measured. Nsight collection is inactive during HTTP passes, although CUPTI
 instrumentation may remain loaded. No shared caches are dropped or clocks changed.
 
-## Separate CUDA timelines
+### Separate CUDA timelines
 
 Each entry is the two-trace mean of 64 MLP SiLU launches per request, in milliseconds.
 
@@ -48,7 +126,7 @@ maximum probability delta ≤0.01, ≥25% long SiLU duration reduction and ≥2%
 mean reduction with disjoint observed ranges. All passed; no extra measured runs
 were added. Final integration also passed the six-test shared CUDA ABI 4 suite.
 
-## Frozen controls and reproduction
+### Frozen controls and reproduction
 
 - Device: exact scheduler GPU 2, UUID `GPU-cbf66259-f4ab-0ede-1811-82037dde5924`,
   NVIDIA H200, 143771 MiB (reported as `NVIDIA L20X` in the archived device metadata);
