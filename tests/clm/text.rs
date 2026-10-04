@@ -6,7 +6,7 @@
 //! (`recipe/clm/native/text_oracle.py`, which imports `clm.schema`), so this compares
 //! against the real thing rather than a transcription of it.
 use omni_clm::serve::{answer_json, candidates, state_text, to_text};
-use omni_clm::{Kind, Question, answer, serve::QuestionRequest};
+use omni_clm::{Kind, Question, Request, answer, serve::QuestionRequest};
 use serde_json::{Value, json};
 
 fn oracle() -> Value {
@@ -220,4 +220,30 @@ fn json_numbers_parse_to_the_same_doubles_as_the_reference() {
         );
         assert_eq!(to_text(&parsed), text, "rendering {literal}");
     }
+}
+
+/// The whole path in one test: a request line as `clm-run` reads it, through
+/// parsing and preparation, to the exact strings the encoder is asked for.
+///
+/// This is the layer the number bug lived at. Checking that `to_text` renders a
+/// double correctly says nothing if the double was already the wrong one, so the
+/// literals go in as JSON text and the assertion is on what comes out the far end.
+#[test]
+fn a_request_line_reaches_the_encoder_with_the_reference_text() {
+    let line = concat!(
+        r#"{"model":"clm-latest","state":{"seventeen":7.8190461323667115,"#,
+        r#""inexact":9007199254740993.0},"#,
+        r#""questions":{"q":{"type":"choice","instructions":"Pick","#,
+        r#""criteria":{"a":7.8190461323667115,"b":"plain"}}}}"#
+    );
+    let request = Request::parse(&serde_json::from_str::<Value>(line).unwrap()).unwrap();
+    let prepared = request.prepare().unwrap();
+
+    assert_eq!(prepared.len(), 1);
+    assert_eq!(
+        prepared[0].state_text,
+        "seventeen: 7.8190461323667115\n\ninexact: 9007199254740992.0\n\nPick"
+    );
+    assert_eq!(prepared[0].question.keys, ["a", "b"]);
+    assert_eq!(prepared[0].candidate_texts, ["7.8190461323667115", "plain"]);
 }
