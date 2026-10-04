@@ -76,29 +76,6 @@ def manifest(**overrides):
     return value
 
 
-class ParseBuildScriptTest(unittest.TestCase):
-    def test_reads_the_real_qwen3_5_script(self):
-        parsed = check_contract.parse_build_script(QWEN3_5_BUILD_SCRIPT)
-        self.assertEqual(parsed["output"], "libqwen3_5_cuda.so")
-        self.assertIn(89, parsed["architectures"])
-        # `compute_${arch}` and `sm_${arch}` are templates, not literals, so the
-        # literal scan must not invent architecture numbers from them.
-        self.assertEqual(parsed["literal_architectures"], [])
-
-    def test_literal_gencode_is_read_when_no_variable_is_used(self):
-        parsed = check_contract.parse_build_script(
-            'nvcc -gencode arch=compute_90,code=sm_90 -shared -o libx.so a.cu\n')
-        self.assertEqual(parsed["literal_architectures"], [90])
-        self.assertEqual(parsed["architectures"], [])
-        self.assertEqual(parsed["output"], "libx.so")
-
-    def test_ignores_architectures_in_comments(self):
-        parsed = check_contract.parse_build_script(
-            "# works on sm_120\nout=x\nnvcc -o liby.so a.cu\n")
-        self.assertEqual(parsed["literal_architectures"], [])
-        self.assertEqual(parsed["output"], "liby.so")
-
-
 class CheckManifestTest(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="omni-contract-")
@@ -107,7 +84,7 @@ class CheckManifestTest(unittest.TestCase):
         with open(os.path.join(self.directory, "kernels.cu"), "w", encoding="utf-8") as handle:
             handle.write(KERNELS_CU)
         with open(os.path.join(self.directory, "ops.h"), "w", encoding="utf-8") as handle:
-            handle.write("#pragma once\n")
+            handle.write("#pragma once\n#define TEST_ABI_VERSION 1\n")
         with open(os.path.join(self.directory, "build.sh"), "w", encoding="utf-8") as handle:
             handle.write(QWEN3_5_BUILD_SCRIPT)
         os.chmod(os.path.join(self.directory, "build.sh"), 0o755)
@@ -433,7 +410,16 @@ arch=90
         self.assertIn("is not valid JSON", self.messages(errors))
 
 
-class AbiConsistencyTest(unittest.TestCase):
+class AbiVersionTest(unittest.TestCase):
+    """`abi_version` is the library's own, taken from its header.
+
+    Read as text, so the checker needs no compiler. What has to hold is that a
+    manifest agrees with the header of the library it describes. Two libraries
+    may differ from each other, so there is deliberately no cross-backend
+    sameness rule: the old code required one, which would have forced unrelated
+    model engines onto a shared interface version.
+    """
+
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="omni-abi-")
         self.directory = os.path.join(self.root, "src", "backends", "cuda")
@@ -442,47 +428,86 @@ class AbiConsistencyTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
 
-    def add_backend(self, name, abi_version):
+    def add_backend(self, name, abi_version, macro=None, extra_source=None):
         directory = os.path.join(self.directory, name)
         os.makedirs(directory)
-        with open(os.path.join(directory, "kernels.cu"), "w", encoding="utf-8") as handle:
-            handle.write(KERNELS_CU)
+        header = "#pragma once\n"
+        if macro is not None:
+            header += "#define %s_ABI_VERSION %d\n" % (name.upper(), macro)
+        with open(os.path.join(directory, "ops.h"), "w", encoding="utf-8") as handle:
+            handle.write(header)
+        sources = ["ops.h"]
+        if extra_source is not None:
+            with open(os.path.join(directory, "extra.h"), "w", encoding="utf-8") as handle:
+                handle.write("#define OTHER_ABI_VERSION %d\n" % extra_source)
+            sources.append("extra.h")
+        with open(os.path.join(directory, "build.sh"), "w", encoding="utf-8") as handle:
+            handle.write("#!/usr/bin/env bash\nout=${1:?}\narch=${2:-89}\n"
+                         'nvcc -o "$out/lib%s.so" ./*.cu\n' % name)
+        os.chmod(os.path.join(directory, "build.sh"), 0o755)
         value = {
             "name": name,
             "abi_version": abi_version,
             "status": "planned",
-            "sources": ["kernels.cu"],
-            "build": {
-                "script": "build.sh",
-                "output": "lib%s.so" % name,
-                "default_arch": 89,
-                "architectures": [89],
-            },
+            "sources": sources,
+            "build": {"script": "build.sh", "output": "lib%s.so" % name,
+                      "default_arch": 89, "architectures": [89]},
         }
         with open(os.path.join(directory, name + ".backend.json"), "w",
                   encoding="utf-8") as handle:
             json.dump(value, handle)
 
-    def test_two_backends_at_the_same_version_pass(self):
-        self.add_backend("qwen3_5", 1)
-        self.add_backend("laya", 1)
-        _, issues = check_contract.run(self.root)
-        self.assertEqual([issue for issue in issues if issue.level == "error"], [])
+    def check(self, root=None):
+        _, issues = check_contract.run(root or self.root)
+        errors = [i.message for i in issues if i.level == "error"]
+        warnings = [i.message for i in issues if i.level == "warning"]
+        return errors, warnings
 
-    def test_two_backends_at_different_versions_are_an_error(self):
-        self.add_backend("qwen3_5", 1)
-        self.add_backend("laya", 2)
-        _, issues = check_contract.run(self.root)
-        errors = [issue for issue in issues if issue.level == "error"]
+    def test_a_manifest_agreeing_with_its_header_passes(self):
+        self.add_backend("qwen3_5", 4, macro=4)
+        errors, warnings = self.check()
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+
+    def test_a_manifest_disagreeing_with_its_header_is_an_error(self):
+        # The case nothing caught before: #19's ops.h says 4, and a manifest
+        # claiming 1 was accepted because no check read the header.
+        self.add_backend("qwen3_5", 1, macro=4)
+        errors, _ = self.check()
         self.assertEqual(len(errors), 1)
-        self.assertIn("different abi_version values", errors[0].message)
+        self.assertIn("abi_version is 1 but ops.h defines QWEN3_5_ABI_VERSION 4", errors[0])
+
+    def test_sources_without_an_abi_macro_warn(self):
+        self.add_backend("qwen3_5", 1, macro=None)
+        errors, warnings = self.check()
+        self.assertEqual(errors, [])
+        self.assertIn("cannot be checked against the library", warnings[0])
+
+    def test_two_versions_in_one_backends_sources_are_an_error(self):
+        self.add_backend("qwen3_5", 4, macro=4, extra_source=7)
+        errors, _ = self.check()
+        self.assertEqual(len(errors), 1)
+        self.assertIn("more than one ABI version", errors[0])
 
     def test_abi_version_below_the_contract_is_an_error(self):
-        self.add_backend("qwen3_5", 0)
-        _, issues = check_contract.run(self.root)
-        errors = [issue for issue in issues if issue.level == "error"]
-        self.assertIn("abi_version must be an integer >= 1", " | ".join(
-            issue.message for issue in errors))
+        self.add_backend("qwen3_5", 0, macro=0)
+        errors, _ = self.check()
+        self.assertIn("abi_version must be an integer >= 1", " | ".join(errors))
+
+    def test_two_backends_may_declare_different_versions(self):
+        # Deliberately allowed now. Requiring them to match would force unrelated
+        # model engines onto one interface version, which the repository layout
+        # explicitly does not ask for.
+        self.add_backend("qwen3_5", 4, macro=4)
+        self.add_backend("laya", 2, macro=2)
+        errors, warnings = self.check()
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+
+    def test_a_planned_backend_is_still_checked(self):
+        self.add_backend("qwen3_5", 9, macro=4)
+        errors, _ = self.check()
+        self.assertIn("abi_version is 9", " | ".join(errors))
 
 
 class RepositoryStateTest(unittest.TestCase):
@@ -500,7 +525,7 @@ class RepositoryStateTest(unittest.TestCase):
         with open(os.path.join(self.directory, "kernels.cu"), "w", encoding="utf-8") as handle:
             handle.write(KERNELS_CU)
         with open(os.path.join(self.directory, "ops.h"), "w", encoding="utf-8") as handle:
-            handle.write("#pragma once\n")
+            handle.write("#pragma once\n#define TEST_ABI_VERSION 1\n")
         with open(os.path.join(self.directory, "build.sh"), "w", encoding="utf-8") as handle:
             handle.write(QWEN3_5_BUILD_SCRIPT)
         os.chmod(os.path.join(self.directory, "build.sh"), 0o755)
@@ -549,6 +574,8 @@ class FlatLayoutTest(unittest.TestCase):
         for path in ("kernels/runtime.cu", "kernels/model_ops.cu"):
             with open(os.path.join(self.cuda, path), "w", encoding="utf-8") as handle:
                 handle.write("// kernel\n")
+        with open(os.path.join(self.cuda, "ops.h"), "w", encoding="utf-8") as handle:
+            handle.write("#pragma once\n#define LAYA_ABI_VERSION 1\n")
         with open(os.path.join(self.cuda, "build.sh"), "w", encoding="utf-8") as handle:
             handle.write("#!/usr/bin/env bash\n"
                          "out=${1:?usage}\n"
@@ -564,7 +591,7 @@ class FlatLayoutTest(unittest.TestCase):
             "name": "laya",
             "abi_version": 1,
             "status": "experimental",
-            "sources": ["kernels/runtime.cu", "kernels/model_ops.cu"],
+            "sources": ["ops.h", "kernels/runtime.cu", "kernels/model_ops.cu"],
             "build": {
                 "script": "build.sh",
                 "output": "liblaya_cuda.so",

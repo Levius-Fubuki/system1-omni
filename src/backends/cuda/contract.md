@@ -46,7 +46,7 @@ change. Schema:
 ```json
 {
   "name": "qwen3_5",
-  "abi_version": 1,
+  "abi_version": 4,
   "status": "validated",
   "sources": ["common.cuh", "mma.cuh", "ops.h", "norm.cu", "elementwise.cu",
               "attention.cu", "gdn_prefill.cu", "gemm.cu", "runtime.cu"],
@@ -127,9 +127,18 @@ A backend library exports a flat `extern "C"` interface and is loaded at run
 time, so a Rust engine builds without a CUDA toolkit. `#19`'s `ops.h` is the
 reference for the shape. The contract fixes four points:
 
-1. **One version symbol per library.** A backend exports
-   `uint32_t <prefix>_abi_version(void)`. A loader refuses a library whose value
-   it does not know.
+1. **One version symbol per library, and the manifest repeats it.** A backend
+   defines `<PREFIX>_ABI_VERSION` in a header and exports
+   `uint32_t <prefix>_abi_version(void)` returning it; a loader refuses a library
+   whose value it does not know. The manifest's `abi_version` is **that number**,
+   not a version of this document, and the checker reads the macro out of the
+   declared sources and requires the two to agree. `#19`'s `ops.h` says
+   `CS1_ABI_VERSION 4` today, so a `qwen3_5` manifest declares 4.
+
+   Two backends may declare different values. They are independent libraries, and
+   the repository layout says CUDA and Metal implementations need not share
+   internal structure; forcing one number across models would invent a coupling
+   nothing needs. What must hold is that each manifest matches its own header.
 2. **Errors are `int`, not exceptions.** Every entry point returns `0` on
    success. CUDA runtime errors are returned as `cudaError_t` values; anything
    the library defines itself starts at `1000`. Every library exports
@@ -178,8 +187,9 @@ instead of leaving it to be discovered in a parity failure:
   check cannot localize a failure to one kernel.
 - **Architecture.** `build.architectures` lists the compute capabilities the
   library is built for. A kernels file that requires a newer capability than the
-  build script's default is a contract error — `#19`'s `attention.cu` documents
-  sm_80+, while `#14` builds sm_90a only.
+  build script's default is a contract error — `#19`'s `mma.cuh` and
+  `gdn_prefill.cu` both say "sm_80 and later" in their first line, while `#14`
+  builds sm_90a only.
 - **Kernel requirement.** `build.min_capability` states the oldest compute
   capability the kernels actually compile for. It exists because that fact is
   currently only in prose — `#19`'s `gdn_prefill.cu` and `mma.cuh` both say

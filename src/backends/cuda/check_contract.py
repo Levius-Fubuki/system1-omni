@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 
 from build_script import parse_build_script
@@ -35,6 +36,9 @@ STATUSES = ("planned", "experimental", "validated")
 # that stops after it are both derived from this tuple.
 REQUIRED_KEYS = ("name", "abi_version", "status", "sources", "build")
 CONTRACT_ABI_VERSION = 1
+# `<PREFIX>_ABI_VERSION N` in a backend header. #19 uses `CS1_ABI_VERSION`,
+# bumped whenever the C interface changes.
+_ABI_MACRO = re.compile(r"^[ \t]*#[ \t]*define[ \t]+(\w*ABI_VERSION)[ \t]+(\d+)[ \t]*$", re.M)
 
 
 
@@ -155,11 +159,7 @@ def check_manifest(manifest, issues, repo_root=None):
         issues.append(Issue("error", backend,
                             "name %r does not match directory name %r" % (name, backend)))
 
-    abi = manifest["abi_version"]
-    if not isinstance(abi, int) or abi < CONTRACT_ABI_VERSION:
-        issues.append(Issue("error", backend,
-                            "abi_version must be an integer >= %d, got %r"
-                            % (CONTRACT_ABI_VERSION, abi)))
+    check_abi_version(manifest, issues)
 
     status = manifest["status"]
     if status not in STATUSES:
@@ -253,7 +253,8 @@ def check_manifest(manifest, issues, repo_root=None):
             # what CI checks out.
             if os.name == "posix" and not os.access(script_path, os.X_OK):
                 issues.append(Issue("error", backend,
-                                    "build.script %r is not executable in git; the compile job "
+                                    "build.script %r is not executable on the checked-out tree "
+                                    "(CI takes that bit from the committed one); the compile job "
                                     "runs it as ./%s. Fix with: git update-index --chmod=+x %s"
                                     % (build["script"], build["script"], script_path)))
 
@@ -355,27 +356,78 @@ def _check_build_script(backend, script_path, build, architectures, issues):
                             % (extra,)))
 
 
-def check_abi_consistency(manifests, issues):
-    """A loader cannot know two ABI versions at once, so they must agree."""
-    versions = {}
-    for manifest in manifests:
-        backend = manifest.get("_entry", "?")
-        version = manifest.get("abi_version")
-        if isinstance(version, int):
-            versions.setdefault(version, []).append(backend)
+def _declared_abi(manifest):
+    """Every ``#define *ABI_VERSION N`` in the backend's declared sources.
+
+    Read as text, like the build script: the checker must not need a compiler,
+    and the macro is a fact the source already states.
+    """
+    directory = manifest.get("_directory", "")
+    found = []
+    for source in manifest.get("sources") or []:
+        if not isinstance(source, str):
+            continue
+        path = os.path.join(directory, source)
+        if not os.path.isfile(path):
+            continue        # a missing source is already reported separately
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as handle:
+                text = handle.read()
+        except OSError:
+            continue
+        for match in _ABI_MACRO.finditer(text):
+            found.append((os.path.basename(source), match.group(1), int(match.group(2))))
+    return found
+
+
+def check_abi_version(manifest, issues):
+    """``abi_version`` is the library's own, and its header is the authority.
+
+    This is the one manifest field whose source of truth lives in the code, and
+    the checker could not see it before: nothing read the header, so the only
+    guard against a stale manifest was the example in contract.md. #19's
+    ``ops.h`` says ``CS1_ABI_VERSION 4``; a manifest claiming 1 would have been
+    accepted.
+
+    Two libraries may legitimately differ, so there is deliberately no
+    cross-backend sameness requirement: what has to hold is that each manifest
+    agrees with its own header.
+    """
+    backend = manifest.get("_entry", "?")
+    abi = manifest.get("abi_version")
+    if not isinstance(abi, int) or abi < CONTRACT_ABI_VERSION:
+        issues.append(Issue("error", backend,
+                            "abi_version must be an integer >= %d, got %r"
+                            % (CONTRACT_ABI_VERSION, abi)))
+        return
+
+    found = _declared_abi(manifest)
+    if not found:
+        issues.append(Issue("warning", backend,
+                            "no #define *ABI_VERSION in the declared sources, so abi_version "
+                            "%d cannot be checked against the library" % abi))
+        return
+
+    versions = {version for _file, _macro, version in found}
     if len(versions) > 1:
-        detail = ", ".join("%d (%s)" % (version, ", ".join(sorted(names)))
-                           for version, names in sorted(versions.items()))
-        issues.append(Issue("error", "cuda",
-                            "backends declare different abi_version values: %s; a process that "
-                            "loads two of them cannot check one version" % detail))
+        issues.append(Issue("error", backend,
+                            "the declared sources define more than one ABI version: %s"
+                            % ", ".join("%s %s=%d" % entry for entry in sorted(found))))
+        return
+
+    header_version = versions.pop()
+    if header_version != abi:
+        file_name, macro, _value = found[0]
+        issues.append(Issue("error", backend,
+                            "abi_version is %d but %s defines %s %d; the manifest and the "
+                            "library it describes have to agree"
+                            % (abi, file_name, macro, header_version)))
 
 
 def run(repo_root):
     manifests, issues = load_manifests(repo_root)
     for manifest in manifests:
         check_manifest(manifest, issues, repo_root)
-    check_abi_consistency(manifests, issues)
     return manifests, issues
 
 
