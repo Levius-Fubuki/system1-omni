@@ -69,8 +69,9 @@ Feasibility checks compare every initialized U/W/QD/KD/PB/decay element by its
 bit representation; all changed counts are zero. Final outputs also match.
 The recurrent float64 reference retains its original tolerance and now covers
 tile/chunk boundaries, grouped heads, 936/3,399 tokens, weak decay, zero Q/K,
-and amplitudes 1e-9 and 1e-18. All three GPU tests, including the existing
-attention and Graph tests, passed; see the [test log](artifacts/20261003/kernel/analysis/recurrent-reference.log).
+and amplitudes 1e-9 and 1e-18. The three GPU tests in the archived measurement
+run, including the existing attention and Graph tests, passed; see the
+[test log](artifacts/20261003/kernel/analysis/recurrent-reference.log).
 These checks establish parity for the sampled inputs on this device, rather
 than a proof of identical results for all inputs or architectures.
 
@@ -85,8 +86,8 @@ Both arms use the same frozen Rust worker/frontend from
 [PR #55](https://github.com/ThinkFlowLab/system1-omni/pull/55), worker revision
 `202c0e163f868334a99d88407056ebe61dbb2dce`. ABI4 library sources are frozen at
 `7b935723c6fa17145e3d866675202fb6f7ea1f5d` except for the candidate GDN
-translation unit. The branch on main uses an ABI3 library for its Rust GPU
-tests; that library was not substituted into the ABI4 Open-Jev worker.
+translation unit. The historical main revision used an ABI3 library for its
+Rust GPU tests; that library was not substituted into the ABI4 Open-Jev worker.
 
 Model base revision is `1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`, and checkpoint
 revision is `28cf73067d5b337860bbef3c85b8b82ba8730956`. Prepared weights and
@@ -116,6 +117,26 @@ Task-owned processes exited and the GPU reservation was released.
 This is an incremental comparison against native Rust/CUDA. Raw HF Transformers
 and open-jev-fast were not remeasured in this campaign, so prior HF speedups must
 not be presented as a new matched comparison for this kernel change.
+
+## Integration validation after merging main
+
+On 2026-10-04, PR #68 was reconciled with main
+`579fa8f2c4f75d7099179daf95695b6aef8766b9`, after PR #55 merged. The shared
+`omni-qwen3-5-native` crate owns the GPU test registration. The GDN suite keeps
+all cases from both branches: 20 shapes and input configurations, at the
+unchanged float64 reference tolerance. The GDN translation unit is byte-for-byte
+the source used for the measurements above.
+
+All six current GPU tests passed with the integrated ABI4 library on the same
+reserved H200 device. Newly built Rust worker/frontend binaries also passed
+the first inference after genuine readiness and one complete 74-request fidelity
+pass: probabilities, decisions and token usage exactly match the pinned native
+reference. This was a correctness validation, with no latency comparison or new
+performance claim. The [validation record](artifacts/20261004/integration.json),
+[GPU test log](artifacts/20261004/kernel-tests.log) and
+[request results](artifacts/20261004/validation.jsonl) preserve the controls,
+build hashes, commands and outcomes. Task-owned processes exited and the
+reservation was released.
 
 ## Ready kernels in vLLM
 
@@ -157,7 +178,7 @@ initializing CUDA:
 
 ```sh
 NVCC=/usr/local/cuda/bin/nvcc src/backends/cuda/qwen3_5/build.sh /tmp/gdn-current 90
-cargo test --release --locked -p omni-cua-s1-native --test kernels --no-run
+cargo test --release --locked -p omni-qwen3-5-native --test kernels --no-run
 ```
 
 After checking the host scheduler, reserve an available exact device and run
@@ -168,7 +189,7 @@ on another host):
 gpu run --gpu-ids 2 --timeout 10m --note "GDN reference validation" -- \
   numactl --membind=0 --physcpubind=0-15 \
   env CUA_S1_CUDA_LIB=/tmp/gdn-current/libqwen3_5_cuda.so \
-  cargo test --release --locked -p omni-cua-s1-native --test kernels -- \
+  cargo test --release --locked -p omni-qwen3-5-native --test kernels -- \
     --ignored --nocapture --test-threads=1
 ```
 
@@ -201,5 +222,6 @@ Earlier experiments remain in the local archives named in the manifest:
 No failed variant was promoted by relaxing the numerical gates or extending
 its measured run budget. Hardware profiling counters were unavailable to this
 account. SM80/SM89/SM90 compilation passed; current device execution and
-performance evidence cover SM90. The four Rust CI commands also passed; their
-exact commands and build outcomes are recorded in the manifest.
+performance evidence cover SM90. The four Rust CI commands used for the
+2026-10-03 measurement revision also passed; their exact commands and build
+outcomes are recorded in the manifest.
