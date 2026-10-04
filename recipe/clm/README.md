@@ -18,7 +18,8 @@ Three terminals, all CPU:
 python recipe/clm/stub_embedder.py --port 8090
 
 # 2. CLM's own server, pointed at it (the checkpoint is 75 MB: the two heads, not the encoder)
-CLM_CKPT_DIR=/tmp/clm-ckpt clm-serve --port 8091 \
+# CLM_CKPT is the file itself; without it clm-serve looks in ~/.cache/clm and downloads.
+CLM_CKPT=/tmp/CLM_v0.1-8B.pt clm-serve --port 8091 \
   --emb-url http://127.0.0.1:8090/v1/embeddings --emb-model qwen3-8b
 
 # 3. the frontend from #2, pointed at CLM
