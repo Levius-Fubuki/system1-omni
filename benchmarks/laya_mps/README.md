@@ -51,7 +51,7 @@ python benchmarks/laya_mps/paired.py --summarize benchmarks/laya_mps/results/pai
 
 Each claim in the [recipe](../../recipe/laya/apple-silicon.md) comes from one of these commands. A
 rerun on another Mac, or under different load, gives other numbers; the comparison each command makes
-(A against B in the same run) is what carries over. Every script refuses a measured run on battery
+(A against B in the same run) is what carries over. Every script that measures refuses a run on battery
 power or above `--max-load`: a `--run` label other than `feasibility`, or for `late_load.py`,
 `fallback.py` and `release.py` a run without `--feasibility`; paired and lengths runs hold up better
 than separate ones under the load that remains, because both sides see it. Stop the recipe's worker and

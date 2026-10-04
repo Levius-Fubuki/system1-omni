@@ -35,9 +35,11 @@ PYTHONPATH=src .venv/bin/python -m frontend.laya_mps --device mps --model englis
 First startup downloads the checkpoint (846 MB; 97 s into an empty cache at 8.7 MB/s when measured). The
 worker loads the model, runs a warmup
 over short, long and multi-question requests, and only then listens on port 8000, so the first
-request it accepts is already warm: on an M1 Pro the first request after ready took 70–81 ms, against
-0.7–1.1 s from plain laya-serve. `--require-device` makes it exit instead of silently serving on the CPU
-when the model cannot be placed on MPS; without it the worker logs a warning and serves from the CPU.
+request it accepts is already warm: on an M1 Pro the first request after ready took 67–81 ms. Plain
+laya-serve's first request took 0.7–1.1 s in three runs and 0.2–0.4 s in seven later fresh starts, with
+the same versions; what changed is not known (not the GPU's state left by the previous run).
+`--require-device` makes it exit instead of silently serving on the CPU when the model cannot be placed
+on MPS; without it the worker logs a warning and serves from the CPU.
 Of laya-serve's environment variables, `LAYA_API_KEY` (bearer authentication) still applies. Those its
 launcher reads do not: device, model, host, port and log level are the flags above, and `LAYA_THREADS` and
 `LAYA_AUTO_TASK` are not read. The worker warns at startup if any of them is set.
