@@ -11,10 +11,12 @@ with independent [processing](native/src/processing.rs) and
 [executor](native/src/executor.rs) modules. Preparation returns token IDs and an
 option count per question, plus a response context for identity/order and usage.
 The executor returns FP32 letter logits; response finishing owns per-question
-softmax and the choice/confidence interpretation. Shared orchestration and
-scheduling belong to the planned worker runtime. Execution remains one prompt
-per question with the existing per-question lock and CPU answer-letter projection
-after CUDA prefill. The contracts below describe its existing behavior.
+softmax and the choice/confidence interpretation. The engine owns a
+[shared serial scheduler](../../runtime/README.md) that admits each question's
+forward before blocking dispatch. Execution remains one prompt per question
+with a model-state mutex and CPU answer-letter projection after CUDA prefill,
+outside runtime admission. Processing orchestration and GPU batching remain
+planned. The contracts below describe its existing behavior.
 
 ## Pinned revisions
 

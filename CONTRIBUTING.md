@@ -14,16 +14,17 @@ implementations need it.
 Keep processors and batch adapters separate from the model's forward
 implementation, even when they live in the same model directory. The README's
 target architecture shares processing orchestration and scheduling across
-models; these layers are planned, while current worker pipelines remain
-model-specific. Model executors own weights, forward passes, learned heads,
-and device state.
+models. Native workers already reuse
+[serial admission and dispatch](src/runtime/README.md); processing orchestration
+and GPU batching remain planned. Model executors own weights, forward passes,
+learned heads, and device state.
 
 For native implementations, Rust owns host processing, scheduling, model
 orchestration, and backend bindings/dispatch. CUDA/Metal provide device
 operations used by models or processing modules. Document processor inputs,
 executor layouts and batch constraints, output reconstruction, and state/buffer
 lifetimes alongside the existing API and numerical contract. Keep current worker
-integration usable while shared runtime components remain unimplemented.
+integration usable while further shared runtime components remain unimplemented.
 
 All test bodies, test helpers and fixtures belong in the repository-level
 `tests/` tree. Do not add inline test bodies or crate-local `tests/` directories

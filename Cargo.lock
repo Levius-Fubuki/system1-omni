@@ -951,6 +951,7 @@ dependencies = [
  "half",
  "memmap2",
  "omni-qwen3-5-native",
+ "omni-runtime",
  "safetensors 0.8.0",
  "serde_json",
  "tokenizers",
@@ -988,6 +989,7 @@ dependencies = [
  "anyhow",
  "axum",
  "omni-qwen3-5-native",
+ "omni-runtime",
  "serde_json",
  "tokenizers",
  "tokio",
@@ -1004,6 +1006,14 @@ dependencies = [
  "safetensors 0.8.0",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "omni-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
 ]
 
 [[package]]

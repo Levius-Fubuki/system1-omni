@@ -33,9 +33,9 @@ user instructions for those actions.
 - Check ownership against the architecture contracts: transport, independent
   processing and scheduling, model-specific adapters and executors, and hardware
   operations. In the native target, Rust orchestrates host work and dispatch;
-  CUDA/Metal execute device kernels. Shared runtime layers remain planned until
-  implemented; existing worker pipelines are not proof of dynamic batching.
-  Consult the relevant `src/frontend/`, `src/models/`, `src/backends/`, or
+  CUDA/Metal execute device kernels. Serial runtime admission and dispatch are
+  implemented; further orchestration and dynamic batching remain planned.
+  Consult the relevant `src/frontend/`, `src/runtime/`, `src/models/`, `src/backends/`, or
   `recipe/` documentation for the changed component's contract and current status.
 - For frontend changes, inspect affected request validation, error handling,
   cancellation, and response behavior, including the model-worker boundary.

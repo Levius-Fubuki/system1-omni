@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result, ensure};
+use omni_runtime::SerialScheduler;
 use serde_json::Value as Json;
 
 use crate::model::Model;
@@ -33,19 +34,24 @@ impl Executor {
         })
     }
 
-    /// Serial prefill, retaining the existing per-question model lock.
+    /// Admit each question through the worker's shared runtime scheduler.
     /// Returns FP32 letter logits in input order; softmax belongs to processing.
-    pub async fn execute(&self, inputs: Vec<Input>) -> Result<Vec<Vec<f32>>> {
+    pub async fn execute(
+        &self,
+        scheduler: &SerialScheduler,
+        inputs: Vec<Input>,
+    ) -> Result<Vec<Vec<f32>>> {
         let mut rows = Vec::with_capacity(inputs.len());
         for input in inputs {
             let model = self.model.clone();
-            let last = tokio::task::spawn_blocking(move || {
-                model
-                    .lock()
-                    .map_err(|_| anyhow::anyhow!("poisoned"))?
-                    .forward(&input.ids)
-            })
-            .await??;
+            let last = scheduler
+                .run(move || {
+                    model
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("poisoned"))?
+                        .forward(&input.ids)
+                })
+                .await?;
             rows.push(letter_logits(&self.letters, &last, input.n_options)?);
         }
         Ok(rows)

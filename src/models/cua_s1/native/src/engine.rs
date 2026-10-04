@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
+use omni_runtime::SerialScheduler;
 
 use crate::contract::LETTERS;
 use crate::executor::Executor;
@@ -10,6 +11,7 @@ use crate::processing::Processor;
 
 pub struct Engine {
     pub processor: Processor,
+    pub scheduler: SerialScheduler,
     pub executor: Executor,
 }
 
@@ -34,6 +36,7 @@ impl Engine {
         let executor = Executor::load(dir, library, &ids).await?;
         Ok(Self {
             processor,
+            scheduler: SerialScheduler::default(),
             executor,
         })
     }

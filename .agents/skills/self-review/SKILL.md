@@ -18,7 +18,10 @@ semantics and distinguish target layers from current worker capabilities.
 
 For processing or batching changes, trace prepared inputs through executor
 layouts and output reconstruction. Apply the architecture contract's batching,
-numerical, and lifetime invariants to the affected model.
+numerical, and lifetime invariants to the affected model. For shared runtime
+admission changes, check FIFO execution units, cancellation before dispatch,
+permit/resource retention after dispatch, and release on errors or panics against
+the [runtime contract](../../../src/runtime/README.md).
 
 ## Conditional A/B checks
 
