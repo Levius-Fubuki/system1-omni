@@ -69,28 +69,32 @@ Today the frontend forwards HTTP requests to separately running workers, whose
 model-specific pipelines still handle processing and inference. Shared processing
 orchestration, scheduling, and dynamic batching are planned.
 
-| Layer | Responsibility |
-| --- | --- |
-| Rust frontend | API transport, request forwarding, and response delivery. |
-| Processing layer | Independent pre/postprocessing modules with model-specific processors for input preparation and output interpretation. |
-| Scheduler / batcher | Queue admission, batch budgets, compatibility grouping, batch assembly, request bookkeeping, and result routing. |
-| Model executors | Weights, forward passes, learned heads, device state, and kernel selection. |
-| CUDA backend | High-performance GPU operations for NVIDIA GPUs. |
-| Metal backend (planned) | High-performance GPU operations for Apple GPUs. |
+| Layer | Responsibility | Native target implementation |
+| --- | --- | --- |
+| Rust frontend | API transport, request forwarding, and response delivery. | Rust. |
+| Processing layer | Independent pre/postprocessing modules with model-specific processors for input preparation and output interpretation. | Rust CPU processing; GPU transforms use backends. |
+| Scheduler / batcher | Queue admission, batch budgets, compatibility grouping, batch assembly, request bookkeeping, and result routing. | Rust host policy; GPU packing uses backends. |
+| Model executors | Weights, forward passes, learned heads, device state, and kernel selection. | Rust orchestration calling backend operations. |
+| CUDA backend | High-performance GPU operations for NVIDIA GPUs. | Rust bindings/dispatch and CUDA C++ kernels. |
+| Metal backend (planned) | High-performance GPU operations for Apple GPUs. | Rust bindings/dispatch and Metal shaders. |
 
 In the target design, the shared worker runtime invokes processors, schedules
 compatible work, calls the model executor, and routes each output back to its
 request. Tokenization, modality transforms, and response interpretation remain
 model-specific plugins, separate from the forward implementation. Models
-declare batch constraints;
-batch adapters pack inputs and unpack outputs using the executor's supported
-layout. A shared scheduler must not batch incompatible models or inputs, and
-dynamic batching requires executor support for real batches.
+declare batch constraints; batch adapters pack inputs and unpack outputs using
+the executor's supported layout. A shared scheduler must not batch incompatible
+models or inputs, and dynamic batching requires executor support for real batches.
 
 These are logical layers: the runtime and executor can share a worker process.
 Request bookkeeping belongs to the runtime; model device state belongs to the
 executor. Backends can optimize for their hardware without requiring identical
 internal implementations.
+
+The [architecture and integration contracts](docs/architecture.md) define
+processor/executor boundaries, compatibility grouping, state and buffer
+lifetimes, and result reconstruction. They also distinguish the native target
+from current single-prompt execution and CPU decision heads.
 
 ## Repository Layout
 

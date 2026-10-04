@@ -10,6 +10,16 @@ Review the full diff against the target branch for correctness, focused scope,
 architecture alignment and tests. Verify that documentation and PR claims match
 implemented behavior; report commands, outcomes and checks not run.
 
+Read the [architecture contracts](../../../docs/architecture.md). Check that
+processing and batch adapters remain separate from forward execution, shared
+scheduling owns runtime policy when implemented, and Rust host orchestration
+uses CUDA/Metal for device operations. Preserve model-specific API/numerical
+semantics and distinguish target layers from current worker capabilities.
+
+For processing or batching changes, trace prepared inputs through executor
+layouts and output reconstruction. Apply the architecture contract's batching,
+numerical, and lifetime invariants to the affected model.
+
 ## Conditional A/B checks
 
 Read [the benchmark self-review guidance](../../../benchmarks/README.md#self-review-and-ab-evidence)

@@ -4,6 +4,15 @@ This directory owns Cua-S1 4B 0.2 ([#10](https://github.com/ThinkFlowLab/system1
 
 Status: a reference worker for the `text` adapter loads the model through Hugging Face Transformers and PEFT: [`text/`](text/), served by [`src/frontend/cua_s1_text.py`](../../frontend/cua_s1_text.py), with setup in [`recipe/cua_s1/text.md`](../../../recipe/cua_s1/text.md). It is the correctness reference for the native worker in [`native/`](native/): Rust, with the Qwen3.5 forward pass on the CUDA kernels in [`src/backends/cuda/qwen3_5/`](../../backends/cuda/qwen3_5/), set up as in [`recipe/cua_s1/native.md`](../../../recipe/cua_s1/native.md). A reference worker for the `multimodal` adapter is in [`multimodal/`](multimodal/), served by [`src/frontend/cua_s1.py`](../../frontend/cua_s1.py); native execution of that adapter is not covered yet.
 
+## Integration boundary
+
+Follow the [architecture contracts](../../../docs/architecture.md) when
+separating Cua-S1's processors and batch adapters from its executor. Prompt and
+response semantics remain Cua-S1-specific; shared orchestration and scheduling
+belong to the planned worker runtime. The current native worker still runs one
+prompt per question and computes the answer-letter readout on the CPU after
+CUDA prefill. The contracts below describe its existing behavior.
+
 ## Pinned revisions
 
 | Artifact | Revision |
