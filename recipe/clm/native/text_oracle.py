@@ -26,6 +26,9 @@ STATES = [
     # `str(float)` switches to exponent form outside [1e-4, 1e16) and keeps a `.0` on an
     # integral float, so these pin the number spelling the reference produces.
     {"tiny": 1e-5, "smaller": 1e-7, "edge": 1e-4, "round": 1e15, "huge": 1e16, "neg": -1e-6},
+    # 17 significant digits, where a parse that is not correctly rounded lands on
+    # the neighbouring double and renders differently.
+    {"seventeen": 7.8190461323667115, "inexact": 9007199254740993.0},
 ]
 
 QUESTIONS = [

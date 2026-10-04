@@ -26,6 +26,10 @@ fn states() -> Vec<Value> {
         // `str(float)` switches to exponent form outside [1e-4, 1e16) and keeps a `.0` on
         // an integral float, so these pin the number spelling the reference produces.
         json!({"tiny": 1e-5, "smaller": 1e-7, "edge": 1e-4, "round": 1e15, "huge": 1e16, "neg": -1e-6}),
+        // Parsed from the literal text rather than built from an `f64`, because
+        // the parse is the part that was wrong.
+        serde_json::from_str(r#"{"seventeen": 7.8190461323667115, "inexact": 9007199254740993.0}"#)
+            .unwrap(),
     ]
 }
 
@@ -177,4 +181,43 @@ fn a_score_answer_carries_its_level_legend() {
         json!({"0": "Not urgent", "1": "Soon", "2": "Now"})
     );
     assert!((json["score"].as_f64().unwrap() - 1.1).abs() < 1e-6);
+}
+
+/// The whole path: a JSON literal to the string the heads see.
+///
+/// `serde_json`'s default float parsing is not correctly rounded, so a literal
+/// with more digits than a double holds can land on the neighbouring double and
+/// render as a different number — `7.8190461323667115` came out
+/// `7.819046132366712`, which is a different embedding input. Formatting an
+/// already-parsed float correctly does not help; the parse has to be right too,
+/// and `float_roundtrip` is what makes it match `json.loads`.
+#[test]
+fn json_numbers_parse_to_the_same_doubles_as_the_reference() {
+    // Both columns are what CPython's `json.loads` then `str` produce.
+    for (literal, bits, text) in [
+        (
+            "7.8190461323667115",
+            0x401f_46b4_0781_b8a4,
+            "7.8190461323667115",
+        ),
+        (
+            "9007199254740993.0",
+            0x4340_0000_0000_0000,
+            "9007199254740992.0",
+        ),
+        ("0.1", 0x3fb9_9999_9999_999a, "0.1"),
+        (
+            "3.141592653589793238",
+            0x4009_21fb_5444_2d18,
+            "3.141592653589793",
+        ),
+    ] {
+        let parsed: Value = serde_json::from_str(literal).unwrap();
+        assert_eq!(
+            parsed.as_f64().unwrap().to_bits(),
+            bits,
+            "parsing {literal}"
+        );
+        assert_eq!(to_text(&parsed), text, "rendering {literal}");
+    }
 }
