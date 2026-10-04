@@ -41,7 +41,6 @@ def vector(text: str, dim: int) -> list[float]:
 
 class Handler(BaseHTTPRequestHandler):
     dim = DIM
-    calls = 0
 
     def log_message(self, *args):  # keep the run quiet
         pass
@@ -69,7 +68,6 @@ class Handler(BaseHTTPRequestHandler):
         texts = body.get("input") or []
         if isinstance(texts, str):
             texts = [texts]
-        Handler.calls += len(texts)
         data = []
         tokens = 0
         for index, text in enumerate(texts):

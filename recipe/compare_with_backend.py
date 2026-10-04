@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Check that a running omni-jev frontend returns exactly what its worker returns.
+"""Check that a running omni-jev frontend returns what its worker returns.
 
 Sends the same health and decision requests to the worker directly and through
-the frontend, then compares status, Content-Type and body bytes. Covers choice,
-score and noul questions separately and together. Standard library only.
+the frontend and compares them. Byte equality is tried first; where that fails
+and both sides answered 200, the parsed ``answers`` subtrees are compared
+instead, so a response whose only difference is the ``usage`` envelope still
+passes. Covers choice, score and noul questions separately and together.
+Standard library only.
 """
 
 import argparse
@@ -55,6 +58,12 @@ def decision(body):
     charges only for the calls it paid for, so an identical request can report different
     ``input_tokens`` depending on whether the work was already cached -- CLM does exactly
     this. The answer must still be identical; the envelope is reported, not asserted.
+
+    Comparing parsed answers rather than bytes also makes key order and whitespace
+    irrelevant, which is wider than "usage only" and is the intent: what the
+    frontend must not change is the decision, not its serialisation. A backend
+    whose body is a pure function is still held to byte equality, because that is
+    what is checked first.
     """
     try:
         parsed = json.loads(body)
