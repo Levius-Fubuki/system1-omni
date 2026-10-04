@@ -1,5 +1,4 @@
 use super::*;
-use crate::contract;
 
 #[test]
 #[ignore = "needs the pinned export at OPEN_JEV_MODEL; no GPU needed"]
@@ -8,15 +7,21 @@ fn tokenization_matches_reference_and_rejects_oversize_prompts() {
     let dir = Path::new(&dir);
     let manifest: Value =
         serde_json::from_slice(&std::fs::read(dir.join("open_jev_export.json")).unwrap()).unwrap();
-    let tokenizer = Tokenizer::from_file(dir.join("tokenizer.json")).unwrap();
-    let prefix = manifest["chat_prefix"].as_str().unwrap();
-    let suffix = manifest["chat_suffix"].as_str().unwrap();
+    let mut processor = Processor::load(
+        dir,
+        manifest["chat_prefix"].as_str().unwrap().to_owned(),
+        manifest["chat_suffix"].as_str().unwrap().to_owned(),
+        manifest["temperature"].as_f64().unwrap(),
+        4096,
+    )
+    .unwrap();
     let cases: Value = serde_json::from_str(include_str!("data/tokenization.json")).unwrap();
     for case in cases.as_array().unwrap() {
-        let questions = contract::compile(&serde_json::to_vec(&case["request"]).unwrap()).unwrap();
-        let got = encode_questions(&tokenizer, prefix, suffix, 4096, &questions).unwrap();
-        assert_eq!(serde_json::json!(got), case["ids"]);
-        let limit = got[0][0].len() - 1;
-        assert!(encode_questions(&tokenizer, prefix, suffix, limit, &questions).is_err());
+        let raw = serde_json::to_vec(&case["request"]).unwrap();
+        processor.max_length = 4096;
+        let prepared = processor.prepare(&raw).unwrap();
+        assert_eq!(serde_json::json!(prepared.inputs), case["ids"]);
+        processor.max_length = prepared.inputs[0][0].len() - 1;
+        assert!(processor.prepare(&raw).is_err());
     }
 }

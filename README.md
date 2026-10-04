@@ -46,8 +46,9 @@ shared CUDA kernels in this repository.
   through a small engine interface, forwarding requests to separately running
   model workers.
 - **Model-owned execution.** Model executors own weights, forward passes,
-  learned heads, device state, and kernel selection. Current workers also
-  contain request processing; a shared processing and scheduling layer is planned.
+  learned heads, device state, and kernel selection. Native workers have separate
+  processing and executor modules; shared processing orchestration and scheduling
+  are planned.
 - **Native CUDA workers.** The Cua-S1 4B 0.2 `text` adapter and
   Open-Jev-27B-v1.1 run as native workers with shared CUDA kernels. Cua-S1
   also has a Python worker that serves as the correctness reference.
@@ -66,8 +67,8 @@ Share processing and scheduling; let each model own its execution.
 
 The diagram shows the **target architecture**, not an implemented shared runtime.
 Today the frontend forwards HTTP requests to separately running workers, whose
-model-specific pipelines still handle processing and inference. Shared processing
-orchestration, scheduling, and dynamic batching are planned.
+model-specific handlers coordinate independent processors and executors. Shared
+processing orchestration, scheduling, and dynamic batching are planned.
 
 | Layer | Responsibility | Native target implementation |
 | --- | --- | --- |

@@ -6,12 +6,15 @@ Status: a reference worker for the `text` adapter loads the model through Huggin
 
 ## Integration boundary
 
-Follow the [architecture contracts](../../../docs/architecture.md) when
-separating Cua-S1's processors and batch adapters from its executor. Prompt and
-response semantics remain Cua-S1-specific; shared orchestration and scheduling
-belong to the planned worker runtime. The current native worker still runs one
-prompt per question and computes the answer-letter readout on the CPU after
-CUDA prefill. The contracts below describe its existing behavior.
+The native worker follows the [architecture contracts](../../../docs/architecture.md)
+with independent [processing](native/src/processing.rs) and
+[executor](native/src/executor.rs) modules. Preparation returns token IDs and an
+option count per question, plus a response context for identity/order and usage.
+The executor returns FP32 letter logits; response finishing owns per-question
+softmax and the choice/confidence interpretation. Shared orchestration and
+scheduling belong to the planned worker runtime. Execution remains one prompt
+per question with the existing per-question lock and CPU answer-letter projection
+after CUDA prefill. The contracts below describe its existing behavior.
 
 ## Pinned revisions
 

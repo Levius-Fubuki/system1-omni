@@ -17,10 +17,13 @@ No model weights are distributed here.
 
 ## Integration boundary
 
-Follow the [architecture contracts](../../../docs/architecture.md) when
-separating request/token preparation and response interpretation from model
-execution. The trained head belongs to the executor; calibrated normalization
-across a complete question belongs to Open-Jev postprocessing. Batch adapters
-preserve candidate identity and ordering while the planned shared runtime owns
-scheduling. The current worker executes candidates independently and computes
-the scalar head on the CPU after CUDA prefill; shared dynamic batching is planned.
+The native worker follows the [architecture contracts](../../../docs/architecture.md)
+with independent [processing](native/src/processing.rs) and
+[executor](native/src/executor.rs) modules. Preparation returns token IDs grouped
+by question and candidate, plus the response context for identity/order,
+calibration, usage, and metadata. The executor owns the trained head and returns
+one FP32 scalar per candidate. Response finishing adds the `noul` false baseline
+and applies calibrated normalization across each complete question. The worker
+retains request-wide model locking and independent single-prompt execution, with
+the scalar head on the CPU after CUDA prefill. Shared runtime scheduling and
+dynamic batching remain planned.

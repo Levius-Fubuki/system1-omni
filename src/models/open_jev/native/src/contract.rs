@@ -6,6 +6,8 @@ use omni_qwen3_5_native::json;
 use serde_json::{Map, Value, json};
 
 pub const MODEL_ID: &str = "Qwen/Qwen3.8-27B";
+pub const BASE_REVISION: &str = "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0";
+pub const CHECKPOINT_REVISION: &str = "28cf73067d5b337860bbef3c85b8b82ba8730956";
 
 #[derive(Debug, PartialEq)]
 pub enum Kind {
