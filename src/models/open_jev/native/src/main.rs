@@ -1,7 +1,6 @@
 //! OPEN_JEV_MODEL=<merged export> omni-open-jev-native
 
 use std::sync::Arc;
-use std::time::Instant;
 
 use anyhow::{Context, Result, ensure};
 use axum::{
@@ -12,12 +11,9 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use omni_open_jev_native::{
-    contract::{self, MODEL_ID},
-    engine::{BASE_REVISION, Engine},
-};
+use omni_open_jev_native::{contract::MODEL_ID, engine::Engine};
 use omni_qwen3_5_native::cuda;
-use serde_json::{Map, json};
+use serde_json::json;
 
 const WARMUP: &[u8] = br#"{"state":"Dialog: Update installed.","questions":{"q":{"type":"choice","instructions":"Close it.","criteria":{"ok":"OK","wait":"Wait"}}}}"#;
 
@@ -26,30 +22,15 @@ fn error(status: StatusCode, message: impl ToString) -> Response {
 }
 
 async fn decide(engine: &Engine, raw: &[u8]) -> Response {
-    let questions = match contract::compile(raw) {
-        Ok(q) => q,
+    let prepared = match engine.processor.prepare(raw) {
+        Ok(prepared) => prepared,
         Err(e) => return error(StatusCode::UNPROCESSABLE_ENTITY, e),
     };
-    let start = Instant::now();
-    let ids = match engine.encode(&questions) {
-        Ok(ids) => ids,
-        Err(e) => return error(StatusCode::UNPROCESSABLE_ENTITY, e),
-    };
-    let input_tokens: usize = ids.iter().flatten().map(Vec::len).sum();
-    let candidates: usize = ids.iter().map(Vec::len).sum();
     let result = async {
-        let rows = engine.score(ids, &questions).await?;
-        let mut answers = Map::new();
-        for (q, logits) in questions.iter().zip(rows) {
-            answers.insert(q.id.clone(), contract::answer(q, &logits, engine.temperature)?);
-        }
-        Ok::<_, anyhow::Error>(json!({"model": MODEL_ID, "answers": answers,
-            "usage": {"input_tokens": input_tokens, "output_tokens": 0},
-            "metadata": {"method": "native_merged_lora_decision_head", "temperature": engine.temperature,
-                "candidate_sequences": candidates, "inference_seconds": start.elapsed().as_secs_f64(),
-                "base_revision": BASE_REVISION, "max_length": engine.max_length,
-                "prefix_cache": {"enabled": false, "mode": "independent_candidates"}}}))
-    }.await;
+        let rows = engine.executor.execute(prepared.inputs).await?;
+        prepared.context.finish(rows)
+    }
+    .await;
     match result {
         Ok(body) => Json(body).into_response(),
         Err(e) => {

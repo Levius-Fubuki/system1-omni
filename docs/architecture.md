@@ -9,14 +9,35 @@ design. Concrete input/output types follow each executor's supported layout.
 The [Rust frontend](../src/frontend/README.md) currently forwards HTTP requests
 to separately running workers. Cua-S1 and Open-Jev have native Rust/CUDA workers
 that share the [Qwen3.5/3.8 executor](../src/models/qwen3_5/native/). Their
-model-specific workers still coordinate preprocessing, inference, and response
-construction. The shared executor accepts one prompt per forward call; shared
-processing orchestration, scheduling, and dynamic batching are planned.
+model-specific workers coordinate independent processor and executor modules
+through `prepare` → `execute` → `finish`. The shared Qwen executor accepts one
+prompt per forward call; shared processing orchestration, scheduling, and
+dynamic batching are planned.
 
 The native workers currently compute their decision heads on the CPU after
 downloading the final hidden state. GPU head execution belongs to the target
 model/backend integration. LAYA's native executor and the Metal backend are
 also planned; Python workers retain their documented reference/serving roles.
+
+## Native worker boundaries
+
+Both native workers separate `processing.rs` from `executor.rs`; `engine.rs`
+assembles them from the checkpoint, and the HTTP handler coordinates the three
+stages. Preparation validates the entire request before any forward call and
+returns executor inputs plus a response context. The context retains question
+and candidate identity, usage, and response metadata outside the executor.
+
+| Worker | Prepared executor inputs | Executor outputs | Response finishing |
+| --- | --- | --- | --- |
+| Cua-S1 | One unpadded token-ID vector and option count per question, in request order. | One FP32 answer-letter logit vector per question. | Per-question softmax, choice/confidence, ordered answers, and token usage. |
+| Open-Jev | Token-ID vectors grouped by question, then independent candidate, in request order. | One FP32 learned scalar per candidate in the same grouping. | Add the `noul` false logit of zero, calibrate across each complete question, and restore typed answers, usage, and metadata. |
+
+These input collections are serial work, not GPU batches. Cua-S1 retains its
+per-question model lock; Open-Jev retains its request-wide lock. Executors own
+the loaded Qwen model and CPU head weights, preserving FP64 accumulation and
+the existing FP32 rounding and bias order. Finishing checks output cardinality
+before reconstruction. HTTP validation, error status/body conventions, and real
+warmup before readiness remain model-specific and unchanged.
 
 ## Layer ownership and implementation language
 
