@@ -5,6 +5,7 @@ instead of failing the run.
 """
 
 import importlib.metadata
+import json
 import os
 import platform
 import subprocess
@@ -78,6 +79,27 @@ def noise_problems(max_load):
     return problems
 
 
+def refuse_if_noisy(max_load, measured):
+    """Exits when a measured run would be noisy; otherwise warns about each problem and returns them."""
+    problems = noise_problems(max_load)
+    if problems and measured:
+        sys.exit("refusing a measured run: " + "; ".join(problems))
+    for problem in problems:
+        print(f"warning: {problem}", file=sys.stderr)
+    return problems
+
+
+def read_workloads(path):
+    """The fixed inputs by id, in file order."""
+    workloads = {}
+    with open(path) as f:
+        for w in map(json.loads, filter(str.strip, f)):
+            if w["id"] in workloads:
+                raise ValueError(f"{path}: workload id {w['id']} appears twice")
+            workloads[w["id"]] = w
+    return workloads
+
+
 def header(checkpoint, **extra):
     status = _run(
         "git",
@@ -113,6 +135,9 @@ def header(checkpoint, **extra):
         "argv": sys.argv,
         **extra,
     }
+
+
+RUSAGE_INFO_V4 = 4  # <sys/resource.h>
 
 
 def footprint_mb(pid=None):
@@ -169,9 +194,10 @@ def footprint_mb(pid=None):
         return {}
     info = RusageInfoV4()
     libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
-    if (
-        libc.proc_pid_rusage(pid or os.getpid(), 4, ctypes.byref(info)) != 0
-    ):  # RUSAGE_INFO_V4
+    failed = libc.proc_pid_rusage(
+        pid or os.getpid(), RUSAGE_INFO_V4, ctypes.byref(info)
+    )
+    if failed:
         return {}
     return {
         "footprint_mb": round(info.phys_footprint / 2**20),
