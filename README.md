@@ -172,8 +172,9 @@ benchmarks, and documentation. A reproducible bug report, a carefully measured
 benchmark, or a clearer recipe can be just as useful as a kernel optimization.
 
 Review the [contributing guide](CONTRIBUTING.md) before opening a pull
-request: self-review the full diff, keep changes aligned with shared serving
-infrastructure and model-owned execution, and run the Rust checks used by CI.
+request: self-review the full diff, keep serving, processing, scheduling, and
+model execution separate according to the [architecture contracts](docs/architecture.md),
+and run the checks appropriate to your changes.
 
 **Have an idea or found a problem?** [Open an
 issue](https://github.com/ThinkFlowLab/system1-omni/issues/new) with the
