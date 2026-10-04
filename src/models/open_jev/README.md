@@ -14,3 +14,13 @@ numerical limitations, validation and optimization scope.
 The Rust contract is adapted from Open-Jev's MIT-licensed code; its copyright
 and license are retained in [`native/LICENSE.open-jev`](native/LICENSE.open-jev).
 No model weights are distributed here.
+
+## Integration boundary
+
+Follow the [architecture contracts](../../../docs/architecture.md) when
+separating request/token preparation and response interpretation from model
+execution. The trained head belongs to the executor; calibrated normalization
+across a complete question belongs to Open-Jev postprocessing. Batch adapters
+preserve candidate identity and ordering while the planned shared runtime owns
+scheduling. The current worker executes candidates independently and computes
+the scalar head on the CPU after CUDA prefill; shared dynamic batching is planned.

@@ -8,6 +8,8 @@ description: Self-review a System1-Omni branch before opening a PR or marking it
 Review the contributor's changes against System1-Omni's conventions. Read
 `CONTRIBUTING.md`, `README.md`, and applicable `AGENTS.md` instructions from the
 checkout before starting. Paths below are relative to the repository root.
+Read the [architecture contracts](../../../docs/architecture.md) for current
+implementation status and the target processing, scheduling, and device boundary.
 
 This skill produces a local report. It does not itself authorize edits, commits,
 pushes, GitHub comments, or changing a PR's review status. Follow any separate
@@ -28,8 +30,11 @@ user instructions for those actions.
 
 - Match the implementation to the stated problem. Flag unrelated changes, new
   unused code, duplicated logic, or abstractions without a current need.
-- Preserve the architecture described in the README: the Rust frontend owns
-  serving infrastructure, models own execution, and shared utilities stay minimal.
+- Check ownership against the architecture contracts: transport, independent
+  processing and scheduling, model-specific adapters and executors, and hardware
+  operations. In the native target, Rust orchestrates host work and dispatch;
+  CUDA/Metal execute device kernels. Shared runtime layers remain planned until
+  implemented; existing worker pipelines are not proof of dynamic batching.
   Consult the relevant `src/frontend/`, `src/models/`, `src/backends/`, or
   `recipe/` documentation for the changed component's contract and current status.
 - For frontend changes, inspect affected request validation, error handling,
@@ -39,6 +44,9 @@ user instructions for those actions.
   shapes and dtypes, device assumptions, and resource lifetimes. Do not require
   CUDA and Metal to have identical implementations or claim an untested backend
   works. Distinguish planned functionality from implemented behavior.
+- For processing/scheduling changes, apply the architecture contract's batching,
+  output reconstruction, numerical, and lifetime invariants to the affected
+  model's prepared-work and executor boundaries.
 - Check that tests exercise the changed behavior. For bug fixes, look for a
   regression case that fails before the fix. Verify documentation and examples
   against the implementation.

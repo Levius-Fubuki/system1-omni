@@ -1,6 +1,12 @@
 # LAYA model engine
 
-LAYA is the first planned System1-Omni model. This directory owns its complete request-to-result path: preprocessing, postprocessing, batching policy, state, execution, and backend-specific kernel selection.
+LAYA is the first planned System1-Omni model. Its future executor follows the
+[architecture contracts](../../../docs/architecture.md), with processing
+orchestration and scheduling outside model execution. LAYA-specific processors
+and batch adapters belong in separate modules; the executor owns weights, forward
+passes, learned heads, device state, and backend-specific kernel selection.
+The native target uses Rust host orchestration and backend device operations;
+the existing Python worker and CPU checkpoint reader retain their current roles.
 
 GPU operations and kernel implementations belong in [`backends/cuda/`](../../backends/cuda/) and [`backends/metal/`](../../backends/metal/). Setup and usage examples belong in the top-level [`recipe/`](../../../recipe/) directory.
 

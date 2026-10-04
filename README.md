@@ -24,7 +24,8 @@
 
 **System1-Omni** is a community-maintained inference engine for prefill-only
 System1-Omni models, designed around a Rust frontend, model-owned execution,
-and high-performance CUDA and Metal backends.
+and high-performance CUDA and Metal backends. The target architecture separates
+processing and scheduling from model execution.
 
 The Rust frontend forwards requests to a separately running model worker. The
 Cua-S1 4B 0.2 `text` adapter and Open-Jev-27B-v1.1 have native workers using
@@ -44,8 +45,9 @@ shared CUDA kernels in this repository.
 - **Rust serving frontend.** API, request lifecycle, and response delivery
   through a small engine interface, forwarding requests to separately running
   model workers.
-- **Model-owned execution.** Each model owns its preprocessing, batching,
-  state, execution, and kernel selection; shared utilities stay minimal.
+- **Model-owned execution.** Model executors own weights, forward passes,
+  learned heads, device state, and kernel selection. Current workers also
+  contain request processing; a shared processing and scheduling layer is planned.
 - **Native CUDA workers.** The Cua-S1 4B 0.2 `text` adapter and
   Open-Jev-27B-v1.1 run as native workers with shared CUDA kernels. Cua-S1
   also has a Python worker that serves as the correctness reference.
@@ -58,21 +60,41 @@ shared CUDA kernels in this repository.
 
 ## How It Works
 
-Share serving infrastructure; let each model own its execution.
+Share processing and scheduling; let each model own its execution.
 
-![System1-Omni architecture: Rust frontend, model-owned execution, and CUDA and Metal backends](docs/assets/architecture.svg)
+![System1-Omni target architecture: Rust frontend, independent processing and batching layers, model executors, and CUDA and Metal backends](docs/assets/architecture.svg)
 
-| Layer | Responsibility |
-| --- | --- |
-| Rust frontend | API, request lifecycle, and response delivery through a small engine interface. |
-| System1-Omni models | Model-specific preprocessing and postprocessing, batching, state, execution, and kernel selection. |
-| CUDA backend | High-performance GPU operations for NVIDIA GPUs. |
-| Metal backend | High-performance GPU operations for Apple GPUs. |
+The diagram shows the **target architecture**, not an implemented shared runtime.
+Today the frontend forwards HTTP requests to separately running workers, whose
+model-specific pipelines still handle processing and inference. Shared processing
+orchestration, scheduling, and dynamic batching are planned.
 
-Each model owns its complete request-to-result path. Shared utilities stay
-minimal and are extracted when implementations need the same functionality.
-Backends can optimize for their hardware without requiring identical internal
-implementations.
+| Layer | Responsibility | Native target implementation |
+| --- | --- | --- |
+| Rust frontend | API transport, request forwarding, and response delivery. | Rust. |
+| Processing layer | Independent pre/postprocessing modules with model-specific processors for input preparation and output interpretation. | Rust CPU processing; GPU transforms use backends. |
+| Scheduler / batcher | Queue admission, batch budgets, compatibility grouping, batch assembly, request bookkeeping, and result routing. | Rust host policy; GPU packing uses backends. |
+| Model executors | Weights, forward passes, learned heads, device state, and kernel selection. | Rust orchestration calling backend operations. |
+| CUDA backend | High-performance GPU operations for NVIDIA GPUs. | Rust bindings/dispatch and CUDA C++ kernels. |
+| Metal backend (planned) | High-performance GPU operations for Apple GPUs. | Rust bindings/dispatch and Metal shaders. |
+
+In the target design, the shared worker runtime invokes processors, schedules
+compatible work, calls the model executor, and routes each output back to its
+request. Tokenization, modality transforms, and response interpretation remain
+model-specific plugins, separate from the forward implementation. Models
+declare batch constraints; batch adapters pack inputs and unpack outputs using
+the executor's supported layout. A shared scheduler must not batch incompatible
+models or inputs, and dynamic batching requires executor support for real batches.
+
+These are logical layers: the runtime and executor can share a worker process.
+Request bookkeeping belongs to the runtime; model device state belongs to the
+executor. Backends can optimize for their hardware without requiring identical
+internal implementations.
+
+The [architecture and integration contracts](docs/architecture.md) define
+processor/executor boundaries, compatibility grouping, state and buffer
+lifetimes, and result reconstruction. They also distinguish the native target
+from current single-prompt execution and CPU decision heads.
 
 ## Repository Layout
 
@@ -82,7 +104,7 @@ repository root.
 | Directory | Responsibility |
 | --- | --- |
 | [`src/frontend/`](src/frontend/) | Rust serving code, Python worker adapters, and the small engine interface. |
-| [`src/models/`](src/models/) | Model implementations, one directory per model: preprocessing, batching, state, execution, and output processing. |
+| [`src/models/`](src/models/) | Model contracts, existing worker pipelines, and model executors, including the shared Qwen3.5/3.8 prefill implementation. |
 | [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
 | [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
@@ -135,8 +157,10 @@ requests and a matched comparison with raw HF Transformers and OpenJev-Fast.
 ## Roadmap
 
 The current focus is the native Cua-S1 and Open-Jev CUDA workers and the serving
-benchmark harness. Planned work includes the in-repository LAYA model engine,
-additional model engines and GPU backends including Metal, and per-model
+benchmark harness. Planned work includes the shared processing and scheduling
+layer shown above, bounded dynamic batching with batch-capable executors,
+the in-repository LAYA model engine, additional model engines and GPU backends
+including Metal, and per-model
 performance measurements as implementations are added and validated.
 
 <a id="contributing"></a>
@@ -148,8 +172,9 @@ benchmarks, and documentation. A reproducible bug report, a carefully measured
 benchmark, or a clearer recipe can be just as useful as a kernel optimization.
 
 Review the [contributing guide](CONTRIBUTING.md) before opening a pull
-request: self-review the full diff, keep changes aligned with shared serving
-infrastructure and model-owned execution, and run the Rust checks used by CI.
+request: self-review the full diff, keep serving, processing, scheduling, and
+model execution separate according to the [architecture contracts](docs/architecture.md),
+and run the checks appropriate to your changes.
 
 **Have an idea or found a problem?** [Open an
 issue](https://github.com/ThinkFlowLab/system1-omni/issues/new) with the
