@@ -108,11 +108,11 @@ runs as a Python worker or as a native worker on CUDA:
 
 | Model | Status |
 | --- | --- |
-| LAYA | [External worker](recipe/laya/README.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
+| LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 
-CUDA and Metal coverage will be documented per model as implementations are
-added and validated.
+[Supported models and hardware](docs/supported-models.md) lists the devices
+and where each worker has been run.
 
 ## Benchmarks
 
