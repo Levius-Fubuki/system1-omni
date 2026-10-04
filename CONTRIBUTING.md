@@ -10,6 +10,13 @@ Keep model-specific preprocessing, execution and response formatting under
 Share serving infrastructure and extract shared model execution when multiple
 implementations need it.
 
+Keep processors and batch adapters separate from the model's forward
+implementation, even when they live in the same model directory. The README's
+target architecture shares processing orchestration and scheduling across
+models; these layers are planned, while current worker pipelines remain
+model-specific. Model executors own weights, forward passes, learned heads,
+and device state.
+
 All test bodies, test helpers and fixtures belong in the repository-level
 `tests/` tree. Do not add inline test bodies or crate-local `tests/` directories
 under `src/`. Register Rust integration tests with explicit `[[test]]` paths in
