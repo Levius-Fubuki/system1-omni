@@ -27,9 +27,17 @@ System1-Omni models, designed around a Rust frontend, model-owned execution,
 and high-performance CUDA and Metal backends.
 
 The Rust frontend forwards requests to a separately running model worker. The
-Cua-S1 4B 0.2 `text` adapter has a native worker with CUDA kernels in this
-repository; other in-repository model engines and GPU backends are not
-implemented yet.
+Cua-S1 4B 0.2 `text` adapter and Open-Jev-27B-v1.1 have native workers using
+shared CUDA kernels in this repository.
+
+## News
+
+- **2026-10-03:** Added [Open-Jev-27B-v1.1](recipe/open_jev/native.md)
+  support through a native Rust/CUDA worker: **7.47× faster than raw HF Transformers**
+  by mean warm HTTP latency, **362.21→48.50 ms** on one H200. Measured over
+  74 single-candidate JevBench `noul` requests per pass, with two measured passes
+  per backend (BF16, concurrency 1). See the
+  [HF Transformers baseline, results and OpenJev-Fast comparison](recipe/open_jev/validation.md).
 
 ## Features
 
@@ -38,9 +46,9 @@ implemented yet.
   model workers.
 - **Model-owned execution.** Each model owns its preprocessing, batching,
   state, execution, and kernel selection; shared utilities stay minimal.
-- **Native CUDA worker.** The Cua-S1 4B 0.2 `text` adapter runs as a native
-  worker with CUDA kernels, or as a Python worker that serves as the
-  correctness reference.
+- **Native CUDA workers.** The Cua-S1 4B 0.2 `text` adapter and
+  Open-Jev-27B-v1.1 run as native workers with shared CUDA kernels. Cua-S1
+  also has a Python worker that serves as the correctness reference.
 - **LAYA text serving.** LAYA runs as an external Python worker for text
   requests, with an in-repository CPU checkpoint reader.
 - **CUDA and Metal backends.** High-performance GPU operations for NVIDIA
@@ -80,9 +88,10 @@ repository root.
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend, Cua-S1 native worker and Laya checkpoint reader are Cargo
-workspace members. The other model and backend directories currently document
-planned work; they do not prescribe process boundaries.
+The frontend, both native workers, their shared Qwen3.5/3.8 prefill
+implementation and the Laya checkpoint reader are Cargo workspace members.
+The other model and backend directories currently document planned work;
+they do not prescribe process boundaries.
 
 ## Getting Started
 
@@ -104,12 +113,14 @@ for a CPU text worker and response checks, or the Cua-S1 recipes for the
 
 LAYA can run as an external Python worker for text requests; its
 in-repository model engine is still planned. The Cua-S1 4B 0.2 `text` adapter
-runs as a Python worker or as a native worker on CUDA:
+runs as a Python worker or as a native worker on CUDA. Open-Jev-27B-v1.1
+runs as a native Rust/CUDA worker:
 
 | Model | Status |
 | --- | --- |
 | LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
+| Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
 
 [Supported models and hardware](docs/supported-models.md) lists the devices
 and where each worker has been run.
@@ -117,15 +128,16 @@ and where each worker has been run.
 ## Benchmarks
 
 See the [GPU serving benchmark](benchmarks/README.md) for request replay,
-output-fidelity checks, and the CUDA comparison protocol. GPU performance
-measurements are pending.
+output-fidelity checks, and the CUDA comparison protocol. The
+[Open-Jev H200 results](recipe/open_jev/validation.md) cover 74 single-candidate
+requests and a matched comparison with raw HF Transformers and OpenJev-Fast.
 
 ## Roadmap
 
-The current focus is the Cua-S1 native CUDA worker and the serving benchmark
-harness. Planned work includes the in-repository LAYA model engine, additional
-model engines and GPU backends including Metal, and per-model performance
-measurements as implementations are added and validated.
+The current focus is the native Cua-S1 and Open-Jev CUDA workers and the serving
+benchmark harness. Planned work includes the in-repository LAYA model engine,
+additional model engines and GPU backends including Metal, and per-model
+performance measurements as implementations are added and validated.
 
 <a id="contributing"></a>
 
