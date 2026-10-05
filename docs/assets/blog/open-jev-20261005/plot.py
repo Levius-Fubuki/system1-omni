@@ -120,3 +120,48 @@ save(fig, "pr-regression-ab",
      "2026-10-05 · H200 GPU 5 · BF16 · graph disabled · two independent direct-worker campaigns\n"
      "64 synthetic multi-question/candidate requests/pass; two measured passes per arm and concurrency.\n"
      "Black dots: pass means. Each panel starts at zero and has its own scale. All latency/throughput/p95 regression gates pass.")
+
+fig, axes = plt.subplots(1, 2, figsize=(11.8, 7.4))
+fig.subplots_adjust(left=0.16, right=0.92, top=0.79, bottom=0.32, wspace=1.12)
+bundle = DATA["backend"]["rows"][:2]
+bars(axes[0], bundle, "Complete backend change", 435, [GRAY, BLUE], digits=2)
+axes[0].set_xlabel("Mean warm HTTP latency (ms)")
+bundle_saved = bundle[0]["mean_ms"] - bundle[1]["mean_ms"]
+axes[0].text(0, -0.23,
+             f'{bundle_saved:.2f} ms saved · {bundle[0]["mean_ms"] / bundle[1]["mean_ms"]:.2f}×\n'
+             "Native kernels + merged LoRA + gate fusion\n"
+             "+ cached RMSNorm + packed SiLU\n"
+             "Native-only / LoRA-only / gate-only gains: unmeasured",
+             transform=axes[0].transAxes, va="top", fontsize=10, color="#475569")
+
+pairs = [("Cached RMSNorm", DATA["isolated_pr55"][0]["http_rows"], GRAY),
+         ("Packed BF16 SiLU", DATA["isolated_pr55"][1]["http_rows"], GRAY),
+         ("Graph replay: 64 entries", [DATA["graph"]["mixed"][0], DATA["graph"]["mixed"][2]], GRAY),
+         ("Cache 8 → 64: recover regression", DATA["graph"]["mixed"][1:], ORANGE)]
+ax = axes[1]
+for index, (label, rows, baseline_color) in enumerate(pairs):
+    for arm, (row, offset, color) in enumerate(zip(rows, [-0.15, 0.15], [baseline_color, BLUE])):
+        y = index + offset
+        ax.barh(y, row["mean_ms"], height=0.25, color=color, zorder=2,
+                label="Baseline" if index == 0 and arm == 0 else "Candidate" if index == 0 else None)
+        ax.scatter(row["pass_mean_ms"], [y] * 2, s=16, color="#172033", zorder=3)
+        ax.text(row["mean_ms"] + 1.8, y, f'{row["mean_ms"]:.2f}', va="center", fontsize=9)
+    saved = rows[0]["mean_ms"] - rows[1]["mean_ms"]
+    ax.text(119, index, f'−{saved:.2f} ms\n({saved / rows[0]["mean_ms"] * 100:.2f}%)',
+            va="center", fontsize=9, color="#0F766E")
+ax.set_yticks(range(len(pairs)), [label for label, _, _ in pairs])
+ax.invert_yaxis()
+ax.set_xlim(0, 112)
+ax.set_xlabel("Mean warm HTTP latency (ms)")
+ax.set_title("Isolated A/Bs: separate baselines", loc="left", pad=16, weight="bold")
+ax.grid(axis="x", color="#E2E8F0", zorder=0)
+ax.set_axisbelow(True)
+ax.tick_params(axis="y", length=0, pad=12, labelsize=10)
+ax.legend(loc="upper left", bbox_to_anchor=(0, -0.17), frameon=False, ncol=2, fontsize=9)
+fig.suptitle("PR #55: measured gains and missing ablations",
+             x=0.03, y=0.96, ha="left", fontsize=18, weight="bold")
+save(fig, "pr55-attribution",
+     "Historical Oct 1–3 H200 measurements · BF16 · 74 single-candidate requests/pass · two measured passes/arm\n"
+     "Right-hand pairs use their own controls: RMSNorm on GPU 5; SiLU/graphs on GPU 2; profiler state differs by campaign.\n"
+     "Black dots: pass means. Gray/orange: baseline; blue: candidate. Both axes start at zero and use different scales.\n"
+     "These pairs are not consecutive points in a cumulative ladder. LoRA-only, native-only and gate-only stages need fresh A/B runs.")

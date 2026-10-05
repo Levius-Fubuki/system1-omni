@@ -36,10 +36,12 @@ and warmups are excluded.
 | Native Rust/CUDA, eager | 48.503 ms | 48.471 / 48.535 ms |
 | OpenJev-Fast | 50.936 ms | 51.097 / 50.775 ms |
 
-![Matched H200 warm HTTP latency for raw HF Transformers, native Rust/CUDA and OpenJev-Fast](../assets/blog/open-jev-20261005/backend-http.svg)
+![PR 55's complete HF-to-native gain beside separate RMSNorm, SiLU and graph A/B results, with unmeasured individual contributions identified](../assets/blog/open-jev-20261005/pr55-attribution.svg)
 
-*Figure 1. Matched warm HTTP comparison. Bars show aggregate means; dots show
-two pass means, not confidence intervals. [Validation and baseline setup](../../recipe/open_jev/validation.md#raw-hf-transformers-comparison-2026-10-03).*
+*Figure 1. The left panel measures the complete backend change; right-hand pairs
+isolate individual changes in separate campaigns. They are not cumulative steps.
+Dots show two pass means. [Full three-backend chart](../assets/blog/open-jev-20261005/backend-http.svg)
+and [baseline setup](../../recipe/open_jev/validation.md#raw-hf-transformers-comparison-2026-10-03).*
 
 Raw HF used unmerged PEFT LoRA, stock SDPA and PyTorch fallbacks for linear
 attention/convolution, with optional FLA and causal-convolution dispatch disabled.
@@ -53,7 +55,7 @@ results do not establish general accuracy superiority. The
 [upstream B300 results](https://yiqilyu.me/open-jev-fast/) use different hardware,
 workloads and timing boundaries.
 
-## The native path
+## How PR #55 reduces work
 
 Rust validates and tokenizes candidates, runs a shared Qwen3.5/3.8 prefill
 executor, downloads the final hidden state for the CPU scoring head, and
@@ -63,9 +65,33 @@ reconstructs the answer. Open-Jev has no autoregressive decode loop.
 executor ancestry; [#52](https://github.com/ThinkFlowLab/system1-omni/pull/52)
 tested graph replay on Cua-S1 separately. [#55](https://github.com/ThinkFlowLab/system1-omni/pull/55)
 added Open-Jev support, including LoRA merging and attention-gate fusion.
-Those two changes lack individual Open-Jev ablations. See the
-[model contract](../../src/models/open_jev/README.md) and
-[Cua-S1 graph report](../benchmarks/cua-s1-cuda-graphs/README.md) for their context.
+The important distinction is between the **313.71 ms complete-backend saving**
+and the smaller, individually tested tuning changes:
+
+| Change | Work reduced | Isolated mean HTTP effect |
+| --- | --- | --- |
+| Native prefill path | Shared CUDA GDN/attention kernels and grouped projection GEMMs replace Python eager orchestration | Unmeasured individually |
+| LoRA merging | Compute the adapter weight update once at export; remove inference-time low-rank projections | Unmeasured individually |
+| Attention-gate fusion | Apply sigmoid/multiply in the attention epilogue; remove one launch and intermediate output write/read per full-attention layer | Unmeasured individually |
+| Cached RMSNorm | Retain residuals in registers across reduction; avoid rereading them | **1.328 ms / 2.58% saved** |
+| Packed SiLU | Use eight-element, 16-byte loads/stores | **1.230 ms / 2.48% saved** |
+| Graph-64 replay | Replay warm exact-length forwards; reduce host kernel submission | **0.974 ms / 2.03% saved** |
+
+The isolated tests quantify later tuning; they do not apportion the full
+HF-to-native saving. Expanding graph-eight to 64 also fixes recapture thrashing:
+its 48.18 ms recovery is against the regressed graph-eight baseline.
+
+A cumulative chart needs a fresh, matched ladder: **raw HF → merged-LoRA HF →
+native scalar/unfused baseline → fused gate → cached RMSNorm → packed SiLU →
+Graph-64**. Keep prior changes enabled at each step, use one exact H200/workload/
+HTTP timer, and collect one excluded feasibility plus two measured passes per
+stage. The native-backend switch is still a grouped change. Intermediate
+cumulative timings remain unmeasured; the records below support separate A/Bs.
+
+Implementation references: [LoRA export](https://github.com/ThinkFlowLab/system1-omni/blob/61b83b380baca912c0dbd989d175cb3da8a881ae/recipe/open_jev/export_merged.py),
+[gated attention](https://github.com/ThinkFlowLab/system1-omni/blob/61b83b380baca912c0dbd989d175cb3da8a881ae/src/backends/cuda/qwen3_5/attention.cu),
+[model contract](../../src/models/open_jev/README.md), and
+[Cua-S1 graph report](../benchmarks/cua-s1-cuda-graphs/README.md).
 
 ## PR #55: isolated kernel improvements — October 1–2
 
@@ -202,9 +228,9 @@ Graph, Metal and full-frontend refactor comparisons remain unmeasured.
 
 ## Next measurements and evidence
 
-The next A/B is merged GDN with graphs disabled/enabled, including capture costs.
-LoRA merging, attention-gate fusion and multi-candidate prefix sharing also need
-separate comparisons. [Ready-kernel trials](../../benchmarks/gdn/README.md#ready-kernels-in-vllm)
+Complete the PR #55 ladder above to attribute its bundled gain. Follow with
+merged GDN with graphs disabled/enabled, including capture costs, and a separate
+multi-candidate prefix-sharing comparison. [Ready-kernel trials](../../benchmarks/gdn/README.md#ready-kernels-in-vllm)
 provide another candidate; full-model Rust integration remains unverified.
 
 The [ledger](../assets/blog/open-jev-20261005/source-data.json) records exact
