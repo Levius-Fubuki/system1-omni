@@ -1,4 +1,4 @@
 interface:
   display_name: "Write Optimization Blog"
-  short_description: "Document optimizations with measured evidence"
-  default_prompt: "Use $write-optimization-blog to write a Markdown engineering post from our optimization records, with reproducible comparison figures and links to the measured code."
+  short_description: "Write PR-by-PR optimization posts with A/B evidence"
+  default_prompt: "Use $write-optimization-blog to update our Markdown optimization post with a dated record for each PR improvement, isolated A/B results, frozen controls, numerical checks, raw samples, and reproducible figures."

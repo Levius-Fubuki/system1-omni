@@ -64,6 +64,9 @@ against current recipes and separate implemented features from the target design
 
 ## Maintain a PR-by-PR progress record
 
+When adding or revising a progress update, use
+[the per-improvement A/B record](references/pr-update.md) as a starting point.
+
 Include an experiment map linking each relevant PR to its implementation changes
 and A/B evidence. Split independently tested improvements within one PR into
 separate updates; a PR containing normalization, activation and graph changes
@@ -71,7 +74,7 @@ needs more than one aggregate before/after row.
 
 For each update, record the date, bottleneck, implementation mechanism, isolated
 variable, measured baseline/candidate revisions or source hashes, fixed controls,
-timer, run budget and exclusions. Show both measured runs for both arms, relevant
+timer, run budget and exclusions. Show each measured run for both arms, relevant
 kernel and serving results separately, numerical/parity checks, acceptance gates
 and their outcome. Link raw samples, the frozen protocol and reproduction method.
 Preserve regressions, missed gates and rejected variants alongside improvements.
