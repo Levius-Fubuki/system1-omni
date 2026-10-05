@@ -59,6 +59,8 @@ nav:
   - Recipes:
       - recipe/README.md
       - Laya text worker: recipe/laya/README.md
+      - Laya native CUDA worker: recipe/laya/native/README.md
+      - Laya CUDA validation: recipe/laya/native/VALIDATION.md
       - Laya CPU reproduction and demo: recipe/laya/validation.md
       - Laya on Apple Silicon: recipe/laya/apple-silicon.md
       - Cua-S1 text worker: recipe/cua_s1/text.md

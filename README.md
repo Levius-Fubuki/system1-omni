@@ -67,8 +67,8 @@ shared CUDA kernels in this repository.
 - **Native CUDA workers.** The Cua-S1 4B 0.2 `text` adapter and
   Open-Jev-27B-v1.1 run as native workers with shared CUDA kernels. Cua-S1
   also has a Python worker that serves as the correctness reference.
-- **LAYA text serving.** LAYA runs as an external CPU Python worker or the
-  in-repository Python MPS/CPU worker, with a separate native CPU checkpoint reader.
+- **LAYA text serving.** LAYA runs as an external CPU Python worker, the
+  in-repository Python MPS/CPU worker, or a native Rust/CUDA worker on Hopper.
 - **CUDA backend and planned Metal backend.** High-performance GPU operations
   for NVIDIA GPUs, with a native Apple-GPU backend planned alongside it.
 - **Benchmark harness.** Request replay, output-fidelity checks, and a CUDA
@@ -82,7 +82,7 @@ Share processing and scheduling; let each model own its execution.
 
 The diagram shows the **target architecture**. Today the frontend forwards HTTP
 requests to separately running workers, whose handlers coordinate independent
-processors and executors. Both native workers use shared FIFO admission and
+processors and executors. Native workers use shared FIFO admission and
 blocking dispatch per loaded executor. Processing orchestration, batch budgets,
 compatibility grouping and dynamic batching remain planned.
 
@@ -128,8 +128,8 @@ repository root.
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend, native runtime, both native workers, their shared Qwen3.5/3.8
-prefill implementation and the Laya checkpoint reader are Cargo workspace members.
+The frontend, native runtime, the native workers, their shared Qwen3.5/3.8
+prefill implementation and the Laya CUDA backend are Cargo workspace members.
 The other model and backend directories currently document planned work;
 they do not prescribe process boundaries.
 
@@ -150,15 +150,15 @@ The [frontend documentation](src/frontend/README.md) describes transport and con
 
 ## Supported Models
 
-LAYA text serving uses the upstream CPU worker or the in-repository Python
-MPS/CPU worker; native Rust model execution is still planned. The Cua-S1 4B 0.2 `text` adapter
+LAYA text serving uses the upstream CPU worker, the in-repository Python MPS/CPU
+worker, or a native Rust/CUDA worker on Hopper. The Cua-S1 4B 0.2 `text` adapter
 runs as a Python worker or as a native worker on CUDA. Open-Jev-27B-v1.1
 runs as a native Rust/CUDA worker. Cua-S1 also has a Python screenshot worker,
 and CLM has a stub-encoder contract recipe:
 
 | Model | Status |
 | --- | --- |
-| LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [CPU checkpoint reader](src/models/laya/README.md); native Rust execution planned |
+| LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [CPU checkpoint reader](src/models/laya/README.md); [native Rust/CUDA worker on Hopper](recipe/laya/native/README.md) |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 | Cua-S1 4B 0.2 (`multimodal` adapter) | [Python CUDA worker](src/frontend/cua_s1.py); one PNG/JPEG screenshot, `choice`; native screenshot execution remains in progress |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
@@ -183,7 +183,7 @@ The current focus is the native Cua-S1 and Open-Jev CUDA workers and the serving
 benchmark harness. Planned work extends the shared runtime with processing
 orchestration, admission budgets, compatibility grouping and bounded dynamic
 batching with batch-capable executors,
-the in-repository LAYA model engine, additional model engines and GPU backends
+additional model engines and GPU backends
 including Metal, and per-model
 performance measurements as implementations are added and validated.
 
