@@ -684,6 +684,26 @@ class FlatLayoutTest(unittest.TestCase):
         self.assertEqual([i.message for i in issues], [],
                          "an existing reference must not be reported missing")
 
+    def test_an_undeclared_sibling_backend_is_still_reported(self):
+        # A flat manifest owns the subdirectories its `sources` name, not the
+        # cuda directory itself. Reading the root as owned exempted every
+        # sibling along with it, so a backend sitting beside Laya with no
+        # manifest of its own passed the check that exists to find it.
+        sibling = os.path.join(self.cuda, "qwen3_5")
+        os.makedirs(sibling)
+        with open(os.path.join(sibling, "attention.cu"), "w", encoding="utf-8") as handle:
+            handle.write("// kernel\n")
+        _, issues = check_contract.run(self.root)
+        self.assertEqual([i.backend for i in issues], ["qwen3_5"])
+        self.assertIn("no qwen3_5.backend.json manifest", issues[0].message)
+
+    def test_the_flat_backends_own_subdirectories_are_not_reported(self):
+        # The same rule has to keep covering `kernels/`, which the manifest does
+        # name. Without this, a fix could exempt nothing and hand the backend
+        # its own sources back as an undeclared backend.
+        _, issues = check_contract.run(self.root)
+        self.assertEqual([i.message for i in issues], [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

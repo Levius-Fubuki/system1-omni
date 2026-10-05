@@ -210,10 +210,10 @@ Two tiers, because they have different requirements.
 **Tier 1 — contract check (no GPU).** `check_contract.py` reads the manifests and
 the build scripts and checks: the schema, that every declared source exists, that
 a build script declares the architectures the manifest claims and writes the
-library the manifest names, that an ABI version is consistent across backends, and
-that a `validated` backend declares both a tolerance and a reference entrypoint.
-It runs on a stock runner and needs no CUDA toolkit. This is the tier implemented
-in this change.
+library the manifest names, that `abi_version` matches the `<PREFIX>_ABI_VERSION`
+macro the declared sources define, and that a `validated` backend declares both a
+tolerance and a reference entrypoint. It runs on a stock runner and needs no CUDA
+toolkit. This is the tier implemented in this change.
 
 It does not compile CUDA and does not prove numerics.
 

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """Tier-1 contract check for CUDA backend libraries. No GPU, no nvcc required.
 
-Discovers every ``src/backends/cuda/<name>/<name>.backend.json`` manifest and
-checks the parts of ``contract.md`` that do not need hardware:
+Discovers every ``*.backend.json`` under ``src/backends/cuda/`` -- either
+``<name>/<name>.backend.json`` or ``<name>.backend.json`` beside it -- and checks
+the parts of ``contract.md`` that do not need hardware:
 
   * the manifest schema,
-  * that every declared source file exists,
-  * that the build script's declared output and architectures match the manifest,
-  * that the ABI version is consistent across backends,
-  * that a ``validated`` backend declares a tolerance and a reference entrypoint,
-  * that a kernel requiring a newer compute capability than the build declares is
-    flagged.
+  * that every declared source exists and stays inside the backend directory,
+  * that the build script writes the declared library and covers the declared
+    architectures, none of them below ``build.min_capability``,
+  * that ``abi_version`` matches the ``<PREFIX>_ABI_VERSION`` macro the declared
+    sources define, where they define one,
+  * that a ``validated`` backend declares a tolerance and a reference entrypoint.
 
 It does not compile CUDA and does not prove numerics. Those are the later tiers
 described in ``contract.md``: Tier 2 compiles each backend with nvcc, and Tier 3
@@ -87,16 +88,63 @@ def load_manifests(repo_root):
             found.append((filename[: -len(MANIFEST_SUFFIX)], root,
                           os.path.join(root, filename)))
 
+    loaded = {}
+    for entry, directory, expected in found:
+        try:
+            with open(expected, "r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+        except ValueError as error:
+            issues.append(Issue("error", entry, "%s is not valid JSON: %s"
+                                % (os.path.basename(expected), error)))
+            continue
+        if not isinstance(manifest, dict):
+            issues.append(Issue("error", entry, "%s must contain a JSON object"
+                                % os.path.basename(expected)))
+            continue
+        manifest["_directory"] = directory
+        manifest["_entry"] = entry
+        loaded[expected] = manifest
+        manifests.append(manifest)
+
     # A directory holding `.cu` files with no manifest either way is a backend
-    # someone forgot to declare. Directories that belong to a declared backend
-    # (its `kernels/`, `tools/`) or hold a manifest of their own are not.
-    declared_roots = {directory for _entry, directory, _path in found}
+    # someone forgot to declare; declaration is what makes it checkable. A
+    # directory that belongs to a declared backend is not undeclared: a
+    # `<name>/` backend owns everything beneath its own directory, and a flat
+    # backend -- one whose manifest sits directly in src/backends/cuda/ -- owns
+    # the subdirectories its `sources` name, which is how Laya's manifest covers
+    # its `kernels/` and `tools/`.
+    #
+    # A flat backend does not own the cuda directory itself. Reading the root as
+    # owned exempted every sibling subdirectory with it, so `qwen3_5/` beside a
+    # flat `laya.backend.json` was never reported -- the failure this check
+    # exists to catch.
+    owned = set()
+    for _entry, directory, expected in found:
+        if directory != root:
+            owned.add(directory)
+            continue
+        manifest = loaded.get(expected)
+        sources = manifest.get("sources") if manifest else None
+        if not isinstance(sources, list):
+            # Nothing states which subdirectories this backend owns: it did not
+            # parse, and that is already reported. Owning the whole directory
+            # keeps this to the one real error instead of adding a misleading
+            # undeclared-backend error for each of its own subdirectories.
+            owned.add(root)
+            continue
+        for source in sources:
+            if not isinstance(source, str) or "/" not in source:
+                continue
+            head = source.split("/")[0]
+            if head and head not in (".", ".."):
+                owned.add(os.path.join(root, head))
+
     for entry in sorted(os.listdir(root)):
         directory = os.path.join(root, entry)
         if not os.path.isdir(directory) or entry.startswith("."):
             continue
-        if any(directory == root_of or directory.startswith(root_of + os.sep)
-               for root_of in declared_roots):
+        if any(directory == owner or directory.startswith(owner + os.sep)
+               for owner in owned):
             continue
         contents = [f for f in os.listdir(directory) if not f.startswith(".")]
         present = sorted(f for f in contents if f.endswith(MANIFEST_SUFFIX))
@@ -116,22 +164,6 @@ def load_manifests(repo_root):
                 "error", entry,
                 "has kernel sources (%s) but no %s manifest or parent backend manifest"
                 % (", ".join(sorted(kernel_like)[:3]), entry + MANIFEST_SUFFIX)))
-
-    for entry, directory, expected in found:
-        try:
-            with open(expected, "r", encoding="utf-8") as handle:
-                manifest = json.load(handle)
-        except ValueError as error:
-            issues.append(Issue("error", entry, "%s is not valid JSON: %s"
-                                % (os.path.basename(expected), error)))
-            continue
-        if not isinstance(manifest, dict):
-            issues.append(Issue("error", entry, "%s must contain a JSON object"
-                                % os.path.basename(expected)))
-            continue
-        manifest["_directory"] = directory
-        manifest["_entry"] = entry
-        manifests.append(manifest)
     return manifests, issues
 
 
@@ -472,7 +504,8 @@ def main(argv=None):
         print("%d backend(s), %d error(s), %d warning(s)"
               % (len(manifests), len(errors), len(warnings)))
         if not manifests:
-            print("no backends declared; add src/backends/cuda/<name>/<name>.backend.json")
+            print("no backends declared; add src/backends/cuda/<name>.backend.json "
+                  "or src/backends/cuda/<name>/<name>.backend.json")
 
     return 1 if errors else 0
 
