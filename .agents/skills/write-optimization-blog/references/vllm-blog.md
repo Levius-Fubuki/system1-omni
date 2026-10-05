@@ -43,3 +43,13 @@ and a nearby post before adding files. The reviewed conventions are:
 
 For a different repository, adopt its renderer and relative-link conventions.
 Do not add Jekyll or migrate a documentation site merely to mimic these examples.
+
+## Compact reference: OpenJev-Fast
+
+Reviewed [OpenJev-Fast](https://yiqilyu.me/open-jev-fast/) on 2026-10-05 for
+presentation: headline metrics, an optimization chart, short mechanism blocks,
+a benchmark figure/table, and brief correctness/setup notes. Detailed experiments
+and failed attempts are linked in a separate report. Use that separation when
+the user wants figures and numbers to carry the story. Its B300 forward/head
+chart and HTTP benchmark use distinct timers; its values are not evidence for
+System1-Omni's H200 experiments.

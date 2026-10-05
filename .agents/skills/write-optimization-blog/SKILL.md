@@ -40,11 +40,19 @@ a labeled historical figure; preserve its source and displayed precision.
 
 ## Write the engineering story
 
-Lead with the useful outcome and its scope. Give enough model/request-path
-context to understand what is being accelerated. For each substantive change,
-connect the observed cost to the implementation mechanism and then to its
-validation. Include rejected approaches when they explain a precision constraint,
-cache policy, or an unresolved performance limit.
+For a concise post, lead with headline numbers and a comparison figure. Let
+figures and compact tables carry the results; give each change a short mechanism
+explanation. Avoid repeating the same results in a figure, table and paragraph.
+Put full protocols, source hashes, per-run tables and rejected-variant detail in
+linked evidence records. Keep workload/timer labels, regressions, missed gates
+and material numerical limits visible in the post. Follow the user's requested
+depth; keep the full evidence template in the linked record.
+
+Give enough model/request-path context to understand what is accelerated. Connect
+each observed cost to the implementation and its measured effect. Include rejected
+approaches when they explain a precision constraint, cache policy or unresolved
+limit. For compact presentation examples, see
+[OpenJev-Fast alongside the vLLM references](references/vllm-blog.md#compact-reference-openjev-fast).
 
 Separate complete backend comparisons, isolated optimization A/B runs, kernel
 microbenchmarks and correctness checks. Do not add independently measured gains,
@@ -65,16 +73,17 @@ against current recipes and separate implemented features from the target design
 ## Maintain a PR-by-PR progress record
 
 When adding or revising a progress update, use
-[the per-improvement A/B record](references/pr-update.md) as a starting point.
+[the per-improvement A/B record](references/pr-update.md) for the detailed evidence;
+summarize it in the article with figures and links.
 
 Include an experiment map linking each relevant PR to its implementation changes
 and A/B evidence. Split independently tested improvements within one PR into
 separate updates; a PR containing normalization, activation and graph changes
 needs more than one aggregate before/after row.
 
-For each update, record the date, bottleneck, implementation mechanism, isolated
-variable, measured baseline/candidate revisions or source hashes, fixed controls,
-timer, run budget and exclusions. Show each measured run for both arms, relevant
+For each update's evidence record, keep the date, bottleneck, implementation
+mechanism, isolated variable, measured baseline/candidate revisions or source
+hashes, fixed controls, timer, run budget and exclusions. Show each measured run for both arms, relevant
 kernel and serving results separately, numerical/parity checks, acceptance gates
 and their outcome. Link raw samples, the frozen protocol and reproduction method.
 Preserve regressions, missed gates and rejected variants alongside improvements.

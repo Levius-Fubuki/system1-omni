@@ -1,8 +1,13 @@
 # A per-improvement progress update
 
-Use this record when appending optimization progress. Adapt the headings to the
-post and omit inapplicable metrics. One PR with independently tested changes
+Use this record for the evidence behind an optimization update. Omit
+inapplicable metrics. One PR with independently tested changes
 gets separate records; a bundled backend comparison remains a bundled result.
+
+A concise post shows the headline, the A/B figure or compact table, a short
+mechanism and the result/limit.
+Link the full record for controls, repetitions, hashes and rejected variants;
+avoid reproducing every field in the main narrative.
 
 ## Date, PR and implementation change
 
