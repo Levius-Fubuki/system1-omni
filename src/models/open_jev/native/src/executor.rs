@@ -9,6 +9,7 @@ use omni_runtime::SerialScheduler;
 use serde_json::Value;
 
 use crate::batching;
+use crate::contract::Checkpoint;
 
 #[derive(Clone)]
 pub(crate) struct DecisionHead {
@@ -17,7 +18,7 @@ pub(crate) struct DecisionHead {
 }
 
 impl DecisionHead {
-    pub(crate) fn load(dir: &Path, manifest: &Value) -> Result<Self> {
+    pub(crate) fn load(dir: &Path, manifest: &Value, checkpoint: &Checkpoint) -> Result<Self> {
         let cfg = Config::load(dir)?;
         ensure!(
             (
@@ -28,8 +29,9 @@ impl DecisionHead {
                 cfg.kv_heads,
                 cfg.lin_k_heads,
                 cfg.lin_v_heads
-            ) == (5120, 17408, 64, 24, 4, 16, 48),
-            "expected the Qwen3.8-27B backbone dimensions"
+            ) == checkpoint.backbone,
+            "expected the {} backbone dimensions",
+            checkpoint.model_id
         );
         let weights: Vec<f32> = manifest["head_weight"]
             .as_array()
@@ -69,20 +71,28 @@ impl DecisionHead {
 pub struct Executor {
     model: Arc<Mutex<Model>>,
     head: DecisionHead,
+    pack: bool,
 }
 
 impl Executor {
-    pub(crate) async fn load(dir: &Path, library: &Path, head: DecisionHead) -> Result<Self> {
+    pub(crate) async fn load(
+        dir: &Path,
+        library: &Path,
+        head: DecisionHead,
+        checkpoint: &Checkpoint,
+    ) -> Result<Self> {
         let (d, lib) = (dir.to_path_buf(), library.to_path_buf());
         let model = tokio::task::spawn_blocking(move || Model::load(&d, &lib)).await??;
         Ok(Self {
             model: Arc::new(Mutex::new(model)),
             head,
+            pack: checkpoint.pack_candidates,
         })
     }
 
     /// Inputs and outputs are grouped by question, then candidate, in prepared order.
-    /// Admit one whole request and pack independent candidates for shared GEMMs.
+    /// Admit one whole request; where the checkpoint allows it, pack independent
+    /// candidates for shared GEMMs, otherwise run them one at a time.
     pub async fn execute(
         &self,
         scheduler: &SerialScheduler,
@@ -90,6 +100,7 @@ impl Executor {
     ) -> Result<Vec<Vec<f32>>> {
         let model = self.model.clone();
         let head = self.head.clone();
+        let pack = self.pack;
         scheduler
             .run(move || {
                 let mut model = model
@@ -97,9 +108,15 @@ impl Executor {
                     .map_err(|_| anyhow::anyhow!("poisoned model"))?;
                 let inputs: Vec<&[u32]> = ids.iter().flatten().map(Vec::as_slice).collect();
                 let mut scores = Vec::with_capacity(inputs.len());
-                for range in batching::ranges(&inputs) {
-                    for last in model.forward_batch(&inputs[range])? {
-                        scores.push(head.score(last)?);
+                if pack {
+                    for range in batching::ranges(&inputs) {
+                        for last in model.forward_batch(&inputs[range])? {
+                            scores.push(head.score(last)?);
+                        }
+                    }
+                } else {
+                    for ids in &inputs {
+                        scores.push(head.score(model.forward(ids)?)?);
                     }
                 }
                 let mut scores = scores.into_iter();
