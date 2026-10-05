@@ -1,4 +1,9 @@
-<h1 align="center">System1-Omni</h1>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logos/system1-omni-dark.png">
+    <img src="docs/assets/logos/system1-omni.png" alt="System1-Omni" width="760">
+  </picture>
+</h1>
 
 <p align="center">
   <a href="https://thinkflowlab.github.io/system1-omni/"><img src="https://img.shields.io/badge/Docs-site-2563eb?style=flat-square&amp;logo=github&amp;logoColor=white" alt="Documentation site"></a>
