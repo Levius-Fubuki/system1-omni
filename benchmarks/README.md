@@ -169,3 +169,9 @@ result is not a native-engine speedup. Metal and vision benchmarks follow CUDA.
 ```sh
 python -m unittest discover -s tests/benchmarks -p 'test_*.py' -v
 ```
+
+## Laya on Apple Silicon
+
+[`laya_mps/`](laya_mps/README.md) holds the scripts behind the numbers of the
+[Apple Silicon recipe](../recipe/laya/apple-silicon.md): in-process and HTTP latency, paired comparisons,
+profiling and the report with its output-parity section.

@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import threading
+from contextlib import nullcontext
 from pathlib import Path
 
 from .protocol import InvalidRequest, Question, Request, answer, build_messages
@@ -111,8 +113,15 @@ class _RequestImageProcessor:
 
 class MultimodalEngine:
     def __init__(
-        self, base: str, adapter: str, device: str = "cuda", dtype: str = "bfloat16"
+        self,
+        base: str,
+        adapter: str,
+        device: str = "cuda",
+        dtype: str = "bfloat16",
+        graph_config=None,
     ):
+        self._lifecycle_lock = threading.RLock()
+        self._closed = False
         import torch
         from peft import PeftModel
         from peft.tuners.lora import LoraLayer
@@ -148,6 +157,28 @@ class MultimodalEngine:
         self.adapter_modules = len(modules)
         self.model.eval()
         self.dtype = dtype
+        self.graph_runtime = None
+        if graph_config is not None:
+            from .graph_runtime import GraphRuntime
+
+            if graph_config.mode in {"rule-bucket", "auto"}:
+                from .graph_buckets import RuleBucketRuntime
+                from .rule_prefill import pinned_implementation
+
+                pinned_implementation()
+                # Explicit adapter calls cannot honor offload/device-map hooks.
+                if any(p.device != self.model.device for p in self.model.parameters()):
+                    raise ValueError(
+                        "rule-bucket/auto requires one CUDA-resident model"
+                    )
+                if graph_config.mode == "auto":
+                    from .graph_auto import AutoGraphRuntime
+
+                    self.graph_runtime = AutoGraphRuntime(self.model, graph_config)
+                else:
+                    self.graph_runtime = RuleBucketRuntime(self.model, graph_config)
+            else:
+                self.graph_runtime = GraphRuntime(self.model, graph_config)
 
     def prepare(self, image, question: Question):
         return self._prepare(self.processor, image, question)
@@ -211,13 +242,23 @@ class MultimodalEngine:
                 attention_mask=text_inputs.get("attention_mask"),
             )
             # Candidate scoring reads only the final position.
-            output = self.model(
-                inputs_embeds=embeds,
-                position_ids=position_ids,
-                logits_to_keep=1,
-                **text_inputs,
-            )
-        logits = output.logits[0, -1, :]
+            graph_runtime = getattr(self, "graph_runtime", None)
+            if graph_runtime is None:
+                output = self.model(
+                    inputs_embeds=embeds,
+                    position_ids=position_ids,
+                    logits_to_keep=1,
+                    **text_inputs,
+                )
+                logits = output.logits[0, -1, :]
+            else:
+                logits = graph_runtime.forward(
+                    {
+                        "inputs_embeds": embeds,
+                        "position_ids": position_ids,
+                        **text_inputs,
+                    }
+                )
         return torch.softmax(
             logits[torch.tensor(ids, device=logits.device)].float(), dim=-1
         ).tolist()
@@ -252,6 +293,24 @@ class MultimodalEngine:
         }
 
     def predict(self, request: Request) -> dict:
+        with getattr(self, "_lifecycle_lock", nullcontext()):
+            if getattr(self, "_closed", False):
+                raise RuntimeError("multimodal engine is closed")
+            runtime = getattr(self, "graph_runtime", None)
+            with runtime.request() if runtime is not None else nullcontext():
+                return self._predict(request)
+
+    def close(self):
+        """Drain prediction before explicitly releasing captured GPU resources."""
+        with getattr(self, "_lifecycle_lock", nullcontext()):
+            if getattr(self, "_closed", False):
+                return
+            runtime = getattr(self, "graph_runtime", None)
+            if runtime is not None:
+                runtime.close()
+            self._closed = True
+
+    def _predict(self, request: Request) -> dict:
         if len(request.questions) == 1:
             return self.predict_reference(request)
         # No image encoder or language model runs until every prompt is valid.

@@ -14,7 +14,8 @@ anyhow = "1.0.100"
 axum = "0.8.8"
 half = "2.7.1"
 # the CUDA kernels live in libqwen3_5_cuda.so, loaded at run time
-libloading = "0.8"
+omni-qwen3-5-native = { path = "../../qwen3_5/native" }
+omni-runtime = { path = "../../../runtime" }
 memmap2 = "0.9.9"
 safetensors = "0.8.0"
 serde = { version = "1", features = ["derive"] }
