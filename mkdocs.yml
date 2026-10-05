@@ -27,6 +27,7 @@ exclude_docs: |
   !/docs/assets/**
   !/recipe/**/*.md
   !/src/frontend/README.md
+  !/src/runtime/README.md
   !/assets/**
   **/.*/**
 
@@ -49,6 +50,7 @@ nav:
   - Architecture and contracts: docs/architecture.md
   - Supported models and hardware: docs/supported-models.md
   - Frontend: src/frontend/README.md
+  - Native runtime: src/runtime/README.md
   - Recipes:
       - recipe/README.md
       - Laya text worker: recipe/laya/README.md

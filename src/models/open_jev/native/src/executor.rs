@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result, ensure};
 use omni_qwen3_5_native::model::{Config, Model};
+use omni_runtime::SerialScheduler;
 use serde_json::Value;
 
 #[derive(Clone)]
@@ -79,24 +80,29 @@ impl Executor {
     }
 
     /// Inputs and outputs are grouped by question, then candidate, in prepared order.
-    /// Each candidate is one unpadded forward call; the model lock spans this request.
-    pub async fn execute(&self, ids: Vec<Vec<Vec<u32>>>) -> Result<Vec<Vec<f32>>> {
+    /// Admit one whole request; the model lock spans its independent candidate calls.
+    pub async fn execute(
+        &self,
+        scheduler: &SerialScheduler,
+        ids: Vec<Vec<Vec<u32>>>,
+    ) -> Result<Vec<Vec<f32>>> {
         let model = self.model.clone();
         let head = self.head.clone();
-        tokio::task::spawn_blocking(move || {
-            let mut model = model
-                .lock()
-                .map_err(|_| anyhow::anyhow!("poisoned model"))?;
-            ids.iter()
-                .map(|candidates| {
-                    candidates
-                        .iter()
-                        .map(|ids| head.score(model.forward(ids)?))
-                        .collect::<Result<Vec<_>>>()
-                })
-                .collect::<Result<Vec<_>>>()
-        })
-        .await?
+        scheduler
+            .run(move || {
+                let mut model = model
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("poisoned model"))?;
+                ids.iter()
+                    .map(|candidates| {
+                        candidates
+                            .iter()
+                            .map(|ids| head.score(model.forward(ids)?))
+                            .collect::<Result<Vec<_>>>()
+                    })
+                    .collect::<Result<Vec<_>>>()
+            })
+            .await
     }
 }
 

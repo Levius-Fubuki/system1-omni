@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, ensure};
+use omni_runtime::SerialScheduler;
 use serde_json::Value;
 
 use crate::contract::MODEL_ID;
@@ -13,6 +14,7 @@ pub use crate::contract::{BASE_REVISION, CHECKPOINT_REVISION};
 
 pub struct Engine {
     pub processor: Processor,
+    pub scheduler: SerialScheduler,
     pub executor: Executor,
 }
 
@@ -52,6 +54,7 @@ impl Engine {
         let executor = Executor::load(dir, library, head).await?;
         Ok(Self {
             processor,
+            scheduler: SerialScheduler::default(),
             executor,
         })
     }

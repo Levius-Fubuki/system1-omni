@@ -25,5 +25,6 @@ calibration, usage, and metadata. The executor owns the trained head and returns
 one FP32 scalar per candidate. Response finishing adds the `noul` false baseline
 and applies calibrated normalization across each complete question. The worker
 retains request-wide model locking and independent single-prompt execution, with
-the scalar head on the CPU after CUDA prefill. Shared runtime scheduling and
-dynamic batching remain planned.
+the scalar head on the CPU after CUDA prefill. The engine owns a
+[shared serial scheduler](../../runtime/README.md) that admits the complete request
+before blocking dispatch. GPU batching and batch budgets remain planned.

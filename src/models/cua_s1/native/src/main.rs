@@ -35,7 +35,10 @@ async fn decide(engine: &Engine, raw: &[u8]) -> Response {
         Err(e) => return reply(e.status, json!({"detail": e.message})),
     };
     let result = async {
-        let rows = engine.executor.execute(prepared.inputs).await?;
+        let rows = engine
+            .executor
+            .execute(&engine.scheduler, prepared.inputs)
+            .await?;
         prepared.context.finish(rows)
     }
     .await;

@@ -44,16 +44,18 @@ redesign serving infrastructure or introduce a general model framework.
 | `src/models/<model>/` | Separate model-specific processors and batch adapters, plus executor checkpoint loading, weights, forward passes, learned heads, device state, and kernel selection. A native Rust worker may live in `native/`, following existing models. |
 | `src/models/<family>/` | Model-family execution shared by implementations that actually need it. Reuse compatible code; extract a common implementation when there is a second user. |
 | `src/backends/cuda/` or `src/backends/metal/` | Hardware operations and kernels, native host glue, build scripts, and backend integration. GPU processing transforms or tensor packing retain their processor/batcher ownership. |
+| `src/runtime/` | Shared native admission and dispatch policy. Reuse the serial scheduler for single-executor work; keep model layouts and device state in model adapters/executors. |
 | `src/frontend/` | Transport and existing worker adapters when integration requires them. Keep model-specific input/output semantics in processors rather than the transport layer. |
 | Root `Cargo.toml` and affected crate manifests | Workspace membership, dependencies, binaries, and explicit test registration. Update `Cargo.lock` when dependencies change. |
 | `recipe/<model>/` | Checkpoint preparation/export scripts, setup and launch instructions, and example requests. Reusable runtime implementation belongs in `src/`. |
 | `tests/<model>/` and `tests/<shared-component>/` | All test bodies, test helpers, and fixtures, including contract, tokenizer, checkpoint, HTTP, and kernel tests. |
 
-The shared processing/scheduling runtime is planned. Integrate with available
-worker interfaces while separating processors and batch adapters from forward
-code; adding a model alone does not require implementing that runtime. When
-shared scheduling is implemented, it owns queues and admission policy, while
-models declare supported layouts and compatibility constraints. The native
+The [native runtime](../../../src/runtime/README.md) provides serial FIFO admission
+and blocking dispatch per loaded executor. Integrate with available worker
+interfaces while separating processors and batch adapters from forward code.
+Models declare their execution unit, layouts and compatibility constraints;
+shared runtime code owns admission policy. Processing orchestration, queue/token
+budgets and dynamic batching remain planned. The native
 target uses Rust host orchestration and bindings with CUDA/Metal device kernels.
 
 **Do not add test code or fixtures under `src/`.** This includes inline Rust test

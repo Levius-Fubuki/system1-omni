@@ -47,8 +47,8 @@ shared CUDA kernels in this repository.
   model workers.
 - **Model-owned execution.** Model executors own weights, forward passes,
   learned heads, device state, and kernel selection. Native workers have separate
-  processing and executor modules; shared processing orchestration and scheduling
-  are planned.
+  processing and executor modules, with shared FIFO admission and blocking
+  dispatch in the [native runtime](src/runtime/README.md).
 - **Native CUDA workers.** The Cua-S1 4B 0.2 `text` adapter and
   Open-Jev-27B-v1.1 run as native workers with shared CUDA kernels. Cua-S1
   also has a Python worker that serves as the correctness reference.
@@ -65,10 +65,11 @@ Share processing and scheduling; let each model own its execution.
 
 ![System1-Omni target architecture: Rust frontend, independent processing and batching layers, model executors, and CUDA and Metal backends](docs/assets/architecture.svg)
 
-The diagram shows the **target architecture**, not an implemented shared runtime.
-Today the frontend forwards HTTP requests to separately running workers, whose
-model-specific handlers coordinate independent processors and executors. Shared
-processing orchestration, scheduling, and dynamic batching are planned.
+The diagram shows the **target architecture**. Today the frontend forwards HTTP
+requests to separately running workers, whose handlers coordinate independent
+processors and executors. Both native workers use shared FIFO admission and
+blocking dispatch per loaded executor. Processing orchestration, batch budgets,
+compatibility grouping and dynamic batching remain planned.
 
 | Layer | Responsibility | Native target implementation |
 | --- | --- | --- |
@@ -105,14 +106,15 @@ repository root.
 | Directory | Responsibility |
 | --- | --- |
 | [`src/frontend/`](src/frontend/) | Rust serving code, Python worker adapters, and the small engine interface. |
+| [`src/runtime/`](src/runtime/README.md) | Shared native execution admission and blocking dispatch. |
 | [`src/models/`](src/models/) | Model contracts, existing worker pipelines, and model executors, including the shared Qwen3.5/3.8 prefill implementation. |
 | [`src/backends/cuda/`](src/backends/cuda/) | NVIDIA GPU operations and kernel integration. |
 | [`src/backends/metal/`](src/backends/metal/) | Apple GPU operations and kernel integration. |
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend, both native workers, their shared Qwen3.5/3.8 prefill
-implementation and the Laya checkpoint reader are Cargo workspace members.
+The frontend, native runtime, both native workers, their shared Qwen3.5/3.8
+prefill implementation and the Laya checkpoint reader are Cargo workspace members.
 The other model and backend directories currently document planned work;
 they do not prescribe process boundaries.
 
@@ -158,8 +160,9 @@ requests and a matched comparison with raw HF Transformers and OpenJev-Fast.
 ## Roadmap
 
 The current focus is the native Cua-S1 and Open-Jev CUDA workers and the serving
-benchmark harness. Planned work includes the shared processing and scheduling
-layer shown above, bounded dynamic batching with batch-capable executors,
+benchmark harness. Planned work extends the shared runtime with processing
+orchestration, admission budgets, compatibility grouping and bounded dynamic
+batching with batch-capable executors,
 the in-repository LAYA model engine, additional model engines and GPU backends
 including Metal, and per-model
 performance measurements as implementations are added and validated.

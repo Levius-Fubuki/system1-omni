@@ -11,8 +11,10 @@ to separately running workers. Cua-S1 and Open-Jev have native Rust/CUDA workers
 that share the [Qwen3.5/3.8 executor](../src/models/qwen3_5/native/). Their
 model-specific workers coordinate independent processor and executor modules
 through `prepare` → `execute` → `finish`. The shared Qwen executor accepts one
-prompt per forward call; shared processing orchestration, scheduling, and
-dynamic batching are planned.
+prompt per forward call. Both workers use the
+[native runtime](../src/runtime/README.md) for FIFO admission and blocking dispatch
+per loaded executor. Shared processing orchestration, batch budgets,
+compatibility grouping and dynamic batching are planned.
 
 The native workers currently compute their decision heads on the CPU after
 downloading the final hidden state. GPU head execution belongs to the target
@@ -22,9 +24,9 @@ also planned; Python workers retain their documented reference/serving roles.
 ## Native worker boundaries
 
 Both native workers separate `processing.rs` from `executor.rs`; `engine.rs`
-assembles them from the checkpoint, and the HTTP handler coordinates the three
-stages. Preparation validates the entire request before any forward call and
-returns executor inputs plus a response context. The context retains question
+assembles them with a `SerialScheduler` per loaded executor, and the HTTP handler
+coordinates the three stages. Preparation validates the entire request before
+any forward call and returns executor inputs plus a response context. The context retains question
 and candidate identity, usage, and response metadata outside the executor.
 
 | Worker | Prepared executor inputs | Executor outputs | Response finishing |
@@ -32,9 +34,12 @@ and candidate identity, usage, and response metadata outside the executor.
 | Cua-S1 | One unpadded token-ID vector and option count per question, in request order. | One FP32 answer-letter logit vector per question. | Per-question softmax, choice/confidence, ordered answers, and token usage. |
 | Open-Jev | Token-ID vectors grouped by question, then independent candidate, in request order. | One FP32 learned scalar per candidate in the same grouping. | Add the `noul` false logit of zero, calibrate across each complete question, and restore typed answers, usage, and metadata. |
 
-These input collections are serial work, not GPU batches. Cua-S1 retains its
-per-question model lock; Open-Jev retains its request-wide lock. Executors own
-the loaded Qwen model and CPU head weights, preserving FP64 accumulation and
+These input collections are serial work, not GPU batches. Shared runtime
+admission precedes blocking dispatch: Cua-S1 admits one question forward at a
+time; Open-Jev admits one complete request. Cua-S1's CPU letter projection stays
+outside admission; Open-Jev's scalar heads remain inside its request unit. The
+model mutexes guard mutable state, retaining per-question/request granularity.
+Executors own the loaded Qwen model and CPU head weights, preserving FP64 accumulation and
 the existing FP32 rounding and bias order. Finishing checks output cardinality
 before reconstruction. HTTP validation, error status/body conventions, and real
 warmup before readiness remain model-specific and unchanged.
@@ -82,6 +87,13 @@ probabilities must not be normalized across unrelated questions or requests.
 
 ## Scheduling and batching contracts
 
+The implemented serial scheduler limits admitted execution to one unit per loaded
+executor, with FIFO waiting. Engines own scheduler instances; model-specific
+execution adapters declare the unit and submit owned closures. Waiting is async,
+so queued requests do not occupy blocking threads waiting for a model lock.
+Schedulers are local to each worker/executor; this does not coordinate separate
+processes. Queue-length limits and token budgets are not implemented yet.
+
 - Batch only work accepted by the same loaded executor, with compatible
   checkpoint/adapter identity, device, dtype, and input layout. Models declare
   additional constraints and limits; the scheduler owns queue and admission
@@ -107,15 +119,20 @@ ownership even when their kernels live under `src/backends/`.
 Keep Rust declarations and the native ABI in sync, and rebuild all consumers
 when the ABI changes. Buffer handles and captured graphs must outlive queued
 device operations; synchronize before reading host results or reclaiming
-storage. Cancellation or timeout does not authorize freeing buffers still in
-use by submitted work. Keep readiness tied to successful initialization and
-the worker's real warmup; extraction into shared layers preserves that behavior.
+storage. Cancellation while waiting for admission removes the queued caller
+without dispatch. Once dispatched, the runtime retains admission and captured executor
+resources until the blocking closure completes, even if its caller is cancelled.
+The executor must synchronize device work before returning; cancellation or
+timeout does not authorize freeing buffers still in use by submitted work. Keep
+readiness tied to successful initialization and the worker's real warmup;
+extraction into shared layers preserves that behavior.
 
 ## Integration and validation
 
 Keep model-specific processors and batch adapters separate from forward
 implementations, even when colocated under `src/models/<model>/`. Reuse the
-current worker interface while shared runtime components are unimplemented.
+current worker interface and serial runtime while further runtime components
+remain unimplemented.
 Extract common orchestration when implementing that layer, with explicit scope
 and current consumers; adding a model alone does not require a new framework.
 
