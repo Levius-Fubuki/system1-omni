@@ -34,6 +34,11 @@ CASES = [
     ("choice_five", "choice", {"a": "alpha", "b": "beta", "c": "gamma", "d": "delta", "e": "epsilon"}),
     ("score_three", "score", ["Not urgent", "Needs attention soon", "Needs attention immediately"]),
     ("noul_stmt", "noul", None),
+    # A `noul` reads its two descriptions in `false`/`true` order, not in the order they
+    # were written, so a number here has to be found by the key it was written under.
+    # Counting positions gave `false: 2` / `true: 18446744073709551616` reversed, which
+    # is a different pair of candidate texts and so a different answer.
+    ("noul_numbers", "noul", {"true": 18446744073709551616, "false": 2}),
 ]
 
 STATE = "I was charged twice for order 4411 and want the second charge refunded."

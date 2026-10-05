@@ -315,6 +315,99 @@ fn a_request_line_reaches_the_encoder_with_the_reference_text() {
     );
 }
 
+/// Whole request bodies, as the text a caller sends them in.
+///
+/// The loop above pairs every state with every question, but a `QuestionRequest` holds
+/// `instructions` as a `String` and `criteria` as a `Value`, so it cannot express an
+/// integer above `u64::MAX` or a statement that is a number rather than a string. These
+/// are the requests that need the literal itself, and they go in as text.
+#[test]
+#[ignore = "requires CLM_TEXT_ORACLE from recipe/clm/native/text_oracle.py; CPU only"]
+fn raw_requests_match_the_reference_byte_for_byte() {
+    let oracle = oracle();
+    let cases = oracle["raw_cases"].as_array().unwrap();
+    assert!(
+        !cases.is_empty(),
+        "the oracle was built from another case list"
+    );
+
+    for case in cases {
+        let line = case["line"].as_str().unwrap();
+        let prepared = Request::parse_line(line).unwrap().prepare().unwrap();
+        let expected = case["questions"].as_object().unwrap();
+        assert_eq!(prepared.len(), expected.len(), "question count for {line}");
+        for p in &prepared {
+            let want = &expected[&p.id];
+            assert_eq!(
+                p.state_text,
+                want["state_text"].as_str().unwrap(),
+                "{} state_text for {line}",
+                p.id
+            );
+            assert_eq!(
+                p.question.keys,
+                strings(&want["keys"]),
+                "{} keys for {line}",
+                p.id
+            );
+            assert_eq!(
+                p.candidate_texts,
+                strings(&want["candidate_texts"]),
+                "{} candidate_texts for {line}",
+                p.id
+            );
+        }
+    }
+}
+
+fn strings(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect()
+}
+
+/// A `noul` question reads its two descriptions in `NOUL_KEYS` order — `false` first —
+/// which is not the order they were written in. A literal has to be found by the key it
+/// was written under, not by counting: `{"true": 1, "false": 2}` is `false: 2`, and
+/// pairing the first literal with the first key gives `false: 1`, a different answer.
+#[test]
+fn a_noul_literal_follows_its_key_not_its_position() {
+    let line = concat!(
+        r#"{"state":"s","questions":{"q":{"type":"noul","instructions":"Is it so?","#,
+        r#""criteria":{"true":1,"false":2}}}}"#
+    );
+    let prepared = Request::parse_line(line).unwrap().prepare().unwrap();
+    assert_eq!(prepared[0].question.keys, ["false", "true"]);
+    assert_eq!(prepared[0].candidate_texts, ["false: 2", "true: 1"]);
+}
+
+/// The default `noul` candidates are the question's own statement, so a literal in the
+/// statement has to reach them as written rather than as a rounded double. The statement
+/// is a value like any other here, not necessarily a string.
+#[test]
+fn a_default_candidate_keeps_the_instruction_literal() {
+    let line = concat!(
+        r#"{"state":"s","questions":{"q":{"type":"noul","#,
+        r#""instructions":18446744073709551616,"criteria":null}}}"#
+    );
+    let prepared = Request::parse_line(line).unwrap().prepare().unwrap();
+    assert_eq!(
+        prepared[0].candidate_texts,
+        [
+            "false: No. This is false: 18446744073709551616",
+            "true: Yes. This is true: 18446744073709551616",
+        ]
+    );
+    // The same statement reaches the state head, so both heads see one text.
+    assert_eq!(
+        prepared[0].state_text, "s\n\n18446744073709551616",
+        "the statement is rendered once and reused"
+    );
+}
+
 /// Integer literals are arbitrary precision in `json.loads`, so they have to keep every
 /// digit here too.
 ///

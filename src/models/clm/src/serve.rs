@@ -15,6 +15,7 @@ use anyhow::{Context, Result, bail, ensure};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value};
+use std::collections::HashMap;
 
 /// The fields of a request that get rendered, kept as the text they arrived as.
 ///
@@ -86,7 +87,14 @@ impl RawFields {
 /// and nothing depends on the order the fields appear in.
 fn render_raw(raw: &str) -> Result<String> {
     let value: Value = serde_json::from_str(raw).context("render a request field")?;
-    Ok(render(&value, 0, &mut NumberLiterals::of(raw)))
+    Ok(render_with(raw, &value))
+}
+
+/// Render `value` from the text it arrived as. The literals are the value's own, so this
+/// can be called per key: a number is always spelled by the literal it was written with,
+/// whatever order the keys are read in.
+fn render_with(raw: &str, value: &Value) -> String {
+    render(value, 0, &mut NumberLiterals::of(raw))
 }
 
 use crate::embedding::Encoder;
@@ -198,8 +206,9 @@ impl Request {
                 .questions
                 .iter()
                 .map(|(id, q)| {
-                    let (keys, candidate_texts) = candidates(q)
-                        .with_context(|| format!("question {id:?} has invalid criteria"))?;
+                    let (keys, candidate_texts) =
+                        candidates_with(q, None, &q.instructions, &mut NumberLiterals::default())
+                            .with_context(|| format!("question {id:?} has invalid criteria"))?;
                     Ok(Prepared {
                         id: id.clone(),
                         question: Question {
@@ -237,8 +246,9 @@ impl Request {
                 Some(text) => NumberLiterals::of(text),
                 None => NumberLiterals::default(),
             };
-            let (keys, candidate_texts) = candidates_with(q, &mut numbers)
-                .with_context(|| format!("question {id:?} has invalid criteria"))?;
+            let (keys, candidate_texts) =
+                candidates_with(q, criteria_raw, &instructions, &mut numbers)
+                    .with_context(|| format!("question {id:?} has invalid criteria"))?;
             let state_text = if !state.is_empty() && !instructions.is_empty() {
                 format!("{state}\n\n{instructions}")
             } else if !state.is_empty() {
@@ -280,13 +290,43 @@ fn state_text_with(state: &Value, instructions: &str, numbers: &mut NumberLitera
 
 /// Option keys in answer order, and the candidate text per option.
 pub fn candidates(q: &QuestionRequest) -> Result<(Vec<String>, Vec<String>)> {
-    candidates_with(q, &mut NumberLiterals::default())
+    candidates_with(q, None, &q.instructions, &mut NumberLiterals::default())
 }
 
+/// The same, rendering each criteria value from the text it arrived as.
+///
+/// `criteria_raw` is the criteria field's own text when the request had one. Binding each
+/// value to the key it was written under is what keeps a literal with its number: a
+/// `choice` is read in source order but a `noul` in [`NOUL_KEYS`] order, so
+/// `{"true": 1, "false": 2}` has to render as `false: 2` — counting positions gives
+/// `false: 1`, which is a different answer, not a different spelling.
+///
+/// `instructions` is `to_text` of the question's instructions, rendered from their text
+/// when there was one. The `noul` defaults are built from it, so a literal in the
+/// statement reaches the candidate too.
 fn candidates_with(
     q: &QuestionRequest,
+    criteria_raw: Option<&str>,
+    instructions: &str,
     numbers: &mut NumberLiterals,
 ) -> Result<(Vec<String>, Vec<String>)> {
+    // Only an object has values to find by key. Anything else — a `score`'s list, an
+    // absent or null criteria — renders in the order it was written, which is what the
+    // cursor is for. The map is keyed, so it does not matter that it is unordered: the
+    // keys come from the question, not from here.
+    let by_key: Option<HashMap<String, &RawValue>> = match (criteria_raw, q.criteria.as_ref()) {
+        (Some(text), Some(Value::Object(_))) => {
+            Some(serde_json::from_str(text).context("read the criteria text of a question")?)
+        }
+        _ => None,
+    };
+    let value_text = |key: &str, v: &Value, numbers: &mut NumberLiterals| match by_key
+        .as_ref()
+        .and_then(|values| values.get(key))
+    {
+        Some(raw) => render_with(raw.get(), v),
+        None => render(v, 0, numbers),
+    };
     match q.kind {
         Kind::Choice => {
             let crit = q
@@ -306,7 +346,7 @@ fn candidates_with(
                 .iter()
                 .map(|k| match &crit[k] {
                     v if v.is_null() || v.as_str() == Some("") => k.clone(),
-                    v => render(v, 0, numbers),
+                    v => value_text(k, v, numbers),
                 })
                 .collect();
             Ok((keys, texts))
@@ -324,17 +364,16 @@ fn candidates_with(
         }
         Kind::Noul => {
             let crit = q.criteria.as_ref().and_then(Value::as_object);
-            let ins = &q.instructions;
             let mut texts = Vec::with_capacity(NOUL_KEYS.len());
             for k in NOUL_KEYS {
                 // The same "given or not" test as `choice`: `crit.get(k)` in `(None, "")`.
                 let body = match crit.and_then(|c| c.get(k)) {
-                    Some(v) if !v.is_null() && v.as_str() != Some("") => render(v, 0, numbers),
-                    _ if !ins.is_empty() => {
+                    Some(v) if !v.is_null() && v.as_str() != Some("") => value_text(k, v, numbers),
+                    _ if !instructions.is_empty() => {
                         if k == "true" {
-                            format!("Yes. This is true: {ins}")
+                            format!("Yes. This is true: {instructions}")
                         } else {
-                            format!("No. This is false: {ins}")
+                            format!("No. This is false: {instructions}")
                         }
                     }
                     _ => k.to_string(),
