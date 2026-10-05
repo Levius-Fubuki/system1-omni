@@ -15,6 +15,8 @@ safetensors = "0.6"
 serde = { version = "1", features = ["derive"] }
 # preserve_order keeps object key order, which to_text depends on: the heads are
 # trained on the caller's field order, so re-sorting a state would change the text.
+# float_roundtrip: a float literal must parse to the same double `json.loads`
+#   produces, or the heads see a different number.
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 sha2 = "0.10"
 
@@ -23,3 +25,7 @@ sha2 = "0.10"
 [[test]]
 name = "checkpoint"
 path = "../../../tests/clm/checkpoint.rs"
+
+[[test]]
+name = "text"
+path = "../../../tests/clm/text.rs"
