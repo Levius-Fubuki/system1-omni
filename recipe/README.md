@@ -1,7 +1,12 @@
 # Recipes
 
+For a first real decision, follow the [complete CPU walkthrough](../docs/getting-started.md)
+([中文](../docs/getting-started.zh.md)) and its [recorded LAYA demo](laya/validation.md).
+
 - [Laya text worker](laya/README.md): start the external Python worker, connect the
   Rust frontend and compare direct and proxied responses.
+- [Laya native CUDA worker](laya/native/README.md): build the Hopper bundle and
+  serve English text decisions with Rust and CUDA.
 - [Laya on Apple Silicon](laya/apple-silicon.md): serve Laya on the Mac GPU with the Laya
   worker, put the frontend in front of it and run the benchmarks.
 - [Cua-S1 4B 0.2 text worker](cua_s1/text.md): download the pinned weights, start
