@@ -47,11 +47,12 @@ jobs:
     # The CUDA backend contract and its checker. No CUDA toolkit and no GPU: both
     # read files as text.
     #
-    # The checker and its tests arrive in #25, so on a tree without them there is
-    # nothing to run. That is a skip, not a failure: this job has to be green on
-    # the branch that carries it before #25 lands, and it has to start running by
-    # itself once #25 does, in either merge order. Failing instead would redden
-    # whichever PR arrived second.
+    # The checker and its tests arrive in #25, so on a tree without them those
+    # two steps are a skip, not a failure: this job has to be green on the branch
+    # that carries it before #25 lands, and it has to start running by itself
+    # once #25 does, in either merge order. Failing instead would redden whichever
+    # PR arrived second. The backend tests come from the repository tests/ tree,
+    # which is already in main, so they run either way.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -71,18 +72,12 @@ jobs:
       - name: Contract checker tests
         if: steps.present.outputs.ready == 'true'
         run: python -m unittest discover -s src/backends/cuda/tests -t . -v
-      - name: Kernel tests
-        if: steps.present.outputs.ready == 'true'
-        # Each backend keeps its tests beside its kernels. `-t` has to point at
-        # the directory itself: kernel directories are not packages, so `-t .`
-        # fails with "Start directory is not importable".
-        run: |
-          for dir in src/backends/cuda/*/; do
-            if compgen -G "${dir}test_*.py" > /dev/null; then
-              echo "== $dir"
-              python -m unittest discover -s "$dir" -t "$dir" -v
-            fi
-          done
+      - name: Backend tests
+        # Tests live under the repository-level tests/ tree, not beside the
+        # kernels they cover (CONTRIBUTING.md, "Adding a model"). Same
+        # invocation as the benchmarks job: tests/cuda is not a package, so
+        # discovery has to use the start directory as its own top level.
+        run: python -m unittest discover -s tests/cuda -p 'test_*.py' -v
       - name: Contract check
         if: steps.present.outputs.ready == 'true'
         run: python src/backends/cuda/check_contract.py --repo-root .
