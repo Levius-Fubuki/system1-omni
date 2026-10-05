@@ -214,6 +214,11 @@ impl VisionModel {
         }
         Ok(())
     }
+    pub fn synchronize(&self) -> Result<()> {
+        cuda::set_device(0)?;
+        cuda::synchronize(self.stream.0)
+    }
+
     pub fn forward(&mut self, image: &ProcessedImage) -> Result<Vec<bf16>> {
         self.run(image, None)
     }

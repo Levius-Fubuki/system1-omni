@@ -1,31 +1,27 @@
 //! Native screenshot-to-decision orchestration, with request-local vision reuse.
+pub use crate::vision_processing::PreparedRequest;
+use crate::vision_processing::{VisionProcessor, probabilities};
 use crate::{
-    contract::{self, LETTERS, Question},
-    image_preprocess::{ProcessedImage, preprocess_rgb8},
-    image_request::{ImageRequest, MODEL_ID},
+    contract::{LETTERS, Question},
+    image_request::ImageRequest,
     inputs::MultimodalInput,
     model::Model,
-    multimodal::{ImagePrompt, prepare_prompt},
+    multimodal::ImagePrompt,
     vision::VisionModel,
 };
 use anyhow::{Context, Result, ensure};
 use half::bf16;
 use safetensors::{Dtype, SafeTensors};
-use serde_json::{Value, json};
+use serde_json::Value;
+use std::sync::Arc;
 use std::{fs::File, path::Path};
 use tokenizers::Tokenizer;
 
 pub struct VisionEngine {
-    tokenizer: Tokenizer,
+    pub processor: Arc<VisionProcessor>,
     pub vision: VisionModel,
     language: Model,
     letters: Vec<f32>,
-}
-
-pub struct PreparedRequest {
-    pub image: ProcessedImage,
-    pub prompts: Vec<ImagePrompt>,
-    questions: Vec<Question>,
 }
 
 pub struct Readout {
@@ -69,7 +65,10 @@ impl VisionEngine {
         let letters = letter_rows(language, &ids, model.cfg.hidden)?;
         let vision = VisionModel::load(base, adapter, library)?;
         Ok(Self {
-            tokenizer,
+            processor: Arc::new(VisionProcessor::new(
+                tokenizer,
+                model.cfg.image_token_id.unwrap(),
+            )),
             vision,
             language: model,
             letters,
@@ -84,32 +83,15 @@ impl VisionEngine {
         rgb: &[u8],
         questions: &[Question],
     ) -> Result<PreparedRequest> {
-        crate::multimodal::validate_questions(questions)?;
-        let image = preprocess_rgb8(width, height, rgb)?;
-        let prompts = questions
-            .iter()
-            .map(|q| {
-                prepare_prompt(
-                    &self.tokenizer,
-                    q,
-                    image.image_grid_thw,
-                    self.language.cfg.image_token_id.unwrap(),
-                )
-            })
-            .collect::<Result<_>>()?;
-        Ok(PreparedRequest {
-            image,
-            prompts,
-            questions: questions.to_vec(),
-        })
+        self.processor.prepare(width, height, rgb, questions)
     }
 
-    pub fn score(
+    fn raw_score(
         &mut self,
         prompt: &ImagePrompt,
         features: &[bf16],
         options: usize,
-    ) -> Result<Readout> {
+    ) -> Result<(Vec<f32>, Vec<f32>)> {
         ensure!((1..=26).contains(&options), "expected 1 to 26 options");
         let hidden = self.language.forward_multimodal(&MultimodalInput {
             token_ids: &prompt.token_ids,
@@ -136,10 +118,18 @@ impl VisionEngine {
             logits.iter().all(|x| x.is_finite()),
             "non-finite candidate logits"
         );
-        let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
-        let exps: Vec<f64> = logits.iter().map(|&x| (x as f64 - max).exp()).collect();
-        let total: f64 = exps.iter().sum();
-        let probabilities = exps.iter().map(|x| (x / total) as f32).collect();
+        Ok((hidden, logits))
+    }
+
+    /// Diagnostic readout, including processor normalization of raw model logits.
+    pub fn score(
+        &mut self,
+        prompt: &ImagePrompt,
+        features: &[bf16],
+        options: usize,
+    ) -> Result<Readout> {
+        let (hidden, logits) = self.raw_score(prompt, features, options)?;
+        let probabilities = probabilities(&logits)?;
         Ok(Readout {
             hidden,
             logits,
@@ -157,24 +147,37 @@ impl VisionEngine {
         self.predict_prepared(&prepared)
     }
 
-    pub fn predict_prepared(&mut self, prepared: &PreparedRequest) -> Result<Value> {
-        let questions = &prepared.questions;
-        ensure!(
-            prepared.prompts.len() == questions.len() && !questions.is_empty(),
-            "question/prompt count mismatch"
-        );
-        let features = self.vision.forward(&prepared.image)?;
-        let mut answers = serde_json::Map::new();
-        for (q, p) in questions.iter().zip(&prepared.prompts) {
-            answers.insert(
-                q.name.clone(),
-                contract::answer(q, &self.score(p, &features, q.keys.len())?.probabilities),
+    /// One admitted unit covers vision encoding and every question, keeping
+    /// features request-local and model resources alive until both streams finish.
+    pub fn execute_prepared(&mut self, prepared: &PreparedRequest) -> Result<Vec<Vec<f32>>> {
+        let result = (|| {
+            let counts: Vec<usize> = prepared.context.option_counts().collect();
+            ensure!(
+                prepared.prompts.len() == counts.len() && !counts.is_empty(),
+                "question/prompt count mismatch"
             );
-        }
-        let tokens: usize = prepared.prompts.iter().map(|p| p.token_ids.len()).sum();
-        Ok(
-            json!({"model": MODEL_ID, "answers": answers, "usage":{"input_tokens":tokens,"output_tokens":0}}),
-        )
+            let features = self.vision.forward(&prepared.image)?;
+            prepared
+                .prompts
+                .iter()
+                .zip(counts)
+                .map(|(p, count)| {
+                    self.raw_score(p, &features, count)
+                        .map(|(_, logits)| logits)
+                })
+                .collect()
+        })();
+        // Also finish queued work on an error before releasing runtime admission.
+        let vision_sync = self.vision.synchronize();
+        let language_sync = self.language.synchronize();
+        vision_sync?;
+        language_sync?;
+        result
+    }
+
+    pub fn predict_prepared(&mut self, prepared: &PreparedRequest) -> Result<Value> {
+        let rows = self.execute_prepared(prepared)?;
+        prepared.context.finish(rows)
     }
 }
 

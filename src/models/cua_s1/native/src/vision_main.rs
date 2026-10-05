@@ -12,6 +12,7 @@ use omni_cua_s1_native::{
     contract, cuda,
     image_request::{self, MODEL_ID},
     vision_engine::VisionEngine,
+    vision_processing::VisionProcessor,
 };
 use serde_json::{Value, json};
 use std::{
@@ -19,7 +20,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-type Shared = Arc<Mutex<VisionEngine>>;
+#[derive(Clone)]
+struct Shared {
+    processor: Arc<VisionProcessor>,
+    executor: Arc<Mutex<VisionEngine>>,
+    scheduler: omni_runtime::SerialScheduler,
+}
 fn reply(status: StatusCode, value: Value) -> Response {
     (status, Json(value)).into_response()
 }
@@ -38,42 +44,50 @@ async fn decide(State(engine): State<Shared>, body: Result<Bytes, BytesRejection
             );
         }
     };
-    // Decode and inference both run off the async executor. The mutex serializes
-    // the CUDA models; prepared image features live only for this request.
-    match tokio::task::spawn_blocking(move || -> Result<(StatusCode, Value)> {
-        let request = match image_request::parse_image_body(&body) {
-            Ok(r) => r,
-            Err(e) => {
-                return Ok((
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    json!({"detail":e.to_string()}),
-                ));
-            }
-        };
-        let mut engine = engine
-            .lock()
-            .map_err(|_| anyhow::anyhow!("poisoned engine"))?;
-        let prepared = match engine.prepare(
+    // CPU decode/preparation does not hold the model mutex or admission permit.
+    let processor = engine.processor.clone();
+    let prepared = match tokio::task::spawn_blocking(move || {
+        let request = image_request::parse_image_body(&body)?;
+        processor.prepare(
             request.width,
             request.height,
             &request.rgb,
             &request.questions,
-        ) {
-            Ok(p) => p,
-            Err(e) => {
-                return Ok((
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    json!({"detail": e.to_string()}),
-                ));
-            }
-        };
-        Ok((StatusCode::OK, engine.predict_prepared(&prepared)?))
+        )
     })
     .await
     {
-        Ok(Ok((status, body))) => reply(status, body),
-        err => {
-            eprintln!("native image inference failed: {err:?}");
+        Ok(Ok(prepared)) => prepared,
+        Ok(Err(e)) => {
+            return reply(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                json!({"detail": e.to_string()}),
+            );
+        }
+        Err(e) => {
+            eprintln!("native image preparation failed: {e}");
+            return reply(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"detail":"inference failed"}),
+            );
+        }
+    };
+    let executor = engine.executor.clone();
+    let result = engine
+        .scheduler
+        .run(move || {
+            let rows = executor
+                .lock()
+                .map_err(|_| anyhow::anyhow!("poisoned engine"))?
+                .execute_prepared(&prepared)?;
+            Ok((prepared.context, rows))
+        })
+        .await
+        .and_then(|(context, rows)| context.finish(rows));
+    match result {
+        Ok(body) => reply(StatusCode::OK, body),
+        Err(e) => {
+            eprintln!("native image inference failed: {e:#}");
             reply(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 json!({"detail":"inference failed"}),
@@ -92,12 +106,36 @@ async fn main() -> Result<()> {
     let library = std::env::var_os("CUA_S1_CUDA_LIB")
         .map(PathBuf::from)
         .map_or_else(cuda::default_library, Ok)?;
-    let engine = VisionEngine::load(
-        &path("CUA_S1_BASE")?,
-        &path("CUA_S1_VISION_ADAPTER")?,
-        &path("CUA_S1_MODEL")?,
-        &library,
+    let (base, adapter, language) = (
+        path("CUA_S1_BASE")?,
+        path("CUA_S1_VISION_ADAPTER")?,
+        path("CUA_S1_MODEL")?,
+    );
+    let mut executor = tokio::task::spawn_blocking(move || {
+        VisionEngine::load(&base, &adapter, &language, &library)
+    })
+    .await??;
+    let warmup = executor.prepare(
+        1,
+        1,
+        &[0, 0, 0],
+        &[contract::Question {
+            name: "warmup".into(),
+            goal: String::new(),
+            keys: vec!["continue".into()],
+            labels: vec!["Continue".into()],
+        }],
     )?;
+    let engine = tokio::task::spawn_blocking(move || -> Result<VisionEngine> {
+        executor.predict_prepared(&warmup)?;
+        Ok(executor)
+    })
+    .await?
+    .map(|executor| Shared {
+        processor: executor.processor.clone(),
+        executor: Arc::new(Mutex::new(executor)),
+        scheduler: omni_runtime::SerialScheduler::default(),
+    })?;
     let host = std::env::var("CUA_S1_HOST").unwrap_or_else(|_| "127.0.0.1".into());
     let port: u16 = std::env::var("CUA_S1_PORT").map_or(Ok(8000), |p| p.parse())?;
     let app = Router::new()
@@ -107,7 +145,7 @@ async fn main() -> Result<()> {
         )
         .route("/v1/systemone", post(decide))
         .layer(DefaultBodyLimit::max(image_request::MAX_BODY))
-        .with_state(Arc::new(Mutex::new(engine)));
+        .with_state(engine);
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     println!("native vision worker listening on {host}:{port}");
     axum::serve(listener, app).await?;

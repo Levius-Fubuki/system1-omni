@@ -1058,8 +1058,9 @@ dependencies = [
  "base64 0.22.1",
  "half",
  "image",
- "libloading",
  "memmap2",
+ "omni-qwen3-5-native",
+ "omni-runtime",
  "safetensors 0.8.0",
  "serde",
  "serde_json",
@@ -1090,6 +1091,40 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "omni-open-jev-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "omni-qwen3-5-native",
+ "omni-runtime",
+ "serde_json",
+ "tokenizers",
+ "tokio",
+]
+
+[[package]]
+name = "omni-qwen3-5-native"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "half",
+ "libloading",
+ "memmap2",
+ "safetensors 0.8.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "omni-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
 ]
 
 [[package]]
