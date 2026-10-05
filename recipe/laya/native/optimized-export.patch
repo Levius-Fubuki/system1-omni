@@ -1,7 +1,7 @@
 --- a/src/backends/cuda/tools/export.py
 +++ b/src/backends/cuda/tools/export.py
 @@ -17,6 +17,18 @@
- 
+
  sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "kernels"))
  import laya_tilelang as kernels
 +
@@ -16,7 +16,7 @@
 +  return laya_out_full(p,B,L,M,stream);
 +}
 +"""
- 
+
  SLOT = re.compile(
      r"\(\(\(TVMFFIAny\*\)stack_ffi_any\)\[(\d+)\]\.v_(?:int64|ptr)\) = (.*);"
 @@ -48,6 +60,21 @@
@@ -38,8 +38,8 @@
 +            raise ValueError("long GEGLU register calls changed")
 +        body = body.replace(call, "", 1)
 +    return body
- 
- 
+
+
  def export(name, kernel):
 @@ -133,6 +160,8 @@
      body = source[source.index('extern "C" __global__') :].replace(
