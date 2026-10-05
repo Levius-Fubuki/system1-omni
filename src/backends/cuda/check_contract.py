@@ -12,8 +12,10 @@ checks the parts of ``contract.md`` that do not need hardware:
   * that a kernel requiring a newer compute capability than the build declares is
     flagged.
 
-It does not compile CUDA and does not prove numerics. Tier 2 (``--gpu`` in CI)
-runs the reference entrypoint on a self-hosted GPU runner.
+It does not compile CUDA and does not prove numerics. Those are the later tiers
+described in ``contract.md``: Tier 2 compiles each backend with nvcc, and Tier 3
+runs the reference entrypoint on a self-hosted GPU runner. Neither is wired up
+here, and no flag in this script reaches them.
 
 Usage:
     python3 src/backends/cuda/check_contract.py [--repo-root PATH] [--json]
@@ -35,7 +37,9 @@ STATUSES = ("planned", "experimental", "validated")
 # Every key check_manifest reads directly. The missing-key report and the guard
 # that stops after it are both derived from this tuple.
 REQUIRED_KEYS = ("name", "abi_version", "status", "sources", "build")
-CONTRACT_ABI_VERSION = 1
+# The oldest library ABI this checker understands -- a floor on `abi_version`,
+# not a version of this document. See check_abi_version.
+MINIMUM_ABI_VERSION = 1
 # `<PREFIX>_ABI_VERSION N` in a backend header. #19 uses `CS1_ABI_VERSION`,
 # bumped whenever the C interface changes.
 _ABI_MACRO = re.compile(r"^[ \t]*#[ \t]*define[ \t]+(\w*ABI_VERSION)[ \t]+(\d+)[ \t]*$", re.M)
@@ -363,8 +367,16 @@ def _declared_abi(manifest):
     and the macro is a fact the source already states.
     """
     directory = manifest.get("_directory", "")
+    sources = manifest.get("sources")
+    # Guard the container, not just the elements. A manifest with `"sources": 42`
+    # or `true` is reported by the schema check but does not stop it, so reaching
+    # here and iterating raises TypeError out of check_manifest -- which loses the
+    # whole report, including --json, and every later backend. Same failure the
+    # string check on reference.entrypoint exists to prevent.
+    if not isinstance(sources, list):
+        return []
     found = []
-    for source in manifest.get("sources") or []:
+    for source in sources:
         if not isinstance(source, str):
             continue
         path = os.path.join(directory, source)
@@ -395,10 +407,10 @@ def check_abi_version(manifest, issues):
     """
     backend = manifest.get("_entry", "?")
     abi = manifest.get("abi_version")
-    if not isinstance(abi, int) or abi < CONTRACT_ABI_VERSION:
+    if not isinstance(abi, int) or abi < MINIMUM_ABI_VERSION:
         issues.append(Issue("error", backend,
                             "abi_version must be an integer >= %d, got %r"
-                            % (CONTRACT_ABI_VERSION, abi)))
+                            % (MINIMUM_ABI_VERSION, abi)))
         return
 
     found = _declared_abi(manifest)

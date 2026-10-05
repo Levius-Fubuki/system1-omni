@@ -1,14 +1,17 @@
 # CUDA backend contract
 
-`src/backends/cuda/` is shared by several model engines. Each model owns its own
+`src/backends/cuda/` is shared by several model executors. Each owns its
 operations, its own library and its own numerics; this document fixes only the
-parts that have to agree for two model libraries to be built, distributed and
-validated the same way.
+parts that have to agree for two libraries to be built, distributed and validated
+the same way.
 
-The rule from the [repository layout](../../../README.md) still holds: model
-orchestration, batching policy, state management and kernel selection stay with
-the model engine. A backend does not need identical internal structures to
-another backend, and no universal tensor abstraction is introduced here.
+Ownership is stated in [the architecture contracts](../../../docs/architecture.md)
+and is not restated here, because a restatement drifts: the shared worker runtime
+owns processing orchestration, batching policy and request bookkeeping, while
+model executors own forward passes, device state and kernel selection. "Model
+engine" is the older word for the second of those. A backend does not need
+identical internal structures to another backend, and no universal tensor
+abstraction is introduced here.
 
 Status: proposed. The checker is [`check_contract.py`](check_contract.py); wiring it
 into CI is a separate change, so nothing here is enforced yet.
@@ -25,9 +28,9 @@ Three CUDA efforts are now in flight, each with its own build path:
 
 That is three build systems, three library names and three C ABIs. None of it
 conflicts today, because nothing links against anything else yet. It conflicts
-as soon as one model reuses another's kernels — which is already planned: the
-Cua-S1 native worker and a Kev engine share a Qwen3.5 base, and `#9` asks for
-CUDA paths for CLM as well.
+as soon as one model reuses another's kernels — which has already happened:
+Cua-S1's and Open-Jev's native workers share the Qwen3.5/3.8 executor under
+`src/models/qwen3_5/native/`, and `#9` asks for CUDA paths for further models.
 
 `#6` says to extract shared code once two implementations exist. Two exist now.
 This document is that extraction, kept to interfaces only.
@@ -50,7 +53,7 @@ change. Schema:
   "status": "validated",
   "sources": ["common.cuh", "mma.cuh", "ops.h", "norm.cu", "elementwise.cu",
               "attention.cu", "gdn_prefill.cu", "gemm.cu", "runtime.cu"],
-  "models": ["src/models/cua_s1/", "src/models/kev/"],
+  "models": ["src/models/cua_s1/native/", "src/models/open_jev/native/"],
   "build": {
     "script": "build.sh",
     "output": "libqwen3_5_cuda.so",
@@ -85,12 +88,12 @@ self-hosted runner that has the weights and the GPU runs it directly.
 
 ### One backend, several models
 
-`models` lists the model engines that consume this backend, as
+`models` lists the model executors that consume this backend, as
 repository-relative directories. It is optional, and it exists because reuse is
-the point: `#19`'s kernels serve a Qwen3.5-4B backbone, and Kev from `#9` uses
-the same backbone with a different adapter and readout, so one backend directory
-serves both. Without this field that sharing is a private arrangement between
-two PRs and invisible to anyone reading either one. An entry naming a directory
+the point: these kernels serve a Qwen3.5/3.8 prefill, and both the Cua-S1 and the
+Open-Jev native worker run their forward pass through them, so one backend
+directory serves both. Without this field that sharing is a private arrangement
+between PRs and invisible to anyone reading either one. An entry naming a directory
 that is not in the tree is a warning, not an error, so a backend can be merged
 before its second consumer lands.
 
@@ -153,7 +156,7 @@ reference for the shape. The contract fixes four points:
    split-K in place must be refused, so a given plan always produces the same
    result.
 
-Point 3 is what makes two model libraries composable: a model engine that
+Point 3 is what makes two model libraries composable: a model executor that
 already owns a stream and a captured graph can call into either library.
 
 ### Runtime symbol sharing

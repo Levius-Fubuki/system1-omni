@@ -370,6 +370,59 @@ arch=90
         self.assertIn("has typo.backend.json but not qwen3_5.backend.json", messages)
         self.assertIn("never discovered", messages)
 
+    def test_no_field_of_the_wrong_type_crashes_the_checker(self):
+        """Every manifest field, given a wrong type, must produce a report.
+
+        This is the class the review kept finding one instance at a time: a field
+        that is checked for existence or for being a list somewhere, then read
+        somewhere else without the same guard. `sources: 42` reached an iteration
+        in the ABI scan and raised, which cost the whole report including --json
+        and every later backend -- exactly what the string check on
+        reference.entrypoint was added to prevent. Iterating the fields, rather
+        than testing them one at a time, is what covers the class.
+        """
+        wrong_values = [None, 42, True, "text", [], {}, [1, 2], ["a", 3]]
+        for key in check_contract.REQUIRED_KEYS:
+            for value in wrong_values:
+                candidate = manifest()
+                candidate[key] = value
+                self.write_manifest(candidate)
+                try:
+                    check_contract.run(self.root)
+                except Exception as error:            # noqa: BLE001 - the point
+                    self.fail("%s = %r raised %s: %s"
+                              % (key, value, type(error).__name__, error))
+
+    def test_build_subfields_of_the_wrong_type_do_not_crash(self):
+        for key in ("script", "output", "architectures", "default_arch", "min_capability"):
+            for value in (None, 42, True, "text", [], {}, [1, 2], ["a", 3]):
+                candidate = manifest()
+                candidate["build"][key] = value
+                self.write_manifest(candidate)
+                try:
+                    check_contract.run(self.root)
+                except Exception as error:            # noqa: BLE001 - the point
+                    self.fail("build.%s = %r raised %s: %s"
+                              % (key, value, type(error).__name__, error))
+
+    def test_optional_fields_of_the_wrong_type_do_not_crash(self):
+        for key, value in (("models", 42), ("models", True), ("models", "text"),
+                           ("models", {}), ("models", [1, 2]),
+                           ("numerics", 42), ("numerics", "text"),
+                           ("reference", 42), ("reference", "text"),
+                           ("reference", {"entrypoint": 42}),
+                           ("reference", {"entrypoint": True}),
+                           ("numerics", {"tolerance": 42}),
+                           ("numerics", {"tolerance": "text"})):
+            candidate = manifest()
+            candidate[key] = value
+            self.write_manifest(candidate)
+            try:
+                check_contract.run(self.root)
+            except Exception as error:                # noqa: BLE001 - the point
+                self.fail("%s = %r raised %s: %s"
+                          % (key, value, type(error).__name__, error))
+
     def test_unknown_status_is_an_error(self):
         self.write_manifest(manifest(status="done"))
         _, errors, _ = self.check()
