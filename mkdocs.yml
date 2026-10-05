@@ -54,6 +54,8 @@ nav:
   - Recipes:
       - recipe/README.md
       - Laya text worker: recipe/laya/README.md
+      - Laya native CUDA worker: recipe/laya/native/README.md
+      - Laya CUDA validation: recipe/laya/native/VALIDATION.md
       - Cua-S1 text worker: recipe/cua_s1/text.md
       - Cua-S1 native text worker: recipe/cua_s1/native.md
   - Contributing: CONTRIBUTING.md

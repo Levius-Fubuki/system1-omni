@@ -72,7 +72,7 @@ Share processing and scheduling; let each model own its execution.
 
 The diagram shows the **target architecture**. Today the frontend forwards HTTP
 requests to separately running workers, whose handlers coordinate independent
-processors and executors. Both native workers use shared FIFO admission and
+processors and executors. Native workers use shared FIFO admission and
 blocking dispatch per loaded executor. Processing orchestration, batch budgets,
 compatibility grouping and dynamic batching remain planned.
 
@@ -118,8 +118,8 @@ repository root.
 | [`recipe/`](recipe/) | Model setup instructions, launch commands, configuration examples, and example requests. |
 | [`docs/`](docs/) | Project documentation and architecture assets. |
 
-The frontend, native runtime, both native workers, their shared Qwen3.5/3.8
-prefill implementation and the Laya checkpoint reader are Cargo workspace members.
+The frontend, native runtime, the native workers, their shared Qwen3.5/3.8
+prefill implementation and the Laya CUDA backend are Cargo workspace members.
 The other model and backend directories currently document planned work;
 they do not prescribe process boundaries.
 
@@ -141,14 +141,14 @@ for a CPU text worker and response checks, or the Cua-S1 recipes for the
 
 ## Supported Models
 
-LAYA can run as an external Python worker for text requests; its
-in-repository model engine is still planned. The Cua-S1 4B 0.2 `text` adapter
+LAYA runs as an external Python worker or a native Rust/CUDA text worker on
+Hopper. The Cua-S1 4B 0.2 `text` adapter
 runs as a Python worker or as a native worker on CUDA. Open-Jev-27B-v1.1
 runs as a native Rust/CUDA worker:
 
 | Model | Status |
 | --- | --- |
-| LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [CPU checkpoint reader](src/models/laya/README.md); model execution planned |
+| LAYA | [External worker](recipe/laya/README.md); [Python worker on Apple Silicon (MPS) and CPU](recipe/laya/apple-silicon.md); [native Rust/CUDA worker on Hopper](recipe/laya/native/README.md) |
 | Cua-S1 4B 0.2 (`text` adapter) | [Python worker](recipe/cua_s1/text.md); [native worker](recipe/cua_s1/native.md), CUDA, run on sm_89 |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
 
@@ -168,7 +168,7 @@ The current focus is the native Cua-S1 and Open-Jev CUDA workers and the serving
 benchmark harness. Planned work extends the shared runtime with processing
 orchestration, admission budgets, compatibility grouping and bounded dynamic
 batching with batch-capable executors,
-the in-repository LAYA model engine, additional model engines and GPU backends
+additional model engines and GPU backends
 including Metal, and per-model
 performance measurements as implementations are added and validated.
 

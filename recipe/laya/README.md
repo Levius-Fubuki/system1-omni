@@ -1,6 +1,7 @@
 # Laya text worker
 
 This recipe runs the external Laya Python package behind the Rust frontend.
+For the Rust/CUDA worker on Hopper, see [native CUDA setup](native/README.md).
 It validates text decisions; image, audio and video inference are not covered.
 
 Run all commands from the repository root. To serve on the GPU of an Apple Silicon Mac, see

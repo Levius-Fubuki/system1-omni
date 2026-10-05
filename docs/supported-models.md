@@ -5,7 +5,7 @@ This page covers what runs from `main`. Models that are being added are tracked 
 | Model | Worker | CPU | NVIDIA CUDA | Apple Metal | Requirements |
 | --- | --- | --- | --- | --- | --- |
 | LAYA, English checkpoint | [External worker](../recipe/laya/README.md) running the upstream Laya runtime, for text requests | Validated ([#2](https://github.com/ThinkFlowLab/system1-omni/pull/2)) | Unverified ([#39](https://github.com/ThinkFlowLab/system1-omni/issues/39)) | Unverified ([#3](https://github.com/ThinkFlowLab/system1-omni/issues/3)) | Python 3.12, `laya[serve]==0.3.20` |
-| LAYA | In-repository model engine | Planned ([#14](https://github.com/ThinkFlowLab/system1-omni/issues/14)) | Planned ([#14](https://github.com/ThinkFlowLab/system1-omni/issues/14)) | Planned ([#3](https://github.com/ThinkFlowLab/system1-omni/issues/3)) | |
+| LAYA, English checkpoint | [Native Rust worker](../recipe/laya/native/README.md) | Processing/checkpoint checks; no CPU inference | Hopper `sm_90a`; [validation scope](../recipe/laya/native/VALIDATION.md) | Not supported | CUDA toolkit, TileLang for AOT generation, pinned checkpoint and rotary tables |
 | Cua-S1 4B 0.2, `text` adapter | [Reference worker](../recipe/cua_s1/text.md) on Transformers and PEFT | Unverified | Validated ([#13](https://github.com/ThinkFlowLab/system1-omni/pull/13)) | Unverified | Python 3.12, the versions in `requirements-text.txt` |
 | Cua-S1 4B 0.2, `text` adapter | [Native Rust worker](../recipe/cua_s1/native.md) on the [Qwen3.5 CUDA kernels](../src/backends/cuda/qwen3_5/README.md) | Not supported | Validated on compute capability 8.9 ([#19](https://github.com/ThinkFlowLab/system1-omni/pull/19), [#52](https://github.com/ThinkFlowLab/system1-omni/pull/52)) | Not supported | Compute capability 8.0 or newer, the CUDA toolkit to build, weights merged with `export_text_merged.py` |
 | Cua-S1 4B 0.2, `multimodal` adapter | Reference worker on Transformers and PEFT, [`src/frontend/cua_s1.py`](../src/frontend/cua_s1.py); no recipe yet | Not supported | Validated ([#17](https://github.com/ThinkFlowLab/system1-omni/pull/17), [#18](https://github.com/ThinkFlowLab/system1-omni/pull/18)) | Not supported | The state is one PNG or JPEG image; upstream's `weights.lock.json` next to the base weights |
@@ -19,7 +19,8 @@ The Cua-S1 workers answer `choice` questions only.
 Open-Jev supports `choice`, `score`, and `noul` text questions.
 
 The [architecture contracts](architecture.md) describe the native target.
-Shared processing orchestration, scheduling, dynamic batching, and GPU decision
-heads are planned; the existing native workers run independent single-prompt
-prefills and compute their heads on the CPU. These target layers do not expand
+Shared processing orchestration and dynamic batching remain planned. Native
+workers reuse serial admission. Qwen workers run independent single-prompt
+prefills with CPU heads; Laya packs questions within one request and runs its
+scorer/action head on CUDA. These target layers do not expand
 the validated model or hardware coverage above.
