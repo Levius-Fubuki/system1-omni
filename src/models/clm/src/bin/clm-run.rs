@@ -80,9 +80,9 @@ fn main() -> Result<()> {
         if trimmed.is_empty() {
             continue;
         }
-        let body: serde_json::Value =
-            serde_json::from_str(trimmed).context("request is not JSON")?;
-        let request = Request::parse(&body)?;
+        // `parse_line`, not `parse`: the text is what keeps an integer literal's
+        // digits, and it is gone once the line has been parsed.
+        let request = Request::parse_line(trimmed)?;
         let started = Instant::now();
         let decision = engine
             .decide(&request, temperature)

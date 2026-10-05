@@ -20,5 +20,5 @@ pub mod weights;
 pub use config::{Config, HeadConfig};
 pub use embedding::{Encoder, HashingEncoder, HttpEncoder};
 pub use scoring::{Answer, Kind, Question, answer, confidence, distribution};
-pub use serve::{Decision, Engine, Request};
+pub use serve::{Decision, Engine, NumberLiterals, Request, to_text_json};
 pub use weights::{Head, Heads, Weights, head_tensors};

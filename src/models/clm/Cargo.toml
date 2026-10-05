@@ -17,7 +17,11 @@ serde = { version = "1", features = ["derive"] }
 # trained on the caller's field order, so re-sorting a state would change the text.
 # float_roundtrip: a float literal must parse to the same double `json.loads`
 #   produces, or the heads see a different number.
-serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+# raw_value: a rendered field keeps the text it arrived as, so an integer literal
+#   above u64::MAX keeps every digit. It adds `RawValue` and does not change how
+#   `Number` behaves, unlike `arbitrary_precision`, which would reach every crate
+#   in the workspace.
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip", "raw_value"] }
 sha2 = "0.10"
 
 # Test bodies live under the repository-level tests/ tree; this is the explicit

@@ -7,7 +7,8 @@
 //! against the real thing rather than a transcription of it.
 use omni_clm::serve::{answer_json, candidates, state_text, to_text};
 use omni_clm::{Kind, Question, Request, answer, serve::QuestionRequest};
-use serde_json::{Value, json};
+use omni_clm::{NumberLiterals, to_text_json};
+use serde_json::{Map, Value, json};
 
 fn oracle() -> Value {
     let path = std::env::var_os("CLM_TEXT_ORACLE")
@@ -30,6 +31,31 @@ fn states() -> Vec<Value> {
         // the parse is the part that was wrong.
         serde_json::from_str(r#"{"seventeen": 7.8190461323667115, "inexact": 9007199254740993.0}"#)
             .unwrap(),
+        serde_json::from_str(concat!(
+            r#"{"big": 18446744073709551616, "#,
+            r#""huge": 340282366920938463463374607431768211456, "#,
+            r#""negzero": -0, "negbig": -18446744073709551616}"#
+        ))
+        .unwrap(),
+    ]
+}
+
+/// The same states as [`states`], as the JSON text a request arrives as.
+fn state_texts() -> Vec<&'static str> {
+    vec![
+        r#""I was charged twice.""#,
+        r#"{"body": "Charged twice", "order": 4411, "urgent": true}"#,
+        r#"{"ticket": {"id": 7, "tags": ["a", "b"]}, "note": null}"#,
+        r#"[{"k": 1}, {"k": 2}]"#,
+        r#"{"empty_obj": {}, "empty_arr": [], "n": 0.5}"#,
+        r#"{"nested": {"deep": {"x": "y"}}}"#,
+        r#"{"tiny": 1e-5, "smaller": 1e-7, "edge": 1e-4, "round": 1e15, "huge": 1e16, "neg": -1e-6}"#,
+        r#"{"seventeen": 7.8190461323667115, "inexact": 9007199254740993.0}"#,
+        concat!(
+            r#"{"big": 18446744073709551616, "#,
+            r#""huge": 340282366920938463463374607431768211456, "#,
+            r#""negzero": -0, "negbig": -18446744073709551616}"#
+        ),
     ]
 }
 
@@ -91,11 +117,23 @@ fn to_text_matches_the_reference_byte_for_byte() {
         expected.len(),
         "the oracle was built from another case list"
     );
-    for (i, state) in got.iter().enumerate() {
+    // All but the last: a `Value` cannot hold an integer above `u64::MAX`, so the digits
+    // are already gone before `to_text` is called. That case is the next loop's.
+    for (i, state) in got.iter().take(expected.len() - 1).enumerate() {
         assert_eq!(
             to_text(state),
             expected[i].as_str().unwrap(),
             "to_text case {i} for {state}"
+        );
+    }
+
+    // The same renderings again, from the text, which is the path a request takes and
+    // the only one that keeps an integer literal's digits.
+    for (i, raw) in state_texts().iter().enumerate() {
+        assert_eq!(
+            to_text_json(raw).unwrap(),
+            expected[i].as_str().unwrap(),
+            "to_text_json case {i}"
         );
     }
 }
@@ -105,7 +143,7 @@ fn to_text_matches_the_reference_byte_for_byte() {
 fn state_text_and_candidates_match_the_reference_byte_for_byte() {
     let oracle = oracle();
     let cases = oracle["cases"].as_array().unwrap();
-    let states = states();
+    let states = state_texts();
     let questions = questions();
     assert_eq!(
         cases.len(),
@@ -114,17 +152,24 @@ fn state_text_and_candidates_match_the_reference_byte_for_byte() {
     );
 
     let mut i = 0;
-    for state in &states {
+    for raw in &states {
         for q in &questions {
             let case = &cases[i];
-            let (keys, texts) = candidates(q).unwrap();
+            // Through the request path rather than `state_text`/`candidates` on a
+            // `Value`: the text is what keeps an integer literal's digits, and a `Value`
+            // has already lost the ones above `u64::MAX`.
+            let line = format!(
+                r#"{{"state": {raw}, "questions": {{"q": {}}}}}"#,
+                question_json(q)
+            );
+            let prepared = Request::parse_line(&line).unwrap().prepare().unwrap();
             assert_eq!(
-                state_text(state, &q.instructions),
+                prepared[0].state_text,
                 case["state_text"].as_str().unwrap(),
                 "case {i} state_text"
             );
             assert_eq!(
-                keys,
+                prepared[0].question.keys,
                 case["keys"]
                     .as_array()
                     .unwrap()
@@ -134,7 +179,7 @@ fn state_text_and_candidates_match_the_reference_byte_for_byte() {
                 "case {i} keys"
             );
             assert_eq!(
-                texts,
+                prepared[0].candidate_texts,
                 case["candidate_texts"]
                     .as_array()
                     .unwrap()
@@ -146,6 +191,24 @@ fn state_text_and_candidates_match_the_reference_byte_for_byte() {
             i += 1;
         }
     }
+}
+
+/// A question as the JSON text a request carries it in, for the loop above.
+fn question_json(q: &QuestionRequest) -> Value {
+    let mut object = Map::new();
+    object.insert(
+        "type".to_string(),
+        json!(match q.kind {
+            Kind::Choice => "choice",
+            Kind::Score => "score",
+            Kind::Noul => "noul",
+        }),
+    );
+    object.insert("instructions".to_string(), json!(q.instructions));
+    if let Some(criteria) = &q.criteria {
+        object.insert("criteria".to_string(), criteria.clone());
+    }
+    Value::Object(object)
 }
 
 #[test]
@@ -232,18 +295,85 @@ fn json_numbers_parse_to_the_same_doubles_as_the_reference() {
 fn a_request_line_reaches_the_encoder_with_the_reference_text() {
     let line = concat!(
         r#"{"model":"clm-latest","state":{"seventeen":7.8190461323667115,"#,
-        r#""inexact":9007199254740993.0},"#,
+        r#""inexact":9007199254740993.0,"big":18446744073709551616},"#,
         r#""questions":{"q":{"type":"choice","instructions":"Pick","#,
-        r#""criteria":{"a":7.8190461323667115,"b":"plain"}}}}"#
+        r#""criteria":{"a":7.8190461323667115,"b":18446744073709551616}}}}"#
     );
-    let request = Request::parse(&serde_json::from_str::<Value>(line).unwrap()).unwrap();
+    let request = Request::parse_line(line).unwrap();
     let prepared = request.prepare().unwrap();
 
     assert_eq!(prepared.len(), 1);
     assert_eq!(
         prepared[0].state_text,
-        "seventeen: 7.8190461323667115\n\ninexact: 9007199254740992.0\n\nPick"
+        "seventeen: 7.8190461323667115\n\ninexact: 9007199254740992.0\n\n\
+         big: 18446744073709551616\n\nPick"
     );
     assert_eq!(prepared[0].question.keys, ["a", "b"]);
-    assert_eq!(prepared[0].candidate_texts, ["7.8190461323667115", "plain"]);
+    assert_eq!(
+        prepared[0].candidate_texts,
+        ["7.8190461323667115", "18446744073709551616"]
+    );
+}
+
+/// Integer literals are arbitrary precision in `json.loads`, so they have to keep every
+/// digit here too.
+///
+/// A JSON integer above `u64::MAX` has no exact `f64`, and `serde_json` parses one
+/// straight to a double: `18446744073709551616` was reaching the encoder as
+/// `1.8446744073709552e+19`. The literal decides which of `json.loads`'s two types a
+/// number is, not the value it holds.
+#[test]
+fn integer_literals_keep_every_digit() {
+    // The expected strings are `str(json.loads(literal))`.
+    for (literal, text) in [
+        ("18446744073709551616", "18446744073709551616"),
+        (
+            "340282366920938463463374607431768211456",
+            "340282366920938463463374607431768211456",
+        ),
+        ("-18446744073709551616", "-18446744073709551616"),
+        ("0", "0"),
+        ("-0", "0"),
+        ("9007199254740993", "9007199254740993"),
+        // The same digits as a float literal, so it is a float afterwards.
+        ("9007199254740993.0", "9007199254740992.0"),
+        // And an exponent is a float however integral it looks.
+        ("1e5", "100000.0"),
+    ] {
+        assert_eq!(to_text_json(literal).unwrap(), text, "rendering {literal}");
+    }
+}
+
+/// The lexer and the value walk have to agree on how many numbers a document has, or a
+/// literal would be paired with the wrong number. Both are in document order, and this
+/// is what says so.
+#[test]
+fn the_literals_line_up_with_the_values() {
+    fn numbers(value: &Value) -> usize {
+        match value {
+            Value::Number(_) => 1,
+            Value::Array(items) => items.iter().map(numbers).sum(),
+            Value::Object(map) => map.values().map(numbers).sum(),
+            _ => 0,
+        }
+    }
+    for raw in state_texts() {
+        let value: Value = serde_json::from_str(raw).unwrap();
+        let literals = NumberLiterals::of(raw);
+        assert_eq!(literals.len(), numbers(&value), "counting {raw}");
+    }
+    for raw in [
+        r#"{"a": "not a 1 or a 2", "b": [3, {"c": -4.5e-6}], "d": null}"#,
+        "{\"escaped\": \"quote \\\" then 7 and \\\\ then 8\", \"n\": 9}",
+        r#"[1, [2, [3]], {"k": 4}]"#,
+        r#"{}"#,
+        r#"[]"#,
+    ] {
+        let value: Value = serde_json::from_str(raw).unwrap();
+        assert_eq!(
+            NumberLiterals::of(raw).len(),
+            numbers(&value),
+            "counting {raw}"
+        );
+    }
 }

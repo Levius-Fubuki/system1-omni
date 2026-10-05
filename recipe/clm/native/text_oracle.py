@@ -29,6 +29,10 @@ STATES = [
     # 17 significant digits, where a parse that is not correctly rounded lands on
     # the neighbouring double and renders differently.
     {"seventeen": 7.8190461323667115, "inexact": 9007199254740993.0},
+    # A JSON integer is an arbitrary-precision int in Python and keeps every digit; one
+    # larger than a u64 cannot survive a detour through a double.
+    {"big": 18446744073709551616, "huge": 340282366920938463463374607431768211456,
+     "negzero": -0, "negbig": -18446744073709551616},
 ]
 
 QUESTIONS = [
