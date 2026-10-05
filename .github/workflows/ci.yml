@@ -55,8 +55,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Checker tests
+      - name: Contract checker tests
         run: python -m unittest discover -s src/backends/cuda/tests -t . -v
+      - name: Kernel tests
+        # Each backend keeps its tests beside its kernels, so this discovers per
+        # directory rather than assuming one tests/ tree. `-t` has to point at the
+        # directory itself: the kernel dirs are not packages and are not
+        # importable from the repository root.
+        run: |
+          for dir in src/backends/cuda/*/; do
+            if compgen -G "${dir}test_*.py" > /dev/null; then
+              echo "== $dir"
+              python -m unittest discover -s "$dir" -t "$dir" -v
+            fi
+          done
       - name: Contract check
         run: |
           if [ ! -f src/backends/cuda/check_contract.py ]; then
