@@ -1,0 +1,297 @@
+{
+  "title": "Open-Jev optimization progress",
+  "post_date": "2026-10-05",
+  "evidence_cutoff": "2026-10-04",
+  "repository_sha_inspected": "e3cb4a215d76e5df929f60e71552531408f95c72",
+  "controls": {
+    "hardware": "H200 (SM90; archived driver label NVIDIA L20X)",
+    "device_uuid": "GPU-cbf66259-f4ab-0ede-1811-82037dde5924",
+    "numa_node": 0,
+    "cpu_affinity": "0-15",
+    "model": "Open-Jev-27B-v1.1",
+    "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "checkpoint_revision": "28cf73067d5b337860bbef3c85b8b82ba8730956",
+    "precision": "BF16",
+    "http_workload": "74 single-candidate JevBench noul requests, 80-3399 tokens, concurrency 1",
+    "dataset_revision": "f8ce71361165846101d02ebc83ad44e47ae44fc3",
+    "measured_passes_per_arm": 2,
+    "marker_meaning": "Individual pass means, not confidence intervals",
+    "http_boundary": "Localhost Rust frontend, tokenization and worker execution through UTF8 response decoding; client JSON serialization and response JSON parsing excluded.",
+    "exclusions": "Preparation/downloads, startup/readiness, first inference and feasibility/warmup excluded from measured passes."
+  },
+  "backend": {
+    "date": "2026-10-03",
+    "experiment": "matched full-backend comparison",
+    "source": {
+      "path": "recipe/open_jev/validation.md",
+      "sha256": "01bd747639e28b5b625d20c6b723e5c33a6f08d1f88e81ec87689ef2cddc886d",
+      "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/recipe/open_jev/validation.md"
+    },
+    "source_section": "Raw HF Transformers comparison, 2026-10-03",
+    "raw_availability": "Raw experiment files archived locally outside the PR; plot values use the public historical summary.",
+    "worker_revision": "202c0e163f868334a99d88407056ebe61dbb2dce",
+    "native_cuda_library_sha256": "e033315d4c67127809e62f41d991a149ac8ee0ce81827997af063815fd00d435",
+    "native_graph": false,
+    "fast_graph": true,
+    "rows": [
+      {
+        "label": "Raw HF Transformers",
+        "mean_ms": 362.209,
+        "pass_mean_ms": [
+          362.238,
+          362.18
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      },
+      {
+        "label": "Native Rust/CUDA",
+        "mean_ms": 48.503,
+        "pass_mean_ms": [
+          48.471,
+          48.535
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      },
+      {
+        "label": "OpenJev-Fast",
+        "mean_ms": 50.936,
+        "pass_mean_ms": [
+          51.097,
+          50.775
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      }
+    ]
+  },
+  "graph": {
+    "date": "2026-10-03",
+    "experiment": "separate native graph-cache A/B",
+    "source": {
+      "path": "recipe/open_jev/validation.md",
+      "sha256": "01bd747639e28b5b625d20c6b723e5c33a6f08d1f88e81ec87689ef2cddc886d",
+      "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/recipe/open_jev/validation.md"
+    },
+    "source_section": "Native CUDA Graph replay, 2026-10-03",
+    "raw_availability": "Raw experiment files archived locally outside the PR; plot values use the public historical summary.",
+    "worker_dependencies_revision": "202c0e163f868334a99d88407056ebe61dbb2dce",
+    "cache_control": "Maximum scratch length and workload lengths warmed before measured passes; 57 distinct mixed-workload lengths.",
+    "mixed": [
+      {
+        "label": "Eager",
+        "mean_ms": 48.086,
+        "pass_mean_ms": [
+          48.062,
+          48.11
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      },
+      {
+        "label": "Graph: 8 entries",
+        "mean_ms": 95.289,
+        "pass_mean_ms": [
+          95.425,
+          95.153
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      },
+      {
+        "label": "Graph: 64 entries",
+        "mean_ms": 47.112,
+        "pass_mean_ms": [
+          47.05,
+          47.174
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      }
+    ],
+    "short": [
+      {
+        "label": "Eager",
+        "mean_ms": 19.829,
+        "pass_mean_ms": [
+          19.835,
+          19.823
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      },
+      {
+        "label": "Graph: 8 entries",
+        "mean_ms": 18.882,
+        "pass_mean_ms": [
+          18.902,
+          18.863
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      },
+      {
+        "label": "Graph: 64 entries",
+        "mean_ms": 19.081,
+        "pass_mean_ms": [
+          18.968,
+          19.194
+        ],
+        "value_status": "reported summary, rounded to 0.001 ms"
+      }
+    ],
+    "short_requests_per_pass": 32,
+    "mixed_requests_per_pass": 74
+  },
+  "gdn_kernel": {
+    "date": "2026-10-03",
+    "experiment": "separate complete GDN call A/B",
+    "source": {
+      "path": "benchmarks/gdn/artifacts/20261003/kernel/analysis/results.jsonl",
+      "sha256": "d59965ba4b4b48ab97caefe43ccfde46d3f582cb9216e8581d3775b61c043692",
+      "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261003/kernel/analysis/results.jsonl"
+    },
+    "baseline_revision": "58b8cbe9d4738f6c217f6fe584852dc9361b2c24",
+    "candidate_gdn_sha256": "9f2642a5f6e69cd22055419ecf1f799f1ccd811f7453763a41adf4f15b07a41d",
+    "controls": "Batch 1; Q/K heads 16, value heads 48, head dim 128; seeded synthetic correlated Q/K and weak decay. Complete preparation/state/output call; eager host submission included. One feasibility and 10 warmups excluded; two passes of 100 calls per shape/arm, second pass reverses order.",
+    "shapes": [
+      {
+        "tokens": 107,
+        "rows": [
+          {
+            "label": "Baseline",
+            "mean_ms": 0.05113337,
+            "pass_mean_ms": [
+              0.05129078,
+              0.05097596
+            ],
+            "value_status": "derived from raw kernel wall times"
+          },
+          {
+            "label": "Packed TF32",
+            "mean_ms": 0.050935030000000006,
+            "pass_mean_ms": [
+              0.050913560000000004,
+              0.0509565
+            ],
+            "value_status": "derived from raw kernel wall times"
+          }
+        ]
+      },
+      {
+        "tokens": 936,
+        "rows": [
+          {
+            "label": "Baseline",
+            "mean_ms": 0.24745117499999997,
+            "pass_mean_ms": [
+              0.24756526999999998,
+              0.24733708
+            ],
+            "value_status": "derived from raw kernel wall times"
+          },
+          {
+            "label": "Packed TF32",
+            "mean_ms": 0.21417732500000003,
+            "pass_mean_ms": [
+              0.21417622000000003,
+              0.21417843
+            ],
+            "value_status": "derived from raw kernel wall times"
+          }
+        ]
+      },
+      {
+        "tokens": 3399,
+        "rows": [
+          {
+            "label": "Baseline",
+            "mean_ms": 0.7998545349999999,
+            "pass_mean_ms": [
+              0.80077451,
+              0.79893456
+            ],
+            "value_status": "derived from raw kernel wall times"
+          },
+          {
+            "label": "Packed TF32",
+            "mean_ms": 0.697015115,
+            "pass_mean_ms": [
+              0.69676832,
+              0.69726191
+            ],
+            "value_status": "derived from raw kernel wall times"
+          }
+        ]
+      }
+    ]
+  },
+  "gdn_http": {
+    "date": "2026-10-03",
+    "experiment": "separate GDN native HTTP A/B",
+    "sources": [
+      {
+        "path": "benchmarks/gdn/artifacts/20261003/e2e/baseline-measured-1.jsonl",
+        "sha256": "ff0edc3cd0581b2a8374a6ed5cfb13e70c086bb027e3b04208115c62a12a1ff9",
+        "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261003/e2e/baseline-measured-1.jsonl"
+      },
+      {
+        "path": "benchmarks/gdn/artifacts/20261003/e2e/baseline-measured-2.jsonl",
+        "sha256": "5a60b08924461e9bfe50310c21832df29be5fed83825dc58502cf6c10c39e5d0",
+        "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261003/e2e/baseline-measured-2.jsonl"
+      },
+      {
+        "path": "benchmarks/gdn/artifacts/20261003/e2e/candidate-measured-1.jsonl",
+        "sha256": "aa11cb7a4ef76cd7551561cc50a09fa9885f11b89035f8457881376d7a024a2e",
+        "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261003/e2e/candidate-measured-1.jsonl"
+      },
+      {
+        "path": "benchmarks/gdn/artifacts/20261003/e2e/candidate-measured-2.jsonl",
+        "sha256": "37d517470e0a2eb26f4faf956da2339c87eb9ca7e2123b4d4efa6f086b28f44e",
+        "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261003/e2e/candidate-measured-2.jsonl"
+      }
+    ],
+    "summary": {
+      "path": "benchmarks/gdn/artifacts/20261003/e2e/summary.json",
+      "sha256": "d61f0cae30bf79e9263280d62d47d9442387583be6bc811ffb7e9ed5d35d9ce7",
+      "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261003/e2e/summary.json"
+    },
+    "worker_revision": "202c0e163f868334a99d88407056ebe61dbb2dce",
+    "library_source_revision": "7b935723c6fa17145e3d866675202fb6f7ea1f5d",
+    "native_graph": false,
+    "acceptance_gate_percent": 2,
+    "accepted_latency_gate": false,
+    "rows": [
+      {
+        "label": "Baseline",
+        "mean_ms": 48.408149155405404,
+        "pass_mean_ms": [
+          48.37519689189189,
+          48.44110141891892
+        ],
+        "value_status": "derived from 148 raw HTTP responses per arm"
+      },
+      {
+        "label": "Packed TF32",
+        "mean_ms": 48.20480650675675,
+        "pass_mean_ms": [
+          48.10456159459459,
+          48.305051418918914
+        ],
+        "value_status": "derived from 148 raw HTTP responses per arm"
+      }
+    ]
+  },
+  "integration": {
+    "date": "2026-10-04",
+    "source": {
+      "path": "benchmarks/gdn/artifacts/20261004/integration.json",
+      "sha256": "86ef579b5eef97ba1c9b2eb43bdc5b43639a2028c9e87fad7c6c49ff3237dc99",
+      "url": "https://github.com/ThinkFlowLab/system1-omni/blob/e3cb4a215d76e5df929f60e71552531408f95c72/benchmarks/gdn/artifacts/20261004/integration.json"
+    },
+    "gpu_tests": 6,
+    "gdn_cases": 20,
+    "model_requests": 74,
+    "probabilities_exact": true,
+    "performance_comparison_run": false
+  },
+  "unmeasured": [
+    "Merged GDN optimization with CUDA Graph replay enabled",
+    "Fresh latency comparison of current main",
+    "Multi-candidate shared-prefix serving",
+    "Hardware-counter occupancy/stall/bandwidth attribution"
+  ]
+}

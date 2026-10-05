@@ -51,6 +51,9 @@ nav:
   - Supported models and hardware: docs/supported-models.md
   - Frontend: src/frontend/README.md
   - Native runtime: src/runtime/README.md
+  - Optimization notes:
+      - docs/blog/README.md
+      - Open-Jev on H200: docs/blog/2026-10-05-open-jev-optimization.md
   - Recipes:
       - recipe/README.md
       - Laya text worker: recipe/laya/README.md

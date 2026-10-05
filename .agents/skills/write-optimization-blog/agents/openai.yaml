@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Optimization Blog"
+  short_description: "Document optimizations with measured evidence"
+  default_prompt: "Use $write-optimization-blog to write a Markdown engineering post from our optimization records, with reproducible comparison figures and links to the measured code."
