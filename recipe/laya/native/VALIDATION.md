@@ -43,11 +43,42 @@ not general model quality or all-input agreement with official PyTorch.
 ## Integration checks
 
 The current-main integration retains checkpoint inventory checks and imports the
-reviewed CPU parsing/decoding fixes. Its processor/packing and worker scheduling
-are new consumers of the same device code. Normal CPU tests do not establish
-full-checkpoint CUDA or HTTP parity. Integration-specific Linux/GPU/worker and
-frontend checks must bind the actual new build; the table above is historical
-engine evidence, not a measurement of the newly integrated HTTP service.
+reviewed CPU parsing/decoding fixes. Local checks passed: workspace fmt/clippy,
+83 Rust tests (10 fixture/checkpoint/GPU tests ignored), release build, eight
+CUDA build-entry tests, eight benchmark tests and strict docs build.
+
+Linux `laya-run`, `omni-laya` and `omni-jev` were built from commit
+`10c14a34c870d9d4a6562e1dcf7ca787a716730f`. Subsequent changes only update docs
+and normalize blank context lines in the baseline reproduction patch; execution
+source and dependencies are byte-identical. The build used Rust 1.98.1 and the
+same pinned CUDA library, checkpoint and fixtures as the engine comparison.
+
+The new binaries passed actual H800 acceptance with those 12 fixtures:
+
+- Graph and eager CLI: 24 complete JSON responses exactly match the fixed
+  official reference; all 24 raw-head results match the original native engine
+  with exact FP32 bits and request-derived row widths.
+- Native worker and frontend proxy: 24 successful HTTP responses exactly match
+  the same official JSON. Four malformed-JSON/content-type requests return
+  422/415, and four health checks report ready before and after rejection.
+- All four child processes exit with code 0; the worker and frontend shut down
+  through SIGINT. Native process maps contain the registered CUDA library and
+  no Python/Torch runtime. The run's GPU processes and personal lock are released.
+
+JSON and raw-head comparisons use different references. The official reference
+comes from Laya 0.3.20's fast Graph path with selected RoPE and BF16 autocast.
+Four action values in `long_3`/`truncated_3` already differed from that reference
+in the original native engine; they remain unchanged here. Therefore this check
+establishes native implementation equivalence and exact response JSON for the
+fixed inputs, not bitwise raw-head agreement with PyTorch or general model quality.
+The first runner incorrectly mixed these two references; its failure was retained
+and corrected by binding the original native raw outputs, without adding tolerance.
+
+Complete responses, per-call output digests, test counts, binary/fixture/library
+identities and the original native raw reference are in `integration_validation` in
+[measurements.json](measurements.json). These are functional checks; current
+HTTP latency and inference-failure injection were not measured. The timing table
+above remains historical engine evidence.
 
 Build and reproduction commands are in the [recipe](README.md). Full model
 weight/tokenizer oracle checks remain explicit opt-in tests, with their pinned
