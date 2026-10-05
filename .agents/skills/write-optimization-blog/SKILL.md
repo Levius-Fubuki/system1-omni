@@ -1,6 +1,6 @@
 ---
 name: write-optimization-blog
-description: Write or update Markdown engineering blog posts that record inference optimization progress, explain implementation changes, and present sourced benchmarks with reproducible comparison figures.
+description: Write or update Markdown engineering blog posts with PR-by-PR inference optimization progress, isolated A/B records, implementation explanations, and sourced reproducible comparison figures.
 ---
 
 # Write an optimization blog
@@ -61,6 +61,30 @@ Use implementation and PR links near the relevant mechanism. Adapt the section
 structure to the material; a performance-first post, a debugging narrative and
 a stage-by-stage walkthrough need different emphasis. Verify quickstart commands
 against current recipes and separate implemented features from the target design.
+
+## Maintain a PR-by-PR progress record
+
+Include an experiment map linking each relevant PR to its implementation changes
+and A/B evidence. Split independently tested improvements within one PR into
+separate updates; a PR containing normalization, activation and graph changes
+needs more than one aggregate before/after row.
+
+For each update, record the date, bottleneck, implementation mechanism, isolated
+variable, measured baseline/candidate revisions or source hashes, fixed controls,
+timer, run budget and exclusions. Show both measured runs for both arms, relevant
+kernel and serving results separately, numerical/parity checks, acceptance gates
+and their outcome. Link raw samples, the frozen protocol and reproduction method.
+Preserve regressions, missed gates and rejected variants alongside improvements.
+
+Label regression checks as such; small nominal differences do not establish a
+speedup. When an improvement lacks an isolated A/B, mark that gap and define the
+missing comparison instead of assigning it part of a bundled backend gain.
+Obtaining new measurements still requires the user's experiment scope and budget.
+
+Append dated updates as PRs land without replacing earlier measurements with
+current-head claims. Retain distinct hardware, workloads and timer boundaries.
+Snapshot compact measured samples and source hashes when the underlying report is
+local or a PR description can change; state what remains outside the public record.
 
 ## Make figures from the evidence
 

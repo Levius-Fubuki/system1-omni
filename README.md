@@ -162,8 +162,8 @@ output-fidelity checks, and the CUDA comparison protocol. The
 [Open-Jev H200 results](recipe/open_jev/validation.md) cover 74 single-candidate
 requests and a matched comparison with raw HF Transformers and OpenJev-Fast.
 The [Open-Jev optimization notes](docs/blog/2026-10-05-open-jev-optimization.md)
-explain the native execution path, CUDA Graph cache behavior and Gated DeltaNet
-preparation changes, with figures and links to the separate experiments.
+record PR-by-PR Rust/CUDA changes and isolated A/B measurements, with figures,
+numerical checks and links to the separate experiments.
 
 ## Roadmap
 

@@ -21,10 +21,10 @@ plt.rcParams.update({
 })
 
 
-def bars(ax, rows, title, limit, colors, digits=3):
+def bars(ax, rows, title, limit, colors, digits=3, sample_key="pass_mean_ms"):
     for i, (row, color) in enumerate(zip(rows, colors)):
         ax.barh(i, row["mean_ms"], height=0.52, color=color, zorder=2)
-        ax.scatter(row["pass_mean_ms"], [i] * 2, s=23, color="#172033", zorder=3)
+        ax.scatter(row[sample_key], [i] * 2, s=23, color="#172033", zorder=3)
         ax.text(row["mean_ms"] + limit * 0.018, i,
                 f'{row["mean_ms"]:.{digits}f}', va="center", fontsize=11)
     ax.set_yticks(range(len(rows)), [row["label"] for row in rows])
@@ -83,3 +83,40 @@ save(fig, "gdn-kernel-http",
      "2026-10-03 · H200 · two separate A/B experiments · CUDA Graph disabled\n"
      "Kernel: seeded synthetic inputs, 100 calls/pass. HTTP: 74 real requests/pass, concurrency 1.\n"
      "Bars recomputed from raw records; black dots are two pass means. Each panel has its own zero-based scale.")
+
+fig, axes = plt.subplots(2, 2, figsize=(13.4, 8.5))
+fig.subplots_adjust(left=0.15, right=0.95, top=0.83, bottom=0.19, hspace=0.88, wspace=0.67)
+for row, experiment in enumerate(DATA["isolated_pr55"]):
+    label = "RMSNorm · Oct 1 · GPU 5" if row == 0 else "SiLU · Oct 2 · GPU 2"
+    bars(axes[row, 0], experiment["http_rows"], f"{label}: warm HTTP", 62,
+         [GRAY, BLUE])
+    bars(axes[row, 1], experiment["trace_rows"],
+         f'{experiment["trace_tokens"]:,} tokens · {experiment["trace_launches"]} launches',
+         2.35 if row == 0 else 26, [GRAY, BLUE], sample_key="trace_sum_ms")
+    axes[row, 1].set_xlabel("Kernel-family total per trace (ms)")
+fig.suptitle("PR #55: isolated RMSNorm and SiLU A/B results",
+             x=0.03, y=0.97, ha="left", fontsize=17, weight="bold")
+save(fig, "pr55-isolated-ab",
+     "H200 · BF16 · graph disabled · each row is an independent campaign with its own paired baseline\n"
+     "HTTP: 74 requests/pass, two pass means. Kernels: two separately captured request totals. Black dots show those repetitions.\n"
+     "HTTP collection inactive; CUPTI may remain loaded. Panels use different zero-based scales.")
+
+fig, axes = plt.subplots(2, 3, figsize=(14.4, 8.0))
+fig.subplots_adjust(left=0.09, right=0.97, top=0.82, bottom=0.20, hspace=0.85, wspace=0.73)
+for row, experiment in enumerate(DATA["regressions"]):
+    comparisons = [c for c in experiment["comparisons"] if c["model"] == "jev"]
+    for column, comparison in enumerate(comparisons):
+        rows = [{"label": arm.capitalize(),
+                 "mean_ms": comparison["means"][arm]["mean_latency_ms"],
+                 "pass_mean_ms": [p["mean_latency_ms"] for p in comparison["runs"][arm]]}
+                for arm in ("baseline", "candidate")]
+        bars(axes[row, column], rows,
+             f'PR #{experiment["pr"]} · concurrency {comparison["concurrency"]}',
+             max(r["mean_ms"] for r in rows) * 1.23, [GRAY, BLUE], digits=2)
+        axes[row, column].set_xlabel("Mean HTTP latency (ms)")
+fig.suptitle("PRs #78 and #80: Open-Jev regression checks, no speedup claim",
+             x=0.03, y=0.97, ha="left", fontsize=16, weight="bold")
+save(fig, "pr-regression-ab",
+     "2026-10-05 · H200 GPU 5 · BF16 · graph disabled · two independent direct-worker campaigns\n"
+     "64 synthetic multi-question/candidate requests/pass; two measured passes per arm and concurrency.\n"
+     "Black dots: pass means. Each panel starts at zero and has its own scale. All latency/throughput/p95 regression gates pass.")
