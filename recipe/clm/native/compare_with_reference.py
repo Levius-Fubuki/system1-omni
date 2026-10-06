@@ -144,7 +144,8 @@ def main() -> None:
 
     print(
         f"\n{'all cases agree' if not failures else str(failures) + ' FAILED'} "
-        f"(tolerance {args.tolerance:g}; the engine alone agrees to 3e-06 when the vectors are fixed)"
+        f"(tolerance {args.tolerance:g}; point --emb-url at recipe/clm/stub_embedder.py "
+        f"to measure the engine alone, on identical vectors)"
     )
     raise SystemExit(1 if failures else 0)
 
