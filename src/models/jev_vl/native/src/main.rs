@@ -47,11 +47,11 @@ async fn decide(engine: &Engine, raw: &[u8]) -> Response {
         Ok(body) => {
             let mut resp = Json(body).into_response();
             if !cache_note.is_empty() {
-                // R2d evidence side-channel; the response body stays untouched.
+                // Expose cache decisions without changing the response schema.
                 resp.headers_mut().insert(
                     "x-jev-cache",
                     axum::http::HeaderValue::from_str(&cache_note)
-                        .unwrap_or(axum::http::HeaderValue::from_static("l1=?,l2=?,l3=?,p=?")),
+                        .unwrap_or(axum::http::HeaderValue::from_static("l1=?,l3=?,p=?")),
                 );
             }
             resp
@@ -100,8 +100,7 @@ async fn fallback(uri: Uri, body: Bytes) -> Response {
     ))
 }
 
-/// R2d cache evidence: cumulative hit/miss counters + live budgets; the response
-/// body of /v1/systemone is untouched, so the frozen comparator is unaffected.
+/// Cumulative cache counters and resident sizes, separate from decision responses.
 async fn cache_stats(State(engine): State<Arc<Engine>>) -> Response {
     let s = engine.caches.snapshot();
     let cfg = &engine.caches.cfg;
@@ -162,3 +161,7 @@ async fn main() -> Result<()> {
     axum::serve(listener, app).await?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/jev_vl/http.rs"]
+mod http_tests;

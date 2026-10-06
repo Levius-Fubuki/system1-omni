@@ -1,5 +1,5 @@
 //! Native Rust/CUDA System-1 worker for autotrust/JEV-27B-VL: the merged text
-//! backbone runs one prefill per request on the shared qwen3_5 ABI-4 kernels, and
+//! backbone runs one prefill per request on the shared Qwen language kernels, and
 //! the trained verbalizer readout (24-slot head + calibration) turns the last
 //! hidden state into the official per-kind probability distribution.
 

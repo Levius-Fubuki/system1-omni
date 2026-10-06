@@ -26,9 +26,8 @@ name = "jev_vl_images"
 path = "../../../../tests/jev_vl/images.rs"
 
 [[test]]
-name = "jev_vl_readout"
-path = "../../../../tests/jev_vl/readout.rs"
-
-[[test]]
 name = "jev_vl_prefix"
 path = "../../../../tests/jev_vl/prefix.rs"
+
+[dev-dependencies]
+tempfile = "3"

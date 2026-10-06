@@ -1,0 +1,11 @@
+{
+ "pass": true,
+ "n_compared": 48,
+ "decision_parity": 1.0,
+ "max_abs_dp": 0.014215,
+ "tol": 0.025,
+ "noise_floor": 0.0093,
+ "decision_fails": [],
+ "prob_fails": [],
+ "error_fails": []
+}

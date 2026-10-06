@@ -82,6 +82,33 @@ fn image_state_becomes_placeholder_and_records_url() {
     );
 }
 
+#[test]
+fn image_url_part_matches_upstream_image_shorthand() {
+    let shorthand = compile_str(
+        r#"{"kind":"noul","state":["shot",{"image":"data:image/png;base64,AAAA"}],"question":"q?"}"#,
+    );
+    let typed = compile_str(
+        r#"{"kind":"noul","state":["shot",{"type":"image_url","image_url":{"url":"data:image/png;base64,AAAA"}}],"question":"q?"}"#,
+    );
+    assert_eq!(typed.images, shorthand.images);
+    assert_eq!(typed.prompt, shorthand.prompt);
+}
+
+#[test]
+fn system2_only_cannot_silently_return_system1() {
+    for value in ["true", "1", r#""true""#] {
+        let r = reject(&format!(
+            r#"{{"kind":"noul","question":"q?","system2_only":{value}}}"#,
+        ));
+        assert_eq!(r.status, 400);
+        assert_eq!(
+            r.body["error"]["message"],
+            "system2_only is not implemented by this worker"
+        );
+    }
+    compile_str(r#"{"kind":"noul","question":"q?","system2_only":false}"#);
+}
+
 fn reject(raw: &str) -> omni_jev_vl_native::contract::Reject {
     compile(raw.as_bytes(), &labels()).unwrap_err()
 }

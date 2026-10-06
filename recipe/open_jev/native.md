@@ -45,8 +45,7 @@ or an incomplete export. The saved limit defaults to 4096 tokens per candidate;
 The CUDA kernels require compute capability 8.0 or newer. The current build
 target below is Ada (`89`); pass your GPU's compute capability explicitly.
 The CUDA shared library and both Rust workers must be rebuilt together because
-the gated-attention entry point updates the library ABI to version 4 alongside
-the shared CUDA Graph entry points.
+the shared library ABI is version 6, including native vision and prefix-continuation entry points.
 
 ```sh
 src/backends/cuda/qwen3_5/build.sh target/release 89

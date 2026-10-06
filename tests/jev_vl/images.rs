@@ -77,3 +77,28 @@ fn placeholder_count_must_match_images() {
     let e = expand(&[PAD], PAD, &[]);
     assert!(e.is_err());
 }
+
+#[test]
+fn image_assets_reject_wrong_sources_and_invalid_grids() {
+    let dir = tempfile::tempdir().unwrap();
+    for (grid, url, model) in [
+        ([1, 2, 2], "other-url", "model"),
+        ([1, 2, 2], "url", "other-model"),
+        ([1, 3, 2], "url", "model"),
+        ([2, 2, 2], "url", "model"),
+        ([1, i64::MAX - 1, 4], "url", "model"),
+    ] {
+        std::fs::write(
+            dir.path().join("grid.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "grid_thw": grid, "n_tokens": 1,
+                "url_sha256": url, "model_index_sha256": model,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let error = ImageAsset::load(dir.path(), "url", "model").err().unwrap();
+        // Reject metadata before opening or allocating the embedding tensor.
+        assert!(!format!("{error:#}").contains("imgcache asset emb"));
+    }
+}

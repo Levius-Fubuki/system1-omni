@@ -9,6 +9,160 @@ use omni_jev_vl_native::caches::{CacheCfg, Caches, structure_key};
 use omni_jev_vl_native::contract::{self, Part};
 use omni_jev_vl_native::images::{ImageAsset, expand};
 
+// Compile the real cache implementation against a CPU-only prefix allocation.
+// PrefixState's device buffers are private, and these tests exercise cache
+// ownership/accounting, not CUDA operations or prefix numerical equivalence.
+extern crate self as omni_qwen3_5_native;
+
+pub mod model {
+    pub struct PrefixState {
+        pub bytes: usize,
+    }
+
+    impl PrefixState {
+        pub fn bytes(&self) -> usize {
+            self.bytes
+        }
+    }
+}
+
+pub mod images {
+    pub use omni_jev_vl_native::images::ImageAsset;
+}
+
+#[allow(dead_code)]
+#[path = "../../src/models/jev_vl/native/src/caches.rs"]
+mod cache_accounting;
+
+fn accounting_hub(budget: usize) -> Arc<cache_accounting::Caches> {
+    cache_accounting::Caches::new(cache_accounting::CacheCfg {
+        enabled: true,
+        l1: true,
+        l2: true,
+        l3: true,
+        l1_max: 64,
+        l2_bytes: 1 << 20,
+        l3_bytes: budget,
+    })
+}
+
+fn accounting_meta() -> cache_accounting::L1Meta {
+    cache_accounting::L1Meta {
+        pads_start: 10,
+        pads_end: 106,
+        p: 64,
+        base_pad: 10,
+        advance: 12,
+        asset_key: "image".into(),
+        ids_prefix: vec![0; 64],
+        positions_prefix: [vec![0; 64], vec![0; 64], vec![0; 64]],
+    }
+}
+
+#[test]
+fn publishing_prefix_enforces_budget_immediately() {
+    let cache = accounting_hub(2048);
+    for key in 1..=3 {
+        cache.record_insert(key, accounting_meta());
+        cache.record_publish_state(key, model::PrefixState { bytes: 1024 });
+    }
+    assert_eq!(cache.snapshot().l3_bytes, 2048);
+    assert!(cache.record_get(1).is_none());
+    assert!(cache.record_get(2).unwrap().state().is_some());
+    assert!(cache.record_get(3).unwrap().state().is_some());
+}
+
+#[test]
+fn oversized_prefix_is_not_retained() {
+    let cache = accounting_hub(1024);
+    let record = cache.record_insert(1, accounting_meta());
+    cache.record_publish_state(1, model::PrefixState { bytes: 2048 });
+    assert!(record.state().is_none());
+    assert_eq!(cache.snapshot().l3_bytes, 0);
+}
+
+#[test]
+fn zero_budget_disables_state_retention() {
+    let cache = accounting_hub(0);
+    let record = cache.record_insert(1, accounting_meta());
+    cache.record_publish_state(1, model::PrefixState { bytes: 1024 });
+    assert!(record.state().is_none());
+    assert_eq!(cache.snapshot().l3_bytes, 0);
+}
+
+#[test]
+fn zero_record_limit_retains_no_structure() {
+    let cache = hub(|cfg| cfg.l1_max = 0);
+    cache.record_insert(
+        1,
+        omni_jev_vl_native::caches::L1Meta {
+            pads_start: 10,
+            pads_end: 106,
+            p: 64,
+            base_pad: 10,
+            advance: 12,
+            asset_key: "image".into(),
+            ids_prefix: vec![0; 64],
+            positions_prefix: [vec![0; 64], vec![0; 64], vec![0; 64]],
+        },
+    );
+    assert!(cache.record_get(1).is_none());
+    assert_eq!(cache.snapshot().l1_records, 0);
+}
+
+#[test]
+fn repeated_publication_and_eviction_preserve_live_state() {
+    let cache = accounting_hub(1024);
+    let record = cache.record_insert(1, accounting_meta());
+    cache.record_publish_state(1, model::PrefixState { bytes: 1024 });
+    let in_flight = record.state().unwrap();
+    cache.record_publish_state(1, model::PrefixState { bytes: 1024 });
+    assert_eq!(cache.snapshot().l3_bytes, 1024);
+    assert!(Arc::ptr_eq(&in_flight, &record.state().unwrap()));
+
+    cache.record_insert(2, accounting_meta());
+    cache.record_publish_state(2, model::PrefixState { bytes: 1024 });
+    assert!(cache.record_get(1).is_none());
+    assert_eq!(cache.snapshot().l3_bytes, 1024);
+    assert_eq!(in_flight.bytes(), 1024);
+}
+
+#[test]
+fn stats_and_prefix_publication_finish_concurrently() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Barrier, mpsc};
+    use std::time::Duration;
+
+    let cache = accounting_hub(64 * 1024);
+    let start = Arc::new(Barrier::new(2));
+    let done = Arc::new(AtomicBool::new(false));
+    let (tx, rx) = mpsc::channel();
+    let publisher = cache.clone();
+    let publisher_start = start.clone();
+    let publisher_done = done.clone();
+    let publisher_tx = tx.clone();
+    std::thread::spawn(move || {
+        publisher_start.wait();
+        for key in 0..20_000 {
+            publisher.record_insert(key, accounting_meta());
+            publisher.record_publish_state(key, model::PrefixState { bytes: 1024 });
+        }
+        publisher_done.store(true, Ordering::Release);
+        publisher_tx.send(()).unwrap();
+    });
+    std::thread::spawn(move || {
+        start.wait();
+        while !done.load(Ordering::Acquire) {
+            cache.snapshot();
+        }
+        tx.send(()).unwrap();
+    });
+    for _ in 0..2 {
+        rx.recv_timeout(Duration::from_secs(10))
+            .expect("cache publication and stats must not deadlock");
+    }
+}
+
 fn asset(grid: [i64; 3]) -> Arc<ImageAsset> {
     let [t, h, w] = grid;
     let n = (t * h * w / 4) as usize;
@@ -131,11 +285,10 @@ fn manifest_suffix_split_matches_full_expand() {
         let tail = contract::tail_after_last_image(&compiled, &labels).unwrap();
         let grid = [1, 60, 60];
         let e = expand(
-            &tokenizer
+            tokenizer
                 .encode(compiled.prompt.as_str(), false)
                 .unwrap()
-                .get_ids()
-                .to_vec(),
+                .get_ids(),
             image_pad,
             &[asset(grid)],
         )
@@ -156,9 +309,9 @@ fn manifest_suffix_split_matches_full_expand() {
         assert_eq!(&ids[..], &e.ids[p..], "suffix ids diverge: {}", entry["id"]);
         let pos =
             omni_jev_vl_native::images::meshgrid_positions(grid, b.base, p - b.start, suffix_pads);
-        for a in 0..3 {
+        for (a, axis) in pos.iter().enumerate() {
             assert_eq!(
-                &pos[a][..],
+                &axis[..],
                 &e.positions[a][p..p + suffix_pads],
                 "suffix meshgrid diverges: {}",
                 entry["id"]

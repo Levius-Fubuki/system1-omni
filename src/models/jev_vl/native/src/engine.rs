@@ -17,7 +17,7 @@ pub struct Engine {
     pub processor: Processor,
     pub scheduler: SerialScheduler,
     pub executor: Executor,
-    /// R2d multi-level caches: processors/executors consult it; the HTTP layer
+    /// Shared caches: processors/executors consult them; the HTTP layer
     /// exposes its counters on /v1/cache/stats.
     pub caches: Arc<Caches>,
 }
@@ -66,7 +66,11 @@ impl Engine {
         );
         let head = Arc::new(LabelHead::load(dir, &manifest)?);
         let caches = Caches::new(CacheCfg::from_env());
-        let processor = Processor::load(dir, labels, max_length, caches.clone())?;
+        let model_index_hash = manifest["pins"]["model_index_sha256"]
+            .as_str()
+            .context("model_index_sha256")?
+            .to_owned();
+        let processor = Processor::load(dir, labels, max_length, model_index_hash, caches.clone())?;
         let executor = Executor::load(dir, library, head.clone(), caches.clone()).await?;
         Ok(Self {
             manifest,

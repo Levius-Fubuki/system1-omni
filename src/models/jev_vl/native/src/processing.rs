@@ -18,6 +18,7 @@ pub struct Processor {
     labels: Vec<String>,
     max_length: usize,
     imgcache: Option<PathBuf>,
+    model_index_hash: String,
     image_pad: u32,
     vision_end: u32,
     caches: Arc<Caches>,
@@ -44,6 +45,7 @@ impl Processor {
         dir: &Path,
         labels: Vec<String>,
         max_length: usize,
+        model_index_hash: String,
         caches: Arc<Caches>,
     ) -> Result<Self> {
         let tokenizer =
@@ -64,6 +66,7 @@ impl Processor {
             labels,
             max_length,
             imgcache: hub,
+            model_index_hash,
             image_pad,
             vision_end,
             caches,
@@ -78,10 +81,8 @@ impl Processor {
             .collect()
     }
 
-    /// Parsed-image-asset access keyed by sha256(url) — the R2d L2 vision layer
-    /// (process-local LRU + byte budget); the ancestor cache is a hit on this.
-    /// With caches disabled the asset is re-read and re-parsed on every request,
-    /// which is the honest no-cache counterfactual for the R2d pair.
+    /// Load a prepared image asset, reusing the bounded L2 cache when enabled.
+    /// With caches disabled, each request reads and parses the asset again.
     fn load_asset(&self, url: &str) -> Result<Arc<ImageAsset>, Reject> {
         let key = Self::url_key(url);
         if let Some(hit) = self.caches.l2_get(&key) {
@@ -95,7 +96,7 @@ impl Processor {
                 ));
             }
         };
-        let asset = ImageAsset::load(&dir)
+        let asset = ImageAsset::load(&dir, &key, &self.model_index_hash)
             .map_err(|e| Reject::bad_request(format!("image input is not preencoded: {e}")))?;
         self.caches.l2_insert(key, asset.clone());
         Ok(asset)
@@ -126,13 +127,13 @@ impl Processor {
             .map_err(|e| Reject::bad_request(format!("invalid readout setup: {e:#}")))?;
         let cfg = &self.caches.cfg;
         if compiled.images.is_empty() || !cfg.enabled {
-            // Text-only requests and the honest no-cache mode keep the R2b/R2c path.
+            // Text-only requests and disabled caches use a full forward.
             let text_ids = self.tokenize(&compiled.prompt)?;
             let (plan, input_tokens, note) = if compiled.images.is_empty() {
                 (
                     MmPlan::Text { ids: text_ids },
                     0,
-                    "l1=-,l2=-,l3=-,p=-".to_string(),
+                    "l1=-,l3=-,p=-".to_string(),
                 )
             } else {
                 let assets: Vec<Arc<ImageAsset>> = compiled
@@ -146,7 +147,7 @@ impl Processor {
                 (
                     MmPlan::Full(expanded_mm(e, &assets)),
                     n,
-                    "l1=off,l2=*,l3=off,p=-".to_string(),
+                    "l1=off,l3=off,p=-".to_string(),
                 )
             };
             let input_tokens = match &plan {
@@ -221,7 +222,7 @@ impl Processor {
                         readout,
                         compiled,
                         start,
-                        format!("l1=hit,l2=hit,l3=hit,p={p}"),
+                        format!("l1=hit,l3=hit,p={p}"),
                     );
                 }
                 (true, None) => {
@@ -233,7 +234,7 @@ impl Processor {
                         readout,
                         compiled,
                         start,
-                        format!("l1=hit,l2=hit,l3=miss,p={p}"),
+                        format!("l1=hit,l3=miss,p={p}"),
                     );
                 }
                 (false, _) => {
@@ -244,7 +245,7 @@ impl Processor {
                         readout,
                         compiled,
                         start,
-                        "l1=hit,l2=hit,l3=off,p=-".to_string(),
+                        "l1=hit,l3=off,p=-".to_string(),
                     );
                 }
             }
@@ -276,7 +277,7 @@ impl Processor {
                     readout,
                     compiled,
                     start,
-                    format!("l1=miss,l2=hit,l3=miss,p={p}"),
+                    format!("l1=miss,l3=miss,p={p}"),
                 );
             }
             return self.finish_c(
@@ -285,7 +286,7 @@ impl Processor {
                 readout,
                 compiled,
                 start,
-                "l1=miss,l2=hit,l3=off,p=-".to_string(),
+                "l1=miss,l3=off,p=-".to_string(),
             );
         }
         self.finish_c(
@@ -294,7 +295,7 @@ impl Processor {
             readout,
             compiled,
             start,
-            "l1=miss,l2=hit,l3=off,p=-".to_string(),
+            "l1=miss,l3=off,p=-".to_string(),
         )
     }
 

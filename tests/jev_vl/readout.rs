@@ -1,9 +1,7 @@
 //! Frozen numeric pins for the verbalizer readout math (constants computed with
 //! CPython over the same f64 formula against this test's pattern).
 
-use std::collections::HashMap;
-
-use omni_jev_vl_native::executor::{LabelHead, Readout};
+use super::{LabelHead, Readout};
 
 fn head() -> LabelHead {
     // rows[3][64]; row t element i = ((t*64+i)*5 % 11 - 5) / 7.
@@ -13,14 +11,16 @@ fn head() -> LabelHead {
             rows.push((((t * 64 + i) * 5 % 11) as i32 - 5) as f32 / 7.0);
         }
     }
-    LabelHead::from_parts(vec![15, 16, 17], rows, 64)
+    LabelHead {
+        width: 64,
+        rows,
+        index: [(15, 0), (16, 1), (17, 2)].into_iter().collect(),
+    }
 }
 
 #[test]
 fn probabilities_match_python_f64() {
-    let hidden: Vec<f32> = (0..64)
-        .map(|i| ((i as i32 * 7 % 13) - 6) as f32 / 9.0)
-        .collect();
+    let hidden: Vec<f32> = (0..64).map(|i| ((i * 7 % 13) - 6) as f32 / 9.0).collect();
     let readout = Readout {
         token_ids: vec![15, 16, 17],
         bias: vec![0.001, -0.002, 0.0005],
@@ -39,9 +39,7 @@ fn probabilities_match_python_f64() {
 fn softmax_is_shift_invariant_to_minus_logz() {
     // The official readout subtracts per-request -logZ before bias/T; the stable
     // softmax must be invariant, which is why logits suffice.
-    let hidden: Vec<f32> = (0..64)
-        .map(|i| ((i as i32 * 7 % 13) - 6) as f32 / 9.0)
-        .collect();
+    let hidden: Vec<f32> = (0..64).map(|i| ((i * 7 % 13) - 6) as f32 / 9.0).collect();
     let readout = |shift: f64| Readout {
         token_ids: vec![15, 16, 17],
         bias: vec![0.001 + shift, -0.002 + shift, 0.0005 + shift],
@@ -57,7 +55,7 @@ fn softmax_is_shift_invariant_to_minus_logz() {
 #[test]
 fn missing_exported_label_is_rejected() {
     let mut h = head();
-    h.drop_row(17);
+    h.index.remove(&17);
     let readout = Readout {
         token_ids: vec![15, 16, 17],
         bias: vec![0.0; 3],
@@ -66,6 +64,3 @@ fn missing_exported_label_is_rejected() {
     let hidden = vec![0.0f32; 64];
     assert!(h.probabilities(&hidden, &readout).is_err());
 }
-
-#[allow(dead_code)]
-fn _unused(_: HashMap<u32, usize>) {}

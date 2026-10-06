@@ -4,6 +4,9 @@
 //!
 //!     CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
 //!       cargo test --release -p omni-qwen3-5-native --test kernels -- --ignored
+//!
+//! The prefix-state ownership test additionally needs QWEN3_5_CHECKPOINT pointing
+//! to a supported local checkpoint; it loads two instances sequentially.
 
 use std::path::PathBuf;
 
@@ -627,6 +630,96 @@ fn f32_from_device(buf: &DeviceBuffer, n: usize, st: Stream) -> Vec<f32> {
 }
 
 #[test]
+#[ignore = "needs a GPU, CUA_S1_CUDA_LIB, and QWEN3_5_CHECKPOINT"]
+fn prefix_state_rejects_uncaptured_and_foreign_model() {
+    use omni_qwen3_5_native::inputs::MultimodalInput;
+    use omni_qwen3_5_native::model::Model;
+
+    let library = PathBuf::from(std::env::var_os("CUA_S1_CUDA_LIB").expect("set CUA_S1_CUDA_LIB"));
+    let checkpoint =
+        PathBuf::from(std::env::var_os("QWEN3_5_CHECKPOINT").expect("set QWEN3_5_CHECKPOINT"));
+    let mut first = Model::load(&checkpoint, &library).unwrap();
+    let mut state = first.alloc_prefix(64).unwrap();
+    let ids = vec![0u32; state.token_count()];
+    let positions: Vec<i64> = (0..state.token_count() as i64).collect();
+    let input = MultimodalInput {
+        token_ids: &ids,
+        image_token_indices: &[],
+        image_embeddings: &[],
+        position_ids: [&positions; 3],
+    };
+    let error = first
+        .forward_multimodal_continue(&input, &state)
+        .unwrap_err();
+    assert!(error.to_string().contains("has not completed capture"));
+
+    // Retain only the prefix while replacing the model; never hold two sets of
+    // checkpoint weights on the GPU. The old identity must remain distinct.
+    drop(first);
+    let mut second = Model::load(&checkpoint, &library).unwrap();
+    let error = second
+        .forward_multimodal_capture(&input, &mut state)
+        .unwrap_err();
+    assert!(error.to_string().contains("different model instance"));
+    let error = second
+        .forward_multimodal_continue(&input, &state)
+        .unwrap_err();
+    assert!(error.to_string().contains("different model instance"));
+}
+
+#[test]
+#[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
+fn gdn_empty_window_captures_state_copy_and_zero_initial_state() {
+    let st = setup();
+    let h = 2usize;
+    let n = h * 128 * 128;
+    let state = f32_to_device(&vec![1.0; n], st);
+    let output = f32_to_device(&vec![2.0; n], st);
+    let empty_window = |input: *const std::ffi::c_void| {
+        // SAFETY: T=0 touches only the optional input and output state buffers,
+        // both sized [H,128,128] FP32; token and workspace pointers are unused.
+        unsafe {
+            check(
+                (api().cs1_gdn_prefill_x)(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    0,
+                    h as i32,
+                    1,
+                    1.0,
+                    input,
+                    output.at(0),
+                    st,
+                ),
+                "empty gdn window",
+            )
+        }
+    };
+    let copy = cuda::Graph::capture(st, || empty_window(state.at(0))).unwrap();
+    let updated: Vec<u8> = vec![3.0f32; n]
+        .iter()
+        .flat_map(|x| x.to_le_bytes())
+        .collect();
+    // Change the source after capture: a default-stream copy during capture
+    // cannot substitute for the copy that must execute on every graph launch.
+    // SAFETY: state holds exactly n float32 values.
+    unsafe { cuda::upload(state.at(0), &updated, st).unwrap() };
+    copy.launch(st).unwrap();
+    assert_eq!(f32_from_device(&output, n, st), vec![3.0; n]);
+
+    let zero = cuda::Graph::capture(st, || empty_window(std::ptr::null())).unwrap();
+    // SAFETY: output holds exactly n float32 values; poison it after capture.
+    unsafe { cuda::upload(output.at(0), &updated, st).unwrap() };
+    zero.launch(st).unwrap();
+    assert_eq!(f32_from_device(&output, n, st), vec![0.0; n]);
+}
+
+#[test]
 #[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
 fn device_copy_helpers_roundtrip() {
     let st = setup();
@@ -651,6 +744,87 @@ fn device_copy_helpers_roundtrip() {
         .copied()
         .collect();
     assert_eq!(from_device(&dst, rows * w, st), want);
+}
+
+#[test]
+#[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
+fn gdn_conv_continuation_uses_cached_history() {
+    let st = setup();
+    let prefix = 64usize;
+    let (key_dim, value_dim, heads) = (16 * 128usize, 48 * 128usize, 48usize);
+    let channels = 2 * key_dim + value_dim;
+    let ld = channels + value_dim + 2 * heads;
+    let weights = to_device(&vec![bf16::from_f32(0.25); channels * 4], st);
+    let conv = |source: &DeviceBuffer, start: usize, rows: usize| {
+        let q = DeviceBuffer::new(rows * key_dim * 2).unwrap();
+        let k = DeviceBuffer::new(rows * key_dim * 2).unwrap();
+        let v = DeviceBuffer::new(rows * value_dim * 2).unwrap();
+        // SAFETY: source contains start + rows complete pitched rows; outputs
+        // contain rows of the corresponding Q/K/V widths.
+        unsafe {
+            check(
+                (api().cs1_gdn_conv)(
+                    source.at(start * ld * 2),
+                    ld as i32,
+                    weights.at(0),
+                    q.at(0),
+                    k.at(0),
+                    v.at(0),
+                    rows as i32,
+                    key_dim as i32,
+                    value_dim as i32,
+                    st,
+                ),
+                "gdn conv continuation",
+            )
+            .unwrap();
+        }
+        [
+            from_device(&q, rows * key_dim, st),
+            from_device(&k, rows * key_dim, st),
+            from_device(&v, rows * value_dim, st),
+        ]
+    };
+    for rows in [1usize, 2, 3, 4, 65] {
+        let total = prefix + rows;
+        // Positive inputs and taps make omission of any history row observable.
+        let projection: Vec<bf16> = random(total * ld, 37, 0.5)
+            .iter()
+            .map(|x| bf16::from_f32(x.to_f32().abs() + 0.25))
+            .collect();
+        let source = to_device(&projection, st);
+        let full = conv(&source, 0, total);
+        let tail = DeviceBuffer::new(3 * ld * 2).unwrap();
+        let window = DeviceBuffer::new((rows + 3) * ld * 2).unwrap();
+        // SAFETY: capture three prefix rows, restore them ahead of the suffix,
+        // and copy the suffix into the remaining non-overlapping window rows.
+        unsafe {
+            cuda::copy_dd(tail.at(0), source.at((prefix - 3) * ld * 2), 3 * ld * 2, st).unwrap();
+            cuda::copy_dd(window.at(0), tail.at(0), 3 * ld * 2, st).unwrap();
+            cuda::copy_dd(
+                window.at(3 * ld * 2),
+                source.at(prefix * ld * 2),
+                rows * ld * 2,
+                st,
+            )
+            .unwrap();
+        }
+        let restored = conv(&window, 0, rows + 3);
+        let missing_history = conv(&window, 3, rows);
+        for (i, width) in [key_dim, key_dim, value_dim].into_iter().enumerate() {
+            let expected = &full[i][prefix * width..];
+            assert_eq!(
+                &restored[i][3 * width..],
+                expected,
+                "cached conv history diverges for output {i}, suffix rows={rows}"
+            );
+            assert_ne!(
+                &missing_history[i][..rows.min(3) * width],
+                &expected[..rows.min(3) * width],
+                "fixture must detect the old suffix-only conv call"
+            );
+        }
+    }
 }
 
 #[test]

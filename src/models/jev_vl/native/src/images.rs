@@ -19,18 +19,27 @@ impl ImageAsset {
         (t * h * w / 4) as usize
     }
 
-    pub fn load(dir: &Path) -> Result<Arc<Self>> {
+    pub fn load(dir: &Path, url_hash: &str, model_index_hash: &str) -> Result<Arc<Self>> {
         let grid: serde_json::Value = serde_json::from_slice(
             &std::fs::read(dir.join("grid.json")).context("imgcache asset grid.json")?,
         )?;
-        let thw: Vec<i64> = serde_json::from_value(grid["grid_thw"].clone())?;
         ensure!(
-            thw.len() == 3 && thw.iter().all(|&v| v >= 1),
-            "invalid grid_thw"
+            grid["url_sha256"].as_str() == Some(url_hash)
+                && grid["model_index_sha256"].as_str() == Some(model_index_hash),
+            "image asset source does not match the request and model index"
         );
-        let asset_n = (thw[0] * thw[1] * thw[2] / 4) as usize;
+        let thw: [i64; 3] = serde_json::from_value(grid["grid_thw"].clone())?;
         ensure!(
-            grid["n_tokens"].as_i64() == Some(asset_n as i64),
+            thw[0] == 1 && thw[1] > 0 && thw[2] > 0 && thw[1] % 2 == 0 && thw[2] % 2 == 0,
+            "expected one image with an even, positive spatial grid"
+        );
+        let asset_n = thw[1]
+            .checked_mul(thw[2])
+            .and_then(|v| usize::try_from(v / 4).ok())
+            .context("image grid is too large")?;
+        ensure!(asset_n <= 32768, "image exceeds the supported token limit");
+        ensure!(
+            grid["n_tokens"].as_u64() == Some(asset_n as u64),
             "grid.json n_tokens mismatch"
         );
         let data = std::fs::read(dir.join("emb.safetensors")).context("imgcache asset emb")?;
@@ -42,8 +51,10 @@ impl ImageAsset {
         );
         let embeddings: Vec<half::bf16> = rows
             .data()
-            .chunks_exact(2)
-            .map(|b| half::bf16::from_le_bytes(b.try_into().unwrap()))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| half::bf16::from_le_bytes(*b))
             .collect();
         ensure!(
             embeddings.iter().all(|x| x.is_finite()),
@@ -63,7 +74,7 @@ pub struct Expanded {
     pub positions: [Vec<i64>; 3],
     pub embeddings: Vec<half::bf16>,
     /// Each image's pad run in expanded-id coordinates plus its position base
-    /// and mrope advance — the R2d cache anchor geometry.
+    /// and mrope advance, used to split a cached prefix from the question.
     pub blocks: Vec<ImageBlock>,
 }
 

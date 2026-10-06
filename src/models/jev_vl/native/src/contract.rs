@@ -138,7 +138,7 @@ pub fn parts(state: &Value) -> (Vec<Part>, Vec<String>) {
                         out.push(Part::Image(images.last().unwrap().clone()));
                     }
                     Value::Object(map)
-                        if map.get("type").and_then(Value::as_str) == Some("image") =>
+                        if map.get("type").and_then(Value::as_str) == Some("image_url") =>
                     {
                         let url = map
                             .get("image_url")
@@ -243,6 +243,14 @@ pub fn compile(raw: &[u8], labels: &[String]) -> Result<Compiled, Reject> {
             }
         }
     }
+    if request
+        .get("system2_only")
+        .is_some_and(|value| value != &Value::Bool(false))
+    {
+        return Err(Reject::bad_request(
+            "system2_only is not implemented by this worker",
+        ));
+    }
     if let Some(strategy) = request.get("strategy").and_then(Value::as_str)
         && !matches!(strategy, "auto" | "single")
     {
@@ -316,7 +324,7 @@ pub fn compile(raw: &[u8], labels: &[String]) -> Result<Compiled, Reject> {
 }
 
 /// The prompt tail after the last image placeholder, rebuilt exactly as
-/// `compile` would have it. The R2d L1 hit path tokenizes only this suffix;
+/// `compile` would have it. The L1 hit path tokenizes only this suffix;
 /// `<|vision_end|>` is a special token (always atomic to BPE), so the split
 /// concatenation equals a whole-prompt tokenization bit for bit.
 /// None when the state carries no image (=> no prefix structure).

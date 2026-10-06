@@ -1,0 +1,103 @@
+{
+  "status": "historical experiment; current integrated head not GPU-validated",
+  "job_id": 413512,
+  "timestamp_start": "2026-10-06T15:18:43+08:00",
+  "timestamp_end": "2026-10-06T15:21:42+08:00",
+  "hardware": {
+    "gpu": "NVIDIA H800 80GB",
+    "device_count": 1,
+    "compute_capability": "sm_90"
+  },
+  "measured_source": {
+    "base_commit": "7f39ac40902c374803992407bb26eeba29c8a588",
+    "local_changes": true,
+    "cuda_abi": 4,
+    "candidate_snapshot_patch_sha256": "14646add7f73a506f404462326b94524204f8371849f8aa0252ae33d0215fe84",
+    "candidate_snapshot_newfiles_tar_sha256": "dbc042f5b4bb5daaec3118ffb96e5fdb299b2921d5708b44a43b7894ee81daa6",
+    "note": "Source snapshots were saved after this run. Their hashes identify the retained archive, not a measured binary attestation."
+  },
+  "checkpoint": {
+    "repo": "autotrust/JEV-27B-VL",
+    "revision": "f34b598d4ef4bcefd337bee8d8e7ddd3b7733ccc",
+    "export_format": "jev-vl-text-merged/1",
+    "pins": {
+      "model_index_sha256": "77042094076611b69791a610065f28b7013b8c621795fa86ddccc8bac7d1b9df",
+      "adapter_config_sha256": "5ae16c5e11f37c5a67ec0e3b16d871fcc19c069090c1e42a6289f63c8067f6b6",
+      "adapter_model_sha256": "c26cb3fb6d43eaf734cfef74afc40172d30459f6a6bd47e3cfa1f8e866ed6bd9",
+      "decision_head_sha256": "79fc56c3a030204a2410e6347272fb27facfe299f2f8c0a714e78fc6f8062776",
+      "calibration_sha256": "902f4f26fdf1b92224c32b706ee6cea381f6465621c82975bf7e0023c02d9dd2"
+    }
+  },
+  "reference": {
+    "backend": "vLLM 0.31.0 with upstream serve_decide.py",
+    "torch": "2.13.0+cu130",
+    "capture_job": 412885,
+    "same_checkpoint": true,
+    "contemporaneous_to_job_413512": false
+  },
+  "workload": {
+    "description": "36 synthetic support-text prompts and 12 questions about one synthetic 960x960 color/noise PNG; not an accuracy benchmark",
+    "parity_requests": 48,
+    "error_probes": 8,
+    "performance_requests_per_pass": 12,
+    "performance_passes": 2,
+    "concurrency": 1,
+    "warmup_per_pass": 12,
+    "manifest_sha256": "f72d1beaaaf53933d0a6edda26b635f46931990d8cdb56ca5c6a7ca94d2eb0ee",
+    "img12_manifest_sha256": "880b513d9137c4f482fd8246a1a8f628e6352d8914467be94365c4ea5865dce5",
+    "manifest_in_this_repository": true,
+    "manifest_storage": "manifest-template.jsonl + image.png; restore_manifest.py reconstructs and verifies original bytes"
+  },
+  "timing": {
+    "boundary": "worker-direct localhost HTTP through response JSON parsing; excludes client serialization, loading, image preencoding and warmup",
+    "cache_controls": "JEV_VL_CACHE=0 versus JEV_VL_CACHE=1 on the same worker binary and GPU; prepared image files exist in both modes",
+    "off_p50_seconds": 0.10326676722615957,
+    "all_p50_seconds": 0.03548599220812321,
+    "off_div_all_p50": 2.9100712929345813,
+    "errors": 0,
+    "memory": "No peak-memory sample; historical resident L3 accounting was 643384320 bytes for three entries."
+  },
+  "audit_limits": [
+    "Both measured configurations exclude vision encoding.",
+    "The historical 3.02x report belongs to job 413490; job 413512 is 2.91x.",
+    "Bench filenames were reused across jobs; these copied rows are the later 413512 rows.",
+    "Comparator checks selected decision fields and probability tolerance, not the full API schema or token accounting.",
+    "Measured source/binary snapshots are not included; frozen reference responses are stored in evidence/reference."
+  ],
+  "comparator_sha256": "1189130bb6029656a2e38068faad5d47b2411751373d4f477c4e7756dd51864e",
+  "job_log_sha256": "9497f8eea4ef049c4bc508ad962bb8e36e65851f3d67d1ccb85b3c0812d69c48",
+  "files": [
+    {
+      "file": "raw-r2d-off-c1-p0.jsonl",
+      "sha256": "72be127289970f93e8e98e84ab6d7b5f0cc726506fd81f6b5e378687ac64da6c"
+    },
+    {
+      "file": "raw-r2d-off-c1-p1.jsonl",
+      "sha256": "70a55412cd02407fc3c043c7faf0072cff3c520e5a8ff6cf59db241fed0db242"
+    },
+    {
+      "file": "raw-r2d-all-c1-p0.jsonl",
+      "sha256": "e2edaefab68b54de12ac54c58130b46ce99f2fbff86dc3ad13df3139bf5e59ae"
+    },
+    {
+      "file": "raw-r2d-all-c1-p1.jsonl",
+      "sha256": "88676e12964e16af05b7365e8db241305d8e1408642e9a3c50e1e145807e6765"
+    },
+    {
+      "file": "parity-off.json",
+      "sha256": "260557dd8e0aaf1c0d2a32d168ecbaaf94d4ccb910c080590a0601f57862a10c"
+    },
+    {
+      "file": "parity-all.json",
+      "sha256": "42f6bf76a9c96b15169770939aac4239eb4b66b0f04af63d918f8af7bdfa9db3"
+    },
+    {
+      "file": "manifest-template.jsonl",
+      "sha256": "a8632193319957ff871aec445f42ff4ed3ed61e4ee1041f794b6bf0bb056d556"
+    },
+    {
+      "file": "image.png",
+      "sha256": "1ecac9a2296811ff6b6d0c4dd600cd950e886cabaec1b02e84ef3f339b4b4331"
+    }
+  ]
+}

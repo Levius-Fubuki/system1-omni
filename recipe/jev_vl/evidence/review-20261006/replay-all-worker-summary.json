@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "concurrency": 1,
+  "measured": 48,
+  "warmup": 4,
+  "failures": 0,
+  "max_diff": 0.014215078102716272,
+  "mean_s": 0.03906051603068287,
+  "median_s": 0.03310788609087467
+}

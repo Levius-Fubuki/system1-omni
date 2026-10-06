@@ -1,0 +1,71 @@
+{
+  "job_id": 413597,
+  "concurrency": 1,
+  "cache_off": {
+    "n": 24,
+    "median_s": 0.1028826804831624,
+    "mean_s": 0.10432342742569745,
+    "passes": [
+      {
+        "pass": 0,
+        "n": 12,
+        "median_s": 0.10235126037150621,
+        "mean_s": 0.10359998761365811
+      },
+      {
+        "pass": 1,
+        "n": 12,
+        "median_s": 0.10432492196559906,
+        "mean_s": 0.10504686723773678
+      }
+    ]
+  },
+  "cache_all": {
+    "n": 24,
+    "median_s": 0.03703667502850294,
+    "mean_s": 0.037439350582038365,
+    "passes": [
+      {
+        "pass": 0,
+        "n": 12,
+        "median_s": 0.037320785224437714,
+        "mean_s": 0.03797944293667873
+      },
+      {
+        "pass": 1,
+        "n": 12,
+        "median_s": 0.03678498836234212,
+        "mean_s": 0.036899258227398
+      }
+    ]
+  },
+  "off_div_all_median": 2.777859524484453,
+  "parity": {
+    "off": {
+      "pass": true,
+      "n_compared": 48,
+      "decision_parity": 1.0,
+      "max_abs_dp": 0.021545,
+      "tol": 0.025,
+      "noise_floor": 0.0093,
+      "decision_fails": [],
+      "prob_fails": [],
+      "error_fails": []
+    },
+    "all": {
+      "pass": true,
+      "n_compared": 48,
+      "decision_parity": 1.0,
+      "max_abs_dp": 0.014215,
+      "tol": 0.025,
+      "noise_floor": 0.0093,
+      "decision_fails": [],
+      "prob_fails": [],
+      "error_fails": []
+    }
+  },
+  "portable_replay_measured": 192,
+  "portable_replay_failures": 0,
+  "frontend_errors_per_mode": 7,
+  "unsupported_frontend_chat_status": 404
+}

@@ -1,5 +1,4 @@
-//! R2d multi-level prefix caches (see runs/20261006-jev-vl-native-r2/docs/
-//! r2d-multilevel-cache.md):
+//! Process-local caches for prepared images and reusable language prefixes.
 //!
 //! - L1 processor: a per-prefix-structure record. Key = sha256 over the exact
 //!   request structure (kind + every state part: text verbatim / image url).
@@ -9,8 +8,8 @@
 //!   (`<|vision_end|>` onward) is always tokenized fresh per question.
 //! - L2 vision: parsed image assets (adapter output rows + grid) keyed by
 //!   sha256(url) — the same key form as the offline imgcache directory. A hit
-//!   skips the disk read + safetensors parse + validation (= the worker-side
-//!   stand-in for the encoder run: the ViT itself lives in offline preencode).
+//!   skips the disk read, safetensors parsing and validation. Vision encoding
+//!   runs offline and is not part of this cache lookup.
 //! - L3 KV prefix: the device-side prefix state (per-full-attention-layer
 //!   post-prep K and raw V rows; per-GDN-layer float32 recurrent state + conv
 //!   tail). Holders are `Arc<PrefixState>`; a continuation reads it while the
@@ -22,7 +21,7 @@
 //! JEV_VL_CACHE=0 and per level by JEV_VL_L1/L2/L3=0 (A/B decomposition).
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use omni_qwen3_5_native::model::PrefixState;
 
@@ -38,7 +37,7 @@ pub struct CacheCfg {
     pub l1_max: usize,
     /// L2 parsed-asset budget in bytes.
     pub l2_bytes: usize,
-    /// L3 device-state budget in bytes.
+    /// L3 retained device-state budget in bytes; zero disables retention.
     pub l3_bytes: usize,
 }
 
@@ -125,12 +124,12 @@ struct Registry {
 pub struct PrefixRecord {
     pub key: u64,
     pub meta: L1Meta,
-    state: Mutex<Option<Arc<PrefixState>>>,
+    state: OnceLock<Arc<PrefixState>>,
 }
 
 impl PrefixRecord {
     pub fn state(&self) -> Option<Arc<PrefixState>> {
-        self.state.lock().ok().and_then(|s| s.clone())
+        self.state.get().cloned()
     }
 }
 
@@ -142,7 +141,7 @@ struct L2Store {
     budget: usize,
 }
 
-/// All R2d cache state, shared by the processor and the executor.
+/// Cache state shared by the processor and executor.
 pub struct Caches {
     pub cfg: CacheCfg,
     l2: Mutex<L2Store>,
@@ -268,14 +267,14 @@ impl Caches {
     }
 
     /// Insert a new structural record, evicting LRU records over the record
-    /// count or the L3 state budget (evicted device states drop with their Arc).
+    /// count (evicted device states drop with their Arc).
     pub fn record_insert(&self, key: u64, meta: L1Meta) -> Arc<PrefixRecord> {
         let rec = Arc::new(PrefixRecord {
             key,
-            state: Mutex::new(None),
+            state: OnceLock::new(),
             meta,
         });
-        if !(self.cfg.enabled && self.cfg.l1) {
+        if !(self.cfg.enabled && self.cfg.l1) || self.cfg.l1_max == 0 {
             return rec;
         }
         if let Ok(mut r) = self.registry.lock() {
@@ -285,12 +284,11 @@ impl Caches {
             if let Some(old) = r.map.insert(key, rec.clone()) {
                 r.meta_bytes = r.meta_bytes.saturating_sub(old.meta.bytes());
                 if let Some(s) = old.state() {
-                    r.state_bytes = r.state_bytes.saturating_sub(s.bytes);
+                    r.state_bytes = r.state_bytes.saturating_sub(s.bytes());
                 }
             }
             loop {
-                let over = r.map.len() > r.max_records
-                    || (r.state_budget > 0 && r.state_bytes > r.state_budget);
+                let over = r.map.len() > r.max_records;
                 if !over || r.lru.len() <= 1 {
                     break;
                 }
@@ -302,7 +300,7 @@ impl Caches {
                 if let Some(old) = r.map.remove(&evict) {
                     r.meta_bytes = r.meta_bytes.saturating_sub(old.meta.bytes());
                     if let Some(s) = old.state() {
-                        r.state_bytes = r.state_bytes.saturating_sub(s.bytes);
+                        r.state_bytes = r.state_bytes.saturating_sub(s.bytes());
                     }
                 }
             }
@@ -311,25 +309,39 @@ impl Caches {
     }
 
     /// Publish the device state for a record the executor just populated;
-    /// budgets accounted. No-op when the record was already populated or evicted.
+    /// Enforce the retained-state budget before publication. No-op when the
+    /// record was already populated, evicted, or larger than the budget.
     pub fn record_publish_state(&self, key: u64, state: PrefixState) {
-        let arc = Arc::new(state);
-        if let Some(rec) = self
-            .registry
-            .lock()
-            .ok()
-            .and_then(|r| r.map.get(&key).cloned())
-        {
-            let bytes = arc.bytes;
-            if let Ok(mut slot) = rec.state.lock() {
-                if slot.is_none() {
-                    *slot = Some(arc);
-                    if let Ok(mut r) = self.registry.lock() {
-                        r.state_bytes = r.state_bytes.saturating_add(bytes);
-                    }
+        if !(self.cfg.enabled && self.cfg.l3) {
+            return;
+        }
+        let Ok(mut r) = self.registry.lock() else {
+            return;
+        };
+        let Some(rec) = r.map.get(&key).cloned() else {
+            return;
+        };
+        let bytes = state.bytes();
+        if rec.state.get().is_some() || bytes > r.state_budget || r.state_budget == 0 {
+            return;
+        }
+        // Publication and eviction share the registry lock. A state is immutable
+        // once published, so readers never need a second, oppositely ordered lock.
+        r.lru.retain(|k| *k != key);
+        r.lru.push_back(key);
+        while r.state_bytes > r.state_budget - bytes {
+            let Some(evict) = r.lru.pop_front() else {
+                return;
+            };
+            if let Some(old) = r.map.remove(&evict) {
+                r.meta_bytes = r.meta_bytes.saturating_sub(old.meta.bytes());
+                if let Some(s) = old.state() {
+                    r.state_bytes = r.state_bytes.saturating_sub(s.bytes());
                 }
             }
         }
+        let _ = rec.state.set(Arc::new(state));
+        r.state_bytes += bytes;
     }
 
     pub fn l3_hit(&self) {

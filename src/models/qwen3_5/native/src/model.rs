@@ -12,6 +12,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::ffi::c_void;
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::{Context, Result, bail, ensure};
 use serde_json::Value as Json;
@@ -559,9 +560,11 @@ impl Scratch {
 /// pre-conv projection columns feeding the conv window. States belong to the
 /// prefix itself; a continuation seeds its own scratch from them, read-only.
 pub struct PrefixState {
+    owner: Arc<()>,
+    initialized: bool,
     /// Tokens this prefix covers; always a multiple of 64 (the GDN chunk length),
     /// which also aligns the flash-attention key tiles of the one-shot pass.
-    pub len: usize,
+    len: usize,
     /// Post-prep K [len, Hk*Dh] and raw V [len, Hk*Dh] rows per full-attention layer.
     attn_kv: Vec<(DeviceBuffer, DeviceBuffer)>,
     /// Float32 [H, K, V] recurrent states, one per Gated DeltaNet layer.
@@ -569,11 +572,24 @@ pub struct PrefixState {
     /// Three pre-conv projection columns [3, gdn_in width], one per Gated DeltaNet layer.
     conv_tail: Vec<DeviceBuffer>,
     /// Total device bytes, for cache-budget accounting by the caller.
-    pub bytes: usize,
+    bytes: usize,
+}
+
+impl PrefixState {
+    /// Number of tokens covered by this nonempty prefix.
+    pub fn token_count(&self) -> usize {
+        self.len
+    }
+
+    /// Device allocation size used by cache-budget accounting.
+    pub fn bytes(&self) -> usize {
+        self.bytes
+    }
 }
 
 pub struct Model {
     pub cfg: Config,
+    prefix_owner: Arc<()>,
     _weights: Weights,
     embed: Tensor,
     final_norm: Tensor,
@@ -666,6 +682,7 @@ impl Model {
         ensure!(!gemm.is_null(), "cuBLASLt setup failed");
         let model = Self {
             cfg,
+            prefix_owner: Arc::new(()),
             _weights: weights,
             embed,
             final_norm,
@@ -698,6 +715,12 @@ impl Model {
             },
             "gemm",
         )
+    }
+
+    /// Finish queued work before releasing external execution admission.
+    pub fn synchronize(&self) -> Result<()> {
+        cuda::set_device(0)?;
+        cuda::synchronize(self.stream)
     }
 
     fn prepare_scratch(&mut self, t: usize) -> Result<()> {
@@ -835,7 +858,8 @@ impl Model {
         Ok(())
     }
 
-    /// Allocate the cache entry for a prefix of `len` tokens (a multiple of 64).
+    /// Allocate an uninitialized prefix of `len` tokens (a multiple of 64).
+    /// Capture must finish successfully on this model before continuation.
     pub fn alloc_prefix(&self, len: usize) -> Result<PrefixState> {
         ensure!(
             len >= 64 && len.is_multiple_of(64),
@@ -863,6 +887,8 @@ impl Model {
             bytes += state_floats * F32 + tail_bytes;
         }
         Ok(PrefixState {
+            owner: Arc::clone(&self.prefix_owner),
+            initialized: false,
             len,
             attn_kv,
             gdn_state,
@@ -873,12 +899,23 @@ impl Model {
 
     /// Run the rows `[0, state.len)` of one prompt, collecting the per-layer
     /// prefix state (post-prep K/V columns, float32 GDN states, conv tails) into
-    /// `state`. The hidden states of these rows are computed but not returned.
+    /// `state`. Synchronize before marking the state ready for continuation.
+    /// The hidden states of these rows are computed but not returned.
     pub fn forward_multimodal_capture(
         &mut self,
         input: &MultimodalInput<'_>,
         state: &mut PrefixState,
     ) -> Result<()> {
+        ensure!(
+            Arc::ptr_eq(&self.prefix_owner, &state.owner),
+            "prefix state belongs to a different model instance"
+        );
+        let t = input.token_ids.len();
+        ensure!(
+            t == state.len,
+            "capture input must cover the cached prefix exactly"
+        );
+        state.initialized = false;
         let image_token = self
             .cfg
             .image_token_id
@@ -889,17 +926,15 @@ impl Model {
             image_token,
             self.cfg.max_positions,
         )?;
-        let t = input.token_ids.len();
-        ensure!(
-            t == state.len,
-            "capture input must cover the cached prefix exactly"
-        );
         self.prepare_scratch(t)?;
         let s = self.scratch.as_ref().unwrap();
         self.upload_positions(s, input.position_ids)?;
         self.embed_tokens(s, input.token_ids)?;
         self.overwrite_image_rows(s, input, 0)?;
-        self.run_window(s, 0, t, true, Some(state), None)
+        self.run_window(s, 0, t, true, Some(state), None)?;
+        self.synchronize()?;
+        state.initialized = true;
+        Ok(())
     }
 
     /// Run rows `[prefix.len, prefix.len + input.len)` of one prompt seeded from a
@@ -909,6 +944,11 @@ impl Model {
         input: &MultimodalInput<'_>,
         prefix: &PrefixState,
     ) -> Result<Vec<f32>> {
+        ensure!(
+            Arc::ptr_eq(&self.prefix_owner, &prefix.owner),
+            "prefix state belongs to a different model instance"
+        );
+        ensure!(prefix.initialized, "prefix state has not completed capture");
         let image_token = self
             .cfg
             .image_token_id
@@ -1293,17 +1333,19 @@ impl Model {
                                 st,
                             )?;
                         }
-                        // The shifted qkv base makes the untouched conv kernel read
-                        // absolute rows qb-3..tend-1 — the three restored tail rows.
+                        // The conv kernel zero-pads its local first three rows.
+                        // Include the restored history in its input and discard
+                        // those three outputs so continuation rows see all taps.
+                        let conv_start = qb.saturating_sub(3);
                         check(
                             (cuda::api().cs1_gdn_conv)(
-                                p(s.gdn_in + qb * ldbb),
+                                p(s.gdn_in + conv_start * ldbb),
                                 ld,
                                 la.conv.ptr,
-                                p(s.lq + qb * kb),
-                                p(s.lk + qb * kb),
-                                p(s.lv + qb * vb),
-                                ti,
+                                p(s.lq + conv_start * kb),
+                                p(s.lk + conv_start * kb),
+                                p(s.lv + conv_start * vb),
+                                (tend - conv_start) as i32,
                                 kd as i32,
                                 vd as i32,
                                 st,

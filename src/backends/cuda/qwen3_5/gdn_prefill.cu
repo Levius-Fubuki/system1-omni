@@ -573,10 +573,11 @@ static int gdn_prefill_run(const void* q, const void* k, const void* v, const fl
     float* so = static_cast<float*>(s_out);
     if (T == 0) {
         // No tokens: the state passes through unchanged, for symmetric capture.
-        if (so != nullptr && si != nullptr &&
-            cudaMemcpy(so, si, (size_t)H * K * V * 4, cudaMemcpyDeviceToDevice) != cudaSuccess)
-            return cudaGetLastError();
-        return cudaSuccess;
+        if (so == nullptr) return cudaSuccess;
+        const size_t bytes = (size_t)H * K * V * sizeof(float);
+        cudaStream_t st = static_cast<cudaStream_t>(stream);
+        return si != nullptr ? cudaMemcpyAsync(so, si, bytes, cudaMemcpyDeviceToDevice, st)
+                             : cudaMemsetAsync(so, 0, bytes, st);
     }
     // once per process (for the device current at the first call)
     static const cudaError_t configured = [] {

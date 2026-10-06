@@ -37,29 +37,6 @@ pub struct LabelHead {
 }
 
 impl LabelHead {
-    /// Test/dev construction without a safetensors file.
-    pub fn from_parts(ids: Vec<u32>, rows: Vec<f32>, width: usize) -> Self {
-        assert_eq!(rows.len(), ids.len() * width);
-        Self {
-            width,
-            rows,
-            index: ids.iter().enumerate().map(|(i, &t)| (t, i)).collect(),
-        }
-    }
-
-    /// Test helper: drop one row and rebuild the index (rejection path).
-    pub fn drop_row(&mut self, token: u32) {
-        let i = self.index.remove(&token).expect("row exists");
-        self.rows.drain(i * self.width..(i + 1) * self.width);
-        self.index.values_mut().for_each(|v| {
-            if *v > i {
-                *v -= 1;
-            }
-        });
-    }
-}
-
-impl LabelHead {
     pub fn load(dir: &Path, manifest: &Value) -> Result<Self> {
         let cfg = Config::load(dir)?;
         ensure!(
@@ -94,13 +71,17 @@ impl LabelHead {
         );
         let rows_f: Vec<f32> = rows
             .data()
-            .chunks_exact(4)
-            .map(|b| f32::from_le_bytes(b.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|b| f32::from_le_bytes(*b))
             .collect();
         let ids: Vec<i64> = ids_t
             .data()
-            .chunks_exact(8)
-            .map(|b| i64::from_le_bytes(b.try_into().unwrap()))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|b| i64::from_le_bytes(*b))
             .collect();
         let exported: Vec<i64> = serde_json::from_value(manifest["label_head"]["ids"].clone())?;
         ensure!(
@@ -243,11 +224,11 @@ pub struct SuffixBlock {
     pub rows: usize,
 }
 
-/// How the executor serves one request (see the R2d design doc).
+/// The inputs and cached state needed to execute one request.
 pub enum MmPlan {
     /// Text-only prompt.
     Text { ids: Vec<u32> },
-    /// One-shot multimodal prefill (unchanged R2c path).
+    /// Full multimodal prefill.
     Full(PreparedMm),
     /// Structure recorded but its device state is not built yet: run the capture
     /// phase over rows [0, p) followed by the continuation over [p, T), then
@@ -298,68 +279,79 @@ impl Executor {
                 let mut model = model
                     .lock()
                     .map_err(|_| anyhow::anyhow!("poisoned model"))?;
-                let last = match plan {
-                    MmPlan::Text { ids } => model.forward(&ids)?,
-                    MmPlan::Full(mm) => {
-                        let one = slice_mm(&mm, 0, mm.ids.len());
-                        let input = one.input();
-                        model.forward_multimodal(&input)?
-                    }
-                    MmPlan::Populate { mm, record } => {
-                        let p = record.meta.p;
-                        let populated = (|| -> Result<Vec<f32>> {
-                            let mut state = model.alloc_prefix(p)?;
-                            let pf = slice_mm(&mm, 0, p);
-                            let input = pf.input();
-                            model.forward_multimodal_capture(&input, &mut state)?;
-                            let cf = slice_mm(&mm, p, mm.ids.len());
-                            let input = cf.input();
-                            let last = model.forward_multimodal_continue(&input, &state)?;
-                            caches.record_publish_state(record.key, state);
-                            Ok(last)
-                        })();
-                        match populated {
-                            Ok(last) => {
-                                caches.l3_populate();
-                                last
-                            }
-                            Err(e) => {
-                                // Device allocation or capture failed: serve the
-                                // request on the proven one-shot path instead.
-                                eprintln!("prefix populate failed; one-shot fallback: {e:#}");
-                                caches.l3_fallback_full();
-                                let one = slice_mm(&mm, 0, mm.ids.len());
-                                let input = one.input();
-                                model.forward_multimodal(&input)?
+                let result = (|| {
+                    let last = match &plan {
+                        MmPlan::Text { ids } => model.forward(ids)?,
+                        MmPlan::Full(mm) => {
+                            let one = slice_mm(mm, 0, mm.ids.len());
+                            let input = one.input();
+                            model.forward_multimodal(&input)?
+                        }
+                        MmPlan::Populate { mm, record } => {
+                            let p = record.meta.p;
+                            let (populated, state) = match model.alloc_prefix(p) {
+                                Ok(mut state) => {
+                                    let result = (|| -> Result<Vec<f32>> {
+                                        let pf = slice_mm(mm, 0, p);
+                                        model
+                                            .forward_multimodal_capture(&pf.input(), &mut state)?;
+                                        let cf = slice_mm(mm, p, mm.ids.len());
+                                        model.forward_multimodal_continue(&cf.input(), &state)
+                                    })();
+                                    // The captured buffers must stay alive until this drain,
+                                    // including a failed capture or continuation.
+                                    model.synchronize()?;
+                                    (result, Some(state))
+                                }
+                                Err(e) => (Err(e), None),
+                            };
+                            match populated {
+                                Ok(last) => {
+                                    caches.record_publish_state(record.key, state.unwrap());
+                                    caches.l3_populate();
+                                    last
+                                }
+                                Err(e) => {
+                                    // Device allocation or capture failed: serve the
+                                    // request on the proven one-shot path instead.
+                                    eprintln!("prefix populate failed; one-shot fallback: {e:#}");
+                                    caches.l3_fallback_full();
+                                    let one = slice_mm(mm, 0, mm.ids.len());
+                                    let input = one.input();
+                                    model.forward_multimodal(&input)?
+                                }
                             }
                         }
-                    }
-                    MmPlan::Continue(c) => {
-                        let indices: Vec<usize> = match &c.block {
-                            Some(b) => (0..b.rows).collect(),
-                            None => Vec::new(),
-                        };
-                        let embeddings: &[half::bf16] = match &c.block {
-                            Some(b) => {
-                                &b.asset.embeddings
-                                    [b.row_offset * 5120..(b.row_offset + b.rows) * 5120]
-                            }
-                            None => &[],
-                        };
-                        let input = MultimodalInput {
-                            token_ids: &c.ids,
-                            image_token_indices: &indices,
-                            image_embeddings: embeddings,
-                            position_ids: [
-                                c.positions[0].as_slice(),
-                                c.positions[1].as_slice(),
-                                c.positions[2].as_slice(),
-                            ],
-                        };
-                        model.forward_multimodal_continue(&input, &c.state)?
-                    }
-                };
-                head.probabilities(&last, &readout)
+                        MmPlan::Continue(c) => {
+                            let indices: Vec<usize> = match &c.block {
+                                Some(b) => (0..b.rows).collect(),
+                                None => Vec::new(),
+                            };
+                            let embeddings: &[half::bf16] = match &c.block {
+                                Some(b) => {
+                                    &b.asset.embeddings
+                                        [b.row_offset * 5120..(b.row_offset + b.rows) * 5120]
+                                }
+                                None => &[],
+                            };
+                            let input = MultimodalInput {
+                                token_ids: &c.ids,
+                                image_token_indices: &indices,
+                                image_embeddings: embeddings,
+                                position_ids: [
+                                    c.positions[0].as_slice(),
+                                    c.positions[1].as_slice(),
+                                    c.positions[2].as_slice(),
+                                ],
+                            };
+                            model.forward_multimodal_continue(&input, &c.state)?
+                        }
+                    };
+                    head.probabilities(&last, &readout)
+                })();
+                // Keep admission until all queued device work has drained, including errors.
+                model.synchronize()?;
+                result
             })
             .await
     }
@@ -434,3 +426,7 @@ fn slice_mm<'a>(mm: &'a PreparedMm, from: usize, to: usize) -> SlicedMm<'a> {
         owned,
     }
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/jev_vl/readout.rs"]
+mod readout_tests;

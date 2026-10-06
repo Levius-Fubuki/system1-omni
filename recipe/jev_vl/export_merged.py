@@ -13,8 +13,8 @@ per-kind temperatures, the 24-slot bias/ranges, the exported label list, the
 ``enable_thinking=True`` chat template split (for later System-2 work; the raw
 System-1 prompt does not use a chat template), and the checkpoint pins.
 
-The reference environment (``/aifs4su/shiheming/jev/envs/jev-vl``) provides
-torch + transformers + safetensors; no PEFT and no GPU are needed.
+See recipe/jev_vl/README.md for the pinned export environment.
+No PEFT and no GPU are needed.
 """
 
 import argparse

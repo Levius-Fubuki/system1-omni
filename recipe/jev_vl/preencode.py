@@ -4,8 +4,8 @@ Runs the official HF vision tower (same model the vLLM reference path used) on t
 GPU once per unique image in a manifest, and stores per-image
 ``<out>/<sha256(url)>/{emb.safetensors,grid.json}`` with the adapted rows
 (``model.model.visual(pixel_values, grid_thw).pooler_output``, shape
-[n = prod(grid)/merge^2, 5120], bfloat16) plus the patch grid. This asset IS the
-R2d L2 cache content; the native worker never decodes images.
+[n = prod(grid)/merge^2, 5120], bfloat16) plus the patch grid. The L2 cache holds
+these assets; the native worker never decodes images.
 """
 import argparse
 import hashlib
