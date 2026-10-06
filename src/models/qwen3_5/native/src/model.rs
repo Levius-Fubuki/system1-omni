@@ -565,6 +565,143 @@ pub struct GraphStats {
     pub cached_shapes: usize,
 }
 
+/// Gated DeltaNet chunk length. `forward_shared` ends prefixes at its multiples, where
+/// the chunked prefill continues bit for bit (see cs1_gdn_prefill_state).
+const GDN_CHUNK: usize = 64;
+
+/// Prompts that share token prefixes, for `Model::forward_shared`. Branch `b` of group `g`
+/// is the prompt `prefix`, then `groups[g].prefix`, then `groups[g].branches[b]`. How the
+/// prompts are grouped does not change any result where the fixed GEMM algorithms keep
+/// rows independent of M (see `forward_shared`).
+pub struct SharedPrompts<'a> {
+    pub prefix: &'a [u32],
+    pub groups: Vec<PromptGroup<'a>>,
+}
+
+pub struct PromptGroup<'a> {
+    pub prefix: &'a [u32],
+    pub branches: Vec<&'a [u32]>,
+}
+
+/// The token runs `forward_shared` executes: the request prefix, then per group its own
+/// prefix and branches. Each prefix ends at the last multiple of `GDN_CHUNK` within it;
+/// its remaining tokens run with every group or branch after it.
+struct Runs {
+    prefix: Vec<u32>,
+    groups: Vec<GroupRuns>,
+}
+
+struct GroupRuns {
+    prefix: Vec<u32>,
+    branches: Vec<Vec<u32>>,
+}
+
+fn runs(prompts: &SharedPrompts) -> Runs {
+    let end = |n: usize| n - n % GDN_CHUNK;
+    let p = end(prompts.prefix.len());
+    let groups = prompts
+        .groups
+        .iter()
+        .map(|g| {
+            let shared = [prompts.prefix, g.prefix].concat();
+            let q = end(shared.len());
+            GroupRuns {
+                prefix: shared[p..q].to_vec(),
+                branches: g
+                    .branches
+                    .iter()
+                    .map(|b| [&shared[q..], b].concat())
+                    .collect(),
+            }
+        })
+        .collect();
+    Runs {
+        prefix: prompts.prefix[..p].to_vec(),
+        groups,
+    }
+}
+
+/// The Gated DeltaNet state after a prefix, read but not written by what continues
+/// from it: per linear-attention layer, the float32 recurrent state [heads, 128, 128]
+/// and the conv inputs of the last three positions.
+struct Snapshot {
+    buf: DeviceBuffer,
+    state_bytes: usize,
+    history_at: usize,
+    history_bytes: usize,
+}
+
+impl Snapshot {
+    fn new(cfg: &Config) -> Result<Self> {
+        let layers = cfg.full_attention.iter().filter(|&&full| !full).count();
+        let state_bytes = cfg.lin_v_heads * cfg.lin_k_dim * cfg.lin_v_dim * F32;
+        let history_bytes = (3 * Widths::of(cfg).conv * BF16).next_multiple_of(ALIGN);
+        let history_at = layers * state_bytes;
+        Ok(Self {
+            buf: DeviceBuffer::new(history_at + layers * history_bytes)?,
+            state_bytes,
+            history_at,
+            history_bytes,
+        })
+    }
+
+    fn state(&self, layer: usize) -> *mut f32 {
+        self.buf.at(layer * self.state_bytes).cast()
+    }
+
+    fn history(&self, layer: usize) -> *mut c_void {
+        self.buf.at(self.history_at + layer * self.history_bytes)
+    }
+}
+
+/// Prefix state for `forward_shared`, kept across calls like the scratch and replaced
+/// only for a longer prompt. Its contents are valid only within one call: the snapshots
+/// after the request prefix and after a group prefix, and per full-attention layer the
+/// keys and values of positions below `cap`, the prefixes' rows first and then the
+/// current branch's, which the next branch overwrites.
+struct PrefixState {
+    cap: usize,
+    row: usize,
+    kv: DeviceBuffer,
+    request: Snapshot,
+    group: Snapshot,
+}
+
+impl PrefixState {
+    fn new(cfg: &Config, cap: usize) -> Result<Self> {
+        let layers = cfg.full_attention.iter().filter(|&&full| full).count();
+        let row = cfg.kv_heads * cfg.head_dim * BF16;
+        Ok(Self {
+            cap,
+            row,
+            kv: DeviceBuffer::new(2 * layers * cap * row)?,
+            request: Snapshot::new(cfg)?,
+            group: Snapshot::new(cfg)?,
+        })
+    }
+
+    /// Row `pos` of a full-attention layer's keys.
+    fn keys(&self, layer: usize, pos: usize) -> *mut c_void {
+        self.kv.at((2 * layer * self.cap + pos) * self.row)
+    }
+
+    fn values(&self, layer: usize, pos: usize) -> *mut c_void {
+        self.kv.at(((2 * layer + 1) * self.cap + pos) * self.row)
+    }
+}
+
+/// A forward pass over part of a prompt: its first position, the state before it (none
+/// at the start of a prompt) and where to keep the state after it.
+#[derive(Clone, Copy)]
+struct Span<'a> {
+    start: usize,
+    from: Option<&'a Snapshot>,
+    to: Option<&'a Snapshot>,
+    kv: &'a PrefixState,
+}
+
+const FIXED_GEMM_M: i32 = 64;
+
 pub struct Model {
     pub cfg: Config,
     _weights: Weights,
@@ -573,6 +710,8 @@ pub struct Model {
     layers: Vec<Layer>,
     stream: Stream,
     gemm: *mut c_void,
+    fixed_gemm: *mut c_void,
+    prefix_state: Option<PrefixState>,
     /// Buffers for the largest packed token count so far; grows as needed.
     scratch: Option<Scratch>,
     /// Opt-in replay with at most 64 captures keyed by ordered sequence lengths.
@@ -593,6 +732,9 @@ impl Drop for Model {
         // SAFETY: created by cs1_gemm_create and not destroyed before.
         unsafe {
             (cuda::api().cs1_gemm_destroy)(self.gemm);
+            if !self.fixed_gemm.is_null() {
+                (cuda::api().cs1_gemm_destroy)(self.fixed_gemm);
+            }
             (cuda::api().cs1_stream_destroy)(self.stream);
         };
     }
@@ -680,6 +822,8 @@ impl Model {
             layers,
             stream,
             gemm,
+            fixed_gemm: std::ptr::null_mut(),
+            prefix_state: None,
             scratch: None,
             graph_enabled: graph,
             graph_stats: GraphStats {
@@ -699,13 +843,21 @@ impl Model {
         }
     }
 
-    fn gemm(&self, s: &Scratch, x: usize, w: &Tensor, y: usize, m: usize) -> Result<()> {
+    fn gemm(
+        &self,
+        handle: *mut c_void,
+        s: &Scratch,
+        x: usize,
+        w: &Tensor,
+        y: usize,
+        m: usize,
+    ) -> Result<()> {
         let (n, k) = (w.shape[0] as i32, w.shape[1] as i32);
         // SAFETY: x and y are scratch buffers sized for m rows of w's shape.
         check(
             unsafe {
                 (cuda::api().cs1_gemm)(
-                    self.gemm,
+                    handle,
                     s.at(x),
                     w.ptr,
                     s.at(y),
@@ -723,6 +875,7 @@ impl Model {
     /// Preserve each prompt's output/down GEMM shape and split-K reduction order.
     fn gemm_sequences(
         &self,
+        handle: *mut c_void,
         s: &Scratch,
         x: usize,
         w: &Tensor,
@@ -732,7 +885,14 @@ impl Model {
         let (n, k) = (w.shape[0], w.shape[1]);
         let mut offset = 0;
         for &length in lengths {
-            self.gemm(s, x + offset * k * BF16, w, y + offset * n * BF16, length)?;
+            self.gemm(
+                handle,
+                s,
+                x + offset * k * BF16,
+                w,
+                y + offset * n * BF16,
+                length,
+            )?;
             offset += length;
         }
         Ok(())
@@ -899,6 +1059,154 @@ impl Model {
         Ok(())
     }
 
+    pub fn forward_fixed(&mut self, ids: &[u32]) -> Result<Vec<f32>> {
+        let result = self.run_fixed(ids);
+        if result.is_err() {
+            // Work already queued may still use the buffers.
+            let _ = cuda::synchronize(self.stream);
+        }
+        result
+    }
+
+    fn run_fixed(&mut self, ids: &[u32]) -> Result<Vec<f32>> {
+        let t = ids.len();
+        ensure!(
+            t > 0 && t <= self.cfg.max_positions,
+            "empty or oversized prompt"
+        );
+        ensure!(
+            ids.iter().all(|&i| (i as usize) < self.embed.shape[0]),
+            "token id outside the vocabulary"
+        );
+        self.prepare_scratch(t)?;
+        let gemm = self.fixed_gemm()?;
+        let s = self.scratch.as_ref().unwrap();
+        self.embed_tokens(s, ids)?;
+        self.run_span(s, &[t], false, None, gemm)?;
+        self.last_hidden(s, t)
+    }
+
+    /// The final-norm hidden state at the last position of every branch, grouped and
+    /// ordered as in `prompts`. Each prefix runs once, up to its last multiple of 64
+    /// tokens, and each branch continues from the state after its prefixes, with its
+    /// positions and causal mask continuing theirs. A prefix's remaining tokens run with
+    /// every group or branch after it.
+    ///
+    /// On a GPU where the fixed GEMM algorithms keep rows independent of M (see
+    /// cs1_gemm_create_fixed), each result equals `forward_fixed` on the full prompt bit
+    /// for bit, however the prompts are grouped. It differs from `forward`, which picks
+    /// GEMM algorithms per row count, by rounding.
+    ///
+    /// Runs eagerly. The prefix state is overwritten by the next call, and the stream is
+    /// synchronized before this returns, also on error.
+    pub fn forward_shared(&mut self, prompts: &SharedPrompts) -> Result<Vec<Vec<Vec<f32>>>> {
+        let result = self.run_shared(prompts);
+        if result.is_err() {
+            // Work already queued may still use the buffers.
+            let _ = cuda::synchronize(self.stream);
+        }
+        result
+    }
+
+    fn run_shared(&mut self, prompts: &SharedPrompts) -> Result<Vec<Vec<Vec<f32>>>> {
+        let vocab = self.embed.shape[0];
+        ensure!(!prompts.groups.is_empty(), "no prompts");
+        let mut longest = 0;
+        for g in &prompts.groups {
+            ensure!(!g.branches.is_empty(), "a prompt group without branches");
+            for b in &g.branches {
+                ensure!(!b.is_empty(), "an empty branch");
+                longest = longest.max(prompts.prefix.len() + g.prefix.len() + b.len());
+            }
+        }
+        ensure!(longest <= self.cfg.max_positions, "oversized prompt");
+        let all = prompts
+            .groups
+            .iter()
+            .flat_map(|g| g.prefix.iter().chain(g.branches.iter().copied().flatten()));
+        ensure!(
+            prompts
+                .prefix
+                .iter()
+                .chain(all)
+                .all(|&i| (i as usize) < vocab),
+            "token id outside the vocabulary"
+        );
+        self.prepare_scratch(longest)?;
+        let gemm = self.fixed_gemm()?;
+        if self
+            .prefix_state
+            .as_ref()
+            .is_none_or(|state| longest > state.cap)
+        {
+            cuda::synchronize(self.stream)?;
+            self.prefix_state = None;
+            self.prefix_state = Some(PrefixState::new(&self.cfg, longest.next_multiple_of(1024))?);
+        }
+        let (s, kv) = (
+            self.scratch.as_ref().unwrap(),
+            self.prefix_state.as_ref().unwrap(),
+        );
+        let runs = runs(prompts);
+        let p = runs.prefix.len();
+        let request = (p > 0).then_some(&kv.request);
+        if let Some(to) = request {
+            self.embed_tokens(s, &runs.prefix)?;
+            let span = Span {
+                start: 0,
+                from: None,
+                to: Some(to),
+                kv,
+            };
+            self.run_span(s, &[p], false, Some(span), gemm)?;
+        }
+        let mut hidden = Vec::with_capacity(runs.groups.len());
+        for group in &runs.groups {
+            let from = if group.prefix.is_empty() {
+                request
+            } else {
+                self.embed_tokens(s, &group.prefix)?;
+                let span = Span {
+                    start: p,
+                    from: request,
+                    to: Some(&kv.group),
+                    kv,
+                };
+                self.run_span(s, &[group.prefix.len()], false, Some(span), gemm)?;
+                Some(&kv.group)
+            };
+            let start = p + group.prefix.len();
+            let rows = group
+                .branches
+                .iter()
+                .map(|b| {
+                    self.embed_tokens(s, b)?;
+                    let span = Span {
+                        start,
+                        from,
+                        to: None,
+                        kv,
+                    };
+                    self.run_span(s, &[b.len()], false, Some(span), gemm)?;
+                    self.last_hidden(s, b.len())
+                })
+                .collect::<Result<Vec<_>>>()?;
+            hidden.push(rows);
+        }
+        Ok(hidden)
+    }
+
+    /// The GEMM handle with one algorithm per weight shape, created on first use.
+    fn fixed_gemm(&mut self) -> Result<*mut c_void> {
+        if self.fixed_gemm.is_null() {
+            // SAFETY: plain allocation; checked for null below.
+            self.fixed_gemm =
+                unsafe { (cuda::api().cs1_gemm_create_fixed)(GEMM_WORKSPACE, FIXED_GEMM_M) };
+            ensure!(!self.fixed_gemm.is_null(), "cuBLASLt setup failed");
+        }
+        Ok(self.fixed_gemm)
+    }
+
     fn embed_tokens(&self, s: &Scratch, ids: &[u32]) -> Result<()> {
         let ids32: Vec<u8> = ids.iter().flat_map(|&i| (i as i32).to_le_bytes()).collect();
         // SAFETY: IDs were checked against the vocabulary; scratch holds t rows.
@@ -939,6 +1247,18 @@ impl Model {
     /// Queue language layers over packed embeddings, resetting sequence positions.
     /// Final-norm hidden states end up in `s.x`.
     fn run(&self, s: &Scratch, lengths: &[usize], custom_positions: bool) -> Result<()> {
+        self.run_span(s, lengths, custom_positions, None, self.gemm)
+    }
+    /// One shared layer loop retains packed independent execution and single-sequence continuation.
+    fn run_span(
+        &self,
+        s: &Scratch,
+        lengths: &[usize],
+        custom_positions: bool,
+        span: Option<Span<'_>>,
+        gemm: *mut c_void,
+    ) -> Result<()> {
+        debug_assert!(span.is_none() || (lengths.len() == 1 && !custom_positions));
         let t: usize = lengths.iter().sum();
         let mut start = 0;
         let sequences: Vec<(usize, i32)> = lengths
@@ -977,10 +1297,12 @@ impl Model {
                 "input norm",
             )?;
         }
+        let null = std::ptr::null_mut::<c_void>();
+        let (mut lin, mut att) = (0, 0);
         for (i, layer) in self.layers.iter().enumerate() {
             match &layer.mixer {
                 Mixer::Linear(la) => {
-                    self.gemm(s, s.x, &la.in_proj, s.gdn_in, t)?;
+                    self.gemm(gemm, s, s.x, &la.in_proj, s.gdn_in, t)?;
                     let ld = w.gdn_in as i32;
                     let z = s.gdn_in + w.conv * BF16;
                     let b = z + vd * BF16;
@@ -988,10 +1310,12 @@ impl Model {
                     unsafe {
                         for &(offset, length) in &sequences {
                             check(
-                                (cuda::api().cs1_gdn_conv)(
+                                (cuda::api().cs1_gdn_conv_history)(
                                     p(s.gdn_in + offset * w.gdn_in * BF16),
                                     ld,
                                     la.conv.ptr,
+                                    span.and_then(|x| x.from).map_or(null, |x| x.history(lin)),
+                                    span.and_then(|x| x.to).map_or(null, |x| x.history(lin)),
                                     p(s.lq + offset * kd * BF16),
                                     p(s.lk + offset * kd * BF16),
                                     p(s.lv + offset * vd * BF16),
@@ -1020,7 +1344,7 @@ impl Model {
                         )?;
                         for &(offset, length) in &sequences {
                             check(
-                                (cuda::api().cs1_gdn_prefill)(
+                                (cuda::api().cs1_gdn_prefill_state)(
                                     p(s.lq + offset * kd * BF16),
                                     p(s.lk + offset * kd * BF16),
                                     p(s.lv + offset * vd * BF16),
@@ -1028,6 +1352,10 @@ impl Model {
                                     p(s.beta + offset * hv * BF16),
                                     p(s.lo + offset * vd * BF16),
                                     p(s.workspace).cast(),
+                                    span.and_then(|x| x.from)
+                                        .map_or(null.cast(), |x| x.state(lin)),
+                                    span.and_then(|x| x.to)
+                                        .map_or(null.cast(), |x| x.state(lin)),
                                     length,
                                     hv as i32,
                                     cfg.lin_k_heads as i32,
@@ -1053,15 +1381,22 @@ impl Model {
                             "gated norm",
                         )?;
                     }
-                    self.gemm_sequences(s, s.ln, &la.out, s.delta, lengths)?;
+                    self.gemm_sequences(gemm, s, s.ln, &la.out, s.delta, lengths)?;
+                    lin += 1;
                 }
                 Mixer::Full(fa) => {
-                    self.gemm(s, s.x, &fa.qkv, s.attn_in, t)?;
+                    self.gemm(gemm, s, s.x, &fa.qkv, s.attn_in, t)?;
                     let ld = w.attn_in as i32;
                     let k = s.attn_in + w.attn_q * BF16;
                     let v = k + cfg.kv_heads * cfg.head_dim * BF16;
                     unsafe {
                         for &(offset, length) in &sequences {
+                            let start = span.map_or(0, |x| x.start);
+                            let rope = start * cfg.rotary_half * BF16;
+                            let keys = span.map_or(
+                                p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
+                                |x| x.kv.keys(att, start),
+                            );
                             check(
                                 (cuda::api().cs1_attn_prep)(
                                     p(s.attn_in + offset * w.attn_in * BF16),
@@ -1069,11 +1404,11 @@ impl Model {
                                     ld,
                                     fa.q_norm.ptr,
                                     fa.k_norm.ptr,
-                                    p(cos),
-                                    p(sin),
+                                    p(cos + rope),
+                                    p(sin + rope),
                                     p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
                                     p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
-                                    p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
+                                    keys,
                                     length,
                                     hq,
                                     hk,
@@ -1084,15 +1419,40 @@ impl Model {
                                 ),
                                 "attention prep",
                             )?;
+                            let (keys, values, ldv, positions) = match span {
+                                None => (keys, p(v + offset * w.attn_in * BF16), ld, length),
+                                Some(x) => {
+                                    let row = x.kv.row;
+                                    check(
+                                        (cuda::api().cs1_copy_rows)(
+                                            x.kv.values(att, start),
+                                            row,
+                                            p(v),
+                                            w.attn_in * BF16,
+                                            row,
+                                            length,
+                                            st,
+                                        ),
+                                        "cache values",
+                                    )?;
+                                    (
+                                        x.kv.keys(att, 0),
+                                        x.kv.values(att, 0),
+                                        (row / BF16) as i32,
+                                        (start + length as usize) as i32,
+                                    )
+                                }
+                            };
                             check(
-                                (cuda::api().cs1_attention_gated)(
+                                (cuda::api().cs1_attention_gated_cached)(
                                     p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
-                                    p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
-                                    p(v + offset * w.attn_in * BF16),
-                                    ld,
+                                    keys,
+                                    values,
+                                    ldv,
                                     p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
                                     p(s.ao + offset * cfg.heads * cfg.head_dim * BF16),
                                     length,
+                                    positions,
                                     hq,
                                     hk,
                                     hd,
@@ -1103,7 +1463,8 @@ impl Model {
                             )?;
                         }
                     }
-                    self.gemm_sequences(s, s.ao, &fa.o, s.delta, lengths)?;
+                    self.gemm_sequences(gemm, s, s.ao, &fa.o, s.delta, lengths)?;
+                    att += 1;
                 }
             }
             unsafe {
@@ -1121,7 +1482,7 @@ impl Model {
                     "post-attention norm",
                 )?;
             }
-            self.gemm(s, s.x, &layer.gate_up, s.gate_up, t)?;
+            self.gemm(gemm, s, s.x, &layer.gate_up, s.gate_up, t)?;
             unsafe {
                 check(
                     (cuda::api().cs1_silu_mul)(
@@ -1135,7 +1496,7 @@ impl Model {
                     "silu mul",
                 )?;
             }
-            self.gemm_sequences(s, s.act, &layer.down, s.delta, lengths)?;
+            self.gemm_sequences(gemm, s, s.act, &layer.down, s.delta, lengths)?;
             let next = self
                 .layers
                 .get(i + 1)
@@ -1159,3 +1520,7 @@ impl Model {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/qwen3_5/model.rs"]
+mod tests;

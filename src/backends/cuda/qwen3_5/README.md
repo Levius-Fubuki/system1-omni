@@ -9,15 +9,17 @@ src/backends/cuda/qwen3_5/build.sh <output dir> [compute capability, default 89]
 The norm, elementwise and q/k preparation kernels round to bfloat16 where Transformers (`modeling_qwen3_5.py`) does. Attention (FlashAttention-2 style, on tensor cores) and the chunked gated delta rule keep some intermediate results in bfloat16, as FlashAttention and flash-linear-attention do. GEMMs go through cuBLASLt with its first heuristic choice. Tensor-core kernels need sm_80 or newer; PR #19 validated the original kernels on sm_89. The current reference tests, including fused gating, cached residual RMSNorm and packed SiLU, passed on H200 (sm_90). Compilation passed for sm_80, sm_89 and sm_90; execution of the modified GDN kernel on sm_80/sm_89 remains unverified.
 
 `cs1_attention_gated` fuses the sigmoid gate into the attention epilogue, preserving
-the BF16 rounding of both attention and sigmoid before multiplication. The native
-workers use this entry point; the separate operations remain available for kernel
-comparisons. Rebuild the library and workers together for ABI version 7, which
+the BF16 rounding of both attention and sigmoid before multiplication. The shared
+Qwen executor uses it, through `cs1_attention_gated_cached` with no cached positions;
+the separate operations remain available for kernel comparisons. Rebuild the library and workers together for ABI version 7, which
 includes the CUDA Graph entry points, gated attention, the vision operations, the
 continuation operations and the fixed-algorithm GEMM handle below.
 
 Three operations continue a sequence after a shared prefix, for prefix reuse
-([#85](https://github.com/ThinkFlowLab/system1-omni/issues/85)); the native
-workers do not call them yet:
+([#85](https://github.com/ThinkFlowLab/system1-omni/issues/85)). The shared Qwen
+executor calls them in every pass; without history, state or cached positions they
+give the plain operations' results. Only `forward_shared` continues a prefix, and no
+worker calls it yet:
 
 - `cs1_gdn_conv_history` reads the conv inputs of the three positions before its
   first token and can write those of its last three. Every output equals the

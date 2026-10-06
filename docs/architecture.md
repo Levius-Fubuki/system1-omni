@@ -28,6 +28,23 @@ Graph captures Encoder/Decision; gather, scorer/action head and synchronized
 readback remain outside capture. Native Metal remains planned; Python workers
 retain their documented reference/serving roles.
 
+The Qwen executor's `forward_shared` takes a request prefix, group prefixes and
+branches, ends each prefix at its last multiple of 64 tokens, and returns one final
+hidden state per branch in order
+([#85](https://github.com/ThinkFlowLab/system1-omni/issues/85)). It keeps the state
+after a prefix (per linear-attention layer the float32 recurrent state and the last
+three conv inputs, per full-attention layer the prefix keys and values) and gives each
+branch its own rows after it. Like the scratch, these buffers persist across calls and
+grow only for a longer prompt, and their contents are valid only within one call,
+which runs eagerly and synchronizes its stream before returning, also on error. Its
+GEMMs keep one algorithm per weight shape, so on GPUs where that keeps rows independent
+of M (checked by `fixed_gemm_rows_do_not_depend_on_m`, so far on sm_89) each result
+equals `forward_fixed` on the full prompt bit for bit; it differs from `forward` by
+rounding. The extra device memory is two prefix states (about 49 MiB each for
+Qwen3.5-9B, 147 MiB for Qwen3.8-27B), keys and values for the longest prompt so far
+rounded up to 1,024 positions (32 KiB per position on 9B, 64 KiB on 27B), and a 32 MiB
+GEMM workspace.
+
 ## Native worker boundaries
 
 The native workers separate `processing.rs` from `executor.rs`; their worker
