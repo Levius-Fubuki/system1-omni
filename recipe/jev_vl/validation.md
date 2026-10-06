@@ -13,7 +13,7 @@ prepared source snapshot SHA-256
 `35aa8ecdf9af4d9ee5d84243c663a9428c7aa00ff86370bade4bc0df24695d2f`.
 GPU jobs 413587 and 413597 verified the same library and worker binary hashes on
 one H800 80 GB, CUDA 13.0.88, driver 580.159.03. The candidate was an uncommitted
-review snapshot; use the [source and binary provenance](evidence/review-20261006/provenance.json)
+review snapshot; use the archived [source and binary provenance](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/provenance.json)
 rather than treating the original three commits as the tested final source.
 Subsequent review edits change comments, test wiring and diagnostic header
 constants only: the inaccurate L2 hit field was removed from `x-jev-cache`;
@@ -61,22 +61,23 @@ All-on counters recorded 48 L1/L2/L3 hits across warmup plus measurement, with
 three resident prefixes and no fallback. Resident L3 accounting was 643,384,320
 bytes; peak memory was not measured. There is no current concurrency-8 A/B.
 
-[Summary](evidence/review-20261006/summary.json),
-[raw off pass 1](evidence/review-20261006/raw-off-c1-p0.jsonl),
-[off pass 2](evidence/review-20261006/raw-off-c1-p1.jsonl),
-[raw on pass 1](evidence/review-20261006/raw-all-c1-p0.jsonl),
-[on pass 2](evidence/review-20261006/raw-all-c1-p1.jsonl), and
-[checksummed evidence inventory](evidence/review-20261006/provenance.json)
-include the original timing rows, parity verdicts, public-replay responses and
-cache counters. The source archive and complete build logs remain in the local
-review archive; their hashes identify the measured snapshot.
+[Summary](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/summary.json),
+[raw off pass 1](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/raw-off-c1-p0.jsonl),
+[off pass 2](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/raw-off-c1-p1.jsonl),
+[raw on pass 1](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/raw-all-c1-p0.jsonl),
+[on pass 2](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/raw-all-c1-p1.jsonl), and
+[checksummed evidence inventory](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/provenance.json)
+at the reviewed commit preserve the original timing rows, parity verdicts,
+public-replay responses and cache counters. The source archive and complete build
+logs remain in the local review archive; their hashes identify the measured
+snapshot.
 
 ### Preserved initial failure
 
 Job 413587's frozen frontend comparator expected the worker error envelope on
 `/v1/chat/completions` and failed. The frontend owns only `/health` and
 `/v1/systemone`; it returns its own 404 for this unsupported route. The
-[original failed verdict](evidence/review-20261006/initial-frontend-failed-verdict.json)
+[original failed verdict](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/review-20261006/initial-frontend-failed-verdict.json)
 is retained. Job 413597 separates all seven supported error-envelope checks
 from the unsupported-route 404 check. This corrects the validation boundary;
 no production frontend route was added.
@@ -141,31 +142,16 @@ speed claim and should not be used as evidence of an isolated backend gain.
 
 ## Included records and reproducibility limits
 
-[Provenance and checksums](evidence/provenance.json) identify the checkpoint,
-input hashes, comparator and retained source archives. Compact copied records:
+[Provenance and checksums](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/provenance.json) identify the checkpoint,
+input hashes, comparator and retained source archives. Archived records at the reviewed commit:
 
-- Cache off: [pass 1](evidence/raw-r2d-off-c1-p0.jsonl), [pass 2](evidence/raw-r2d-off-c1-p1.jsonl).
-- Cache on: [pass 1](evidence/raw-r2d-all-c1-p0.jsonl), [pass 2](evidence/raw-r2d-all-c1-p1.jsonl).
-- Comparator verdicts: [off](evidence/parity-off.json), [all](evidence/parity-all.json).
+- Cache off: [pass 1](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/raw-r2d-off-c1-p0.jsonl), [pass 2](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/raw-r2d-off-c1-p1.jsonl).
+- Cache on: [pass 1](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/raw-r2d-all-c1-p0.jsonl), [pass 2](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/raw-r2d-all-c1-p1.jsonl).
+- Comparator verdicts: [off](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/parity-off.json), [all](https://github.com/linear3735/system1-omni/blob/522f2256876a62ddd70873ee9e775055416aea1b/recipe/jev_vl/evidence/parity-all.json).
 
-Recompute the historical medians from the repository root:
-
-```sh
-python3 - <<'PY'
-import json
-from pathlib import Path
-from statistics import median
-root = Path('recipe/jev_vl/evidence')
-medians = {}
-for mode in ('off', 'all'):
-    rows = [json.loads(line) for path in sorted(root.glob(f'raw-r2d-{mode}-c1-p*.jsonl'))
-            for line in path.read_text().splitlines()]
-    assert len(rows) == 24 and all(row['status'] == 200 for row in rows)
-    medians[mode] = median(row['client_s'] for row in rows)
-    print(mode, f"{medians[mode] * 1000:.3f} ms")
-print('off/all', f"{medians['off'] / medians['all']:.3f}x")
-PY
-```
+Run outputs are retained in the linked commit archive. The current checkout
+keeps the frozen input and reference fixtures needed for replay; new run outputs
+belong in a task-owned output directory, as in the commands below.
 
 The [manifest template](evidence/manifest-template.jsonl) and its single
 [synthetic image](evidence/image.png) preserve the complete frozen corpus without
