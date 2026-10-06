@@ -188,6 +188,11 @@ impl Processor {
             // Suffix piece: pads(E-P) + <|vision_end|> + fresh tail tokenization.
             let tail = tail.unwrap();
             let tail_ids = self.tokenize(&tail)?;
+            if tail_ids.contains(&self.image_pad) {
+                return Err(Reject::bad_request(
+                    "invalid image prompt: unexpected image placeholder in suffix",
+                ));
+            }
             let suffix_pads = pads_end - p;
             let mut ids = Vec::with_capacity(suffix_pads + 1 + tail_ids.len());
             ids.extend(std::iter::repeat_n(self.image_pad, suffix_pads));
@@ -414,3 +419,7 @@ impl ResponseContext {
         )
     }
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/jev_vl/processing.rs"]
+mod tests;
