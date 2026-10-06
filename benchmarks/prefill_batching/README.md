@@ -47,7 +47,8 @@ readiness, a validated first inference and one excluded feasibility pass per sli
 | Mixed Choice/Noul/Score | 12 | 258.378 / 257.593 | 230.449 / 230.490 | 10.67% |
 
 Four/eight-question p95 decreases 7.66%/10.14%, using the mean of the two pass
-p95 values. The original 74 cases contain one Noul candidate each and span
+p95 values. The original 74 cases come from [JevBench at f8ce713](https://github.com/fstandhartinger/jevbench/tree/f8ce71361165846101d02ebc83ad44e47ae44fc3),
+under its [retained MIT notice](artifacts/20261006/LICENSE.JevBench). They contain one Noul candidate each and span
 80–3399 tokens. The repeated-question slices select the 60 original cases of
 at most 400 tokens, then duplicate each question four/eight times under distinct
 IDs in the same request. The mixed slice uses the repository's three-question
