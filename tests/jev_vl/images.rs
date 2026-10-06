@@ -24,11 +24,9 @@ fn single_image_positions_follow_hf() {
     let text_ids: Vec<u32> = vec![300, 301, PAD, 302];
     let e = expand(&text_ids, PAD, &[asset([1, 4, 6])]).unwrap();
     assert_eq!(e.ids, [300, 301, PAD, PAD, PAD, PAD, PAD, PAD, 302]);
-    assert_eq!(e.image_token_indices, vec![2, 3, 4, 5, 6, 7]);
     assert_eq!(e.positions[0], vec![0, 1, 2, 2, 2, 2, 2, 2, 5]);
     assert_eq!(e.positions[1], vec![0, 1, 2, 2, 2, 3, 3, 3, 5]);
     assert_eq!(e.positions[2], vec![0, 1, 2, 3, 4, 2, 3, 4, 5]);
-    assert_eq!(e.embeddings.len(), 6 * 5120);
     // R2d cache-anchor geometry.
     assert_eq!(
         e.blocks
@@ -45,7 +43,6 @@ fn two_images_continue_after_max_hw() {
     let text_ids: Vec<u32> = vec![300, PAD, 301, 302, PAD, 303];
     let e = expand(&text_ids, PAD, &[asset([1, 2, 4]), asset([1, 4, 2])]).unwrap();
     assert_eq!(e.ids, [300, PAD, PAD, 301, 302, PAD, PAD, 303]);
-    assert_eq!(e.image_token_indices, vec![1, 2, 5, 6]);
     assert_eq!(e.positions[0], vec![0, 1, 1, 3, 4, 5, 5, 7]);
     assert_eq!(e.positions[1], vec![0, 1, 1, 3, 4, 5, 6, 7]);
     assert_eq!(e.positions[2], vec![0, 1, 2, 3, 4, 5, 5, 7]);

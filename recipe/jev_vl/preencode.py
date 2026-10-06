@@ -13,14 +13,12 @@ import io
 import json
 from pathlib import Path
 
-import safetensors
-import torch
-from safetensors.torch import save_file
-from transformers import AutoConfig, AutoProcessor
 
-
-def load_vision(model_dir: Path) -> torch.nn.Module:
+def load_vision(model_dir: Path) -> "torch.nn.Module":
     """Hand-assemble the vision tower: no accelerate, no full-model device map."""
+    import safetensors
+    import torch
+    from transformers import AutoConfig
     from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5VisionModel
 
     cfg = AutoConfig.from_pretrained(model_dir, local_files_only=True)
@@ -47,11 +45,20 @@ def images_of(manifest: Path) -> list[str]:
         state = r.get("state", "")
         if isinstance(state, list):
             for p in state:
-                url = None
-                if isinstance(p, dict):
-                    url = p.get("image") or (p.get("image_url") or {}).get("url")
-                if url:
-                    urls.append(url)
+                if not isinstance(p, dict):
+                    continue
+                # Match contract::parts: untyped image_url fields are text,
+                # and the image shorthand takes precedence over typed parts.
+                if "image" in p:
+                    url = p["image"]
+                elif p.get("type") == "image_url":
+                    image_url = p.get("image_url")
+                    url = image_url.get("url") if isinstance(image_url, dict) else None
+                else:
+                    continue
+                if not isinstance(url, str) or not url:
+                    raise ValueError("image part must contain a nonempty URL string")
+                urls.append(url)
     return sorted(set(urls))
 
 
@@ -76,6 +83,12 @@ def main():
     args = ap.parse_args()
     urls = images_of(args.manifest)
     print(f"{len(urls)} unique images", flush=True)
+    if not urls:
+        return
+    import torch
+    from safetensors.torch import save_file
+    from transformers import AutoProcessor
+
     model_dir = args.model
     processor = AutoProcessor.from_pretrained(model_dir, local_files_only=True)
     model = load_vision(model_dir)
@@ -83,7 +96,7 @@ def main():
     for url in urls:
         key = hashlib.sha256(url.encode()).hexdigest()
         dest = args.out / key
-        if (dest / "emb.safetensors").exists():
+        if (dest / "emb.safetensors").is_file() and (dest / "grid.json").is_file():
             print(f"{key}: cached", flush=True)
             continue
         im = decode_url(url)
@@ -97,14 +110,18 @@ def main():
         n = torch.prod(torch.tensor(grid)).item() // model.spatial_merge_size**2
         assert emb.shape == (n, 5120), f"{key}: {emb.shape} vs n={n}"
         assert torch.isfinite(emb.float()).all(), f"{key}: non-finite"
-        dest.mkdir(parents=True)
+        dest.mkdir(parents=True, exist_ok=True)
+        # Publish metadata last so an interrupted write is retried on the next run.
+        (dest / "grid.json").unlink(missing_ok=True)
         save_file({"rows": emb.contiguous()}, str(dest / "emb.safetensors"))
-        (dest / "grid.json").write_text(json.dumps({
+        grid_tmp = dest / "grid.json.tmp"
+        grid_tmp.write_text(json.dumps({
             "url_sha256": key, "grid_thw": grid, "n_tokens": n, "dtype": "bfloat16",
             "shape": [int(emb.shape[0]), int(emb.shape[1])],
             "model_index_sha256": hashlib.sha256((model_dir / "model.safetensors.index.json")
                                                  .read_bytes()).hexdigest(),
         }) + "\n")
+        grid_tmp.replace(dest / "grid.json")
         print(f"{key}: grid={grid} n={n} rows={tuple(emb.shape)}", flush=True)
 
 

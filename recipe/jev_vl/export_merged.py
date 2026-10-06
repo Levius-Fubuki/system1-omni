@@ -9,9 +9,8 @@ loads the output unchanged. ``lm_head.weight`` is merged the same way and the ro
 the System-1 verbalizer readout needs (the union of the trained 24 head slots and
 the tokenizer's single-token option labels) land in ``label_head.safetensors``
 (float32). ``jev_vl_export.json`` — written last — carries the decision semantics:
-per-kind temperatures, the 24-slot bias/ranges, the exported label list, the
-``enable_thinking=True`` chat template split (for later System-2 work; the raw
-System-1 prompt does not use a chat template), and the checkpoint pins.
+per-kind temperatures, the 24-slot bias/ranges, the exported label list, and the
+checkpoint pins. System-1 uses a raw prompt without a chat template.
 
 See recipe/jev_vl/README.md for the pinned export environment.
 No PEFT and no GPU are needed.
@@ -122,14 +121,6 @@ def main():
     lo, hi = head_cfg["slots"]["ranges"]["choice"]
     assert [t for _, t in labels[: hi - lo]] == head_cfg["verbalizer_ids"][lo:hi], \
         "first labels must be the trained A-P head"
-    marker = "\x00OMNI_JEV_VL\x00"
-    chat = tokenizer.apply_chat_template(
-        [{"role": "user", "content": marker}], tokenize=False,
-        add_generation_prompt=True, enable_thinking=True,
-    )
-    assert chat.count(marker) == 1, "expected a single-user text chat template"
-    chat_prefix, chat_suffix = chat.split(marker)
-
     index = json.loads((model / "model.safetensors.index.json").read_text())
     weight_map: dict[str, str] = index["weight_map"]
     files = sorted(set(weight_map.values()))
@@ -200,9 +191,6 @@ def main():
         "label_ids": [t for _, t in labels],
         "label_head": {"file": "label_head.safetensors", "ids": head_ids, "dtype": "float32"},
         "max_length": args.max_length,
-        "chat_prefix": chat_prefix,
-        "chat_suffix": chat_suffix,
-        "image_placeholder": "<|vision_start|><|image_pad|><|vision_end|>",
     }
     # Written last: the native worker refuses incomplete exports or plain base weights.
     (out / "jev_vl_export.json").write_text(json.dumps(manifest, ensure_ascii=False) + "\n")

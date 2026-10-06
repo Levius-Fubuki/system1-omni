@@ -4,7 +4,7 @@ This recipe serves `autotrust/JEV-27B-VL` System-1 decisions with Rust/CUDA.
 Text runs natively; images must first be encoded offline by Transformers.
 The [model contract](../../src/models/jev_vl/README.md) explains the single-question
 API, verbalizer head and cache ownership. The reviewed candidate passed a
-[bounded H800 validation](validation.md#current-integrated-h800-validation);
+[bounded H800 validation](validation.md#historical-h800-validation);
 this remains an experimental integration with the documented coverage limits.
 
 ## Prepare a pinned checkpoint
@@ -34,8 +34,10 @@ alone. The output directory must not exist before export.
 
 ## Build and launch
 
-The reviewed worker ran on one H800 80 GB (`sm_90`). Other GPUs and maximum
-context lengths remain unvalidated for this model. Use an allocated GPU on
+The author measured the worker on one H800 80 GB (`sm_90`). A maintainer also
+[reported a bounded L20X replay](https://github.com/ThinkFlowLab/system1-omni/pull/96#issuecomment-6018324526)
+on an earlier revision. These runs do not validate later code changes or maximum
+context lengths. Use an allocated GPU on
 scheduled hosts. Build the CUDA library and Rust workers from the same revision;
 the integrated backend uses **ABI 6** and older libraries must be rebuilt.
 
@@ -99,8 +101,8 @@ JEV_VL_MODEL=weights/jev-vl-merged JEV_VL_IMGCACHE=weights/jev-vl-image-assets \
 Replace the manifest path with your own prepared workload. The preencoder writes
 `sha256(exact_data_uri)/emb.safetensors` and `grid.json`; the worker requires the
 exact same URI string. Use a new output directory for a changed checkpoint or
-processor. Existing assets are skipped rather than regenerated, and source
-identity is not a cryptographic runtime compatibility check. Preencoding,
+processor. Complete assets are skipped; interrupted writes are regenerated on
+the next run. Source identity is not a cryptographic runtime compatibility check. Preencoding,
 including image decoding and vision execution, is excluded from the reported
 worker timing. This is useful for repeated decisions on a prepared image; it is
 not an end-to-end live screenshot service.
@@ -131,6 +133,8 @@ cargo fmt --all --check
 cargo clippy --workspace --locked --all-targets -- -D warnings
 cargo test --workspace --locked
 cargo build --workspace --release --locked
+python3 -m unittest discover -s tests/benchmarks -p 'test_jev_vl_*.py' -v
+python3 recipe/jev_vl/preencode.py --help
 ```
 
 The image-prefix tokenizer check requires the exported checkpoint. First

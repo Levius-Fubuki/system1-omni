@@ -94,8 +94,6 @@ pub struct L1Meta {
     pub base_pad: i64,
     /// mrope advance after the image: max(grid_h, grid_w) / 2.
     pub advance: i64,
-    /// sha256(url) of the last image's asset.
-    pub asset_key: String,
     /// Expanded ids of rows [0, p) (needed by the L1-only mode's full rebuild).
     pub ids_prefix: Vec<u32>,
     /// Absolute positions of rows [0, p).
@@ -104,10 +102,7 @@ pub struct L1Meta {
 
 impl L1Meta {
     fn bytes(&self) -> usize {
-        self.ids_prefix.len() * 4
-            + 3 * self.positions_prefix[0].len() * 8
-            + self.asset_key.len()
-            + 96
+        self.ids_prefix.len() * 4 + 3 * self.positions_prefix[0].len() * 8 + 96
     }
 }
 

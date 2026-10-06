@@ -5,8 +5,8 @@
 //!     CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
 //!       cargo test --release -p omni-qwen3-5-native --test kernels -- --ignored
 //!
-//! The prefix-state ownership test additionally needs QWEN3_5_CHECKPOINT pointing
-//! to a supported local checkpoint; it loads two instances sequentially.
+//! The prefix-state test additionally needs QWEN3_5_CHECKPOINT pointing to a
+//! supported multimodal checkpoint; it loads two instances sequentially.
 
 use std::path::PathBuf;
 
@@ -630,8 +630,8 @@ fn f32_from_device(buf: &DeviceBuffer, n: usize, st: Stream) -> Vec<f32> {
 }
 
 #[test]
-#[ignore = "needs a GPU, CUA_S1_CUDA_LIB, and QWEN3_5_CHECKPOINT"]
-fn prefix_state_rejects_uncaptured_and_foreign_model() {
+#[ignore = "needs a GPU, CUA_S1_CUDA_LIB, and a multimodal QWEN3_5_CHECKPOINT"]
+fn prefix_state_rejects_uncaptured_foreign_and_oversized_prompts() {
     use omni_qwen3_5_native::inputs::MultimodalInput;
     use omni_qwen3_5_native::model::Model;
 
@@ -639,6 +639,10 @@ fn prefix_state_rejects_uncaptured_and_foreign_model() {
     let checkpoint =
         PathBuf::from(std::env::var_os("QWEN3_5_CHECKPOINT").expect("set QWEN3_5_CHECKPOINT"));
     let mut first = Model::load(&checkpoint, &library).unwrap();
+    for len in [(first.cfg.max_positions / 64 + 1) * 64, usize::MAX & !63] {
+        let error = first.alloc_prefix(len).err().expect("oversized prefix");
+        assert!(error.to_string().contains("exceeds the configured maximum"));
+    }
     let mut state = first.alloc_prefix(64).unwrap();
     let ids = vec![0u32; state.token_count()];
     let positions: Vec<i64> = (0..state.token_count() as i64).collect();
@@ -652,6 +656,24 @@ fn prefix_state_rejects_uncaptured_and_foreign_model() {
         .forward_multimodal_continue(&input, &state)
         .unwrap_err();
     assert!(error.to_string().contains("has not completed capture"));
+
+    first
+        .forward_multimodal_capture(&input, &mut state)
+        .unwrap();
+    // The suffix fits by itself; the cached prefix pushes the full prompt over
+    // the limit. Reject it before allocating scratch or submitting CUDA work.
+    let suffix_ids = vec![0u32; first.cfg.max_positions];
+    let suffix_positions = vec![0i64; suffix_ids.len()];
+    let suffix = MultimodalInput {
+        token_ids: &suffix_ids,
+        image_token_indices: &[],
+        image_embeddings: &[],
+        position_ids: [&suffix_positions; 3],
+    };
+    let error = first
+        .forward_multimodal_continue(&suffix, &state)
+        .unwrap_err();
+    assert!(error.to_string().contains("cached prompt exceeds"));
 
     // Retain only the prefix while replacing the model; never hold two sets of
     // checkpoint weights on the GPU. The old identity must remain distinct.

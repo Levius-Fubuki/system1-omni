@@ -127,10 +127,9 @@ impl LabelHead {
             "score" => (verbalizer[2..8].to_vec(), bias[2..8].to_vec()),
             "choice" => {
                 ensure!(count <= label_ids.len(), "choice options above label table");
-                let mut b: Vec<f64> = (0..count)
+                let b: Vec<f64> = (0..count)
                     .map(|i| if i < 16 { bias[8 + i] } else { 0.0 })
                     .collect();
-                b.truncate(count);
                 (label_ids[..count].to_vec(), b)
             }
             other => anyhow::bail!("unknown kind {other}"),
@@ -186,10 +185,6 @@ pub struct ImgBlock {
     pub start: usize,
     /// Global expanded-id row one past the last pad.
     pub end: usize,
-    /// mrope meshgrid position base of the block.
-    pub base: i64,
-    /// mrope advance after the block: max(grid_h, grid_w) / 2.
-    pub advance: i64,
     /// Parsed adapter output (grid + rows), shared with the L2 cache.
     pub asset: Arc<ImageAsset>,
 }
@@ -209,8 +204,6 @@ pub struct ContinueMm {
     pub positions: [Vec<i64>; 3],
     /// The image rows within the slice (the last block's tail), if any.
     pub block: Option<SuffixBlock>,
-    /// Cached prefix length (a multiple of 64); the continuation starts here.
-    pub p: usize,
     /// L3 device state of the prefix.
     pub state: Arc<omni_qwen3_5_native::model::PrefixState>,
 }

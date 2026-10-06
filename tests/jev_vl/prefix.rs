@@ -53,7 +53,6 @@ fn accounting_meta() -> cache_accounting::L1Meta {
         p: 64,
         base_pad: 10,
         advance: 12,
-        asset_key: "image".into(),
         ids_prefix: vec![0; 64],
         positions_prefix: [vec![0; 64], vec![0; 64], vec![0; 64]],
     }
@@ -101,7 +100,6 @@ fn zero_record_limit_retains_no_structure() {
             p: 64,
             base_pad: 10,
             advance: 12,
-            asset_key: "image".into(),
             ids_prefix: vec![0; 64],
             positions_prefix: [vec![0; 64], vec![0; 64], vec![0; 64]],
         },
@@ -244,7 +242,6 @@ fn records_are_lru_and_budgeted() {
         p: 64,
         base_pad: pads as i64,
         advance: 12,
-        asset_key: "k".into(),
         ids_prefix: vec![0u32; 64],
         positions_prefix: [vec![0i64; 64], vec![0i64; 64], vec![0i64; 64]],
     };

@@ -221,7 +221,6 @@ impl Processor {
                             ids,
                             positions: pos,
                             block,
-                            p,
                             state,
                         }),
                         readout,
@@ -232,7 +231,7 @@ impl Processor {
                 }
                 (true, None) => {
                     self.caches.l3_miss();
-                    let mm = rebuild_full(&ids, &pos, &record.meta, &asset)?;
+                    let mm = rebuild_full(&ids, &pos, &record.meta, &asset);
                     return self.finish_c(
                         mm.ids.len(),
                         MmPlan::Populate { mm, record },
@@ -243,7 +242,7 @@ impl Processor {
                     );
                 }
                 (false, _) => {
-                    let mm = rebuild_full(&ids, &pos, &record.meta, &asset)?;
+                    let mm = rebuild_full(&ids, &pos, &record.meta, &asset);
                     return self.finish_c(
                         mm.ids.len(),
                         MmPlan::Full(mm),
@@ -266,7 +265,7 @@ impl Processor {
             .map_err(|e| Reject::bad_request(format!("invalid image prompt: {e:#}")))?;
         let input_tokens = e.ids.len();
         let meta = (single_image && tail.is_some() && cfg.l1)
-            .then(|| prefix_meta(&e, Self::url_key(&compiled.images[0]), input_tokens))
+            .then(|| prefix_meta(&e, input_tokens))
             .flatten();
         if let Some(meta) = meta {
             let p = meta.p;
@@ -338,7 +337,7 @@ impl Processor {
 /// Cache-anchor geometry for one expanded single-image prompt: prefix = rows
 /// [0, floor(pads_end/64)*64) — a multiple of the 64-token GDN chunk, containing
 /// the whole text head and all but a tail slice of the image block.
-fn prefix_meta(e: &images::Expanded, asset_key: String, input_tokens: usize) -> Option<L1Meta> {
+fn prefix_meta(e: &images::Expanded, input_tokens: usize) -> Option<L1Meta> {
     let block = e.blocks.last()?;
     let p = block.end / 64 * 64;
     if p < 64 || p < block.start || p >= input_tokens {
@@ -350,7 +349,6 @@ fn prefix_meta(e: &images::Expanded, asset_key: String, input_tokens: usize) -> 
         p,
         base_pad: block.base,
         advance: block.advance,
-        asset_key,
         ids_prefix: e.ids[..p].to_vec(),
         positions_prefix: [
             e.positions[0][..p].to_vec(),
@@ -368,8 +366,6 @@ fn expanded_mm(e: images::Expanded, assets: &[Arc<ImageAsset>]) -> PreparedMm {
         .map(|b| ImgBlock {
             start: b.start,
             end: b.end,
-            base: b.base,
-            advance: b.advance,
             asset: assets[b.asset].clone(),
         })
         .collect();
@@ -387,7 +383,7 @@ fn rebuild_full(
     pos_suffix: &[Vec<i64>; 3],
     meta: &L1Meta,
     asset: &Arc<ImageAsset>,
-) -> Result<PreparedMm, Reject> {
+) -> PreparedMm {
     let mut ids = meta.ids_prefix.clone();
     ids.extend_from_slice(ids_suffix);
     let mut positions = meta.positions_prefix.clone();
@@ -397,15 +393,13 @@ fn rebuild_full(
     let blocks = vec![ImgBlock {
         start: meta.pads_start,
         end: meta.pads_end,
-        base: meta.base_pad,
-        advance: meta.advance,
         asset: asset.clone(),
     }];
-    Ok(PreparedMm {
+    PreparedMm {
         ids,
         positions,
         blocks,
-    })
+    }
 }
 
 impl ResponseContext {

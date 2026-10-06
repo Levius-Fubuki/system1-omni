@@ -865,6 +865,10 @@ impl Model {
             len >= 64 && len.is_multiple_of(64),
             "cached prefix length must be a positive multiple of 64"
         );
+        ensure!(
+            len <= self.cfg.max_positions,
+            "cached prefix exceeds the configured maximum length"
+        );
         let kvrow = self.cfg.kv_heads * self.cfg.head_dim * BF16;
         let w = Widths::of(&self.cfg);
         let nfull = self.cfg.full_attention.iter().filter(|&&f| f).count();
@@ -960,27 +964,21 @@ impl Model {
             self.cfg.max_positions,
         )?;
         let rows = input.token_ids.len();
-        let tend = prefix.len + rows;
+        let tend = prefix
+            .len
+            .checked_add(rows)
+            .context("cached prompt length overflow")?;
+        ensure!(
+            tend <= self.cfg.max_positions,
+            "cached prompt exceeds the configured maximum length"
+        );
         self.prepare_scratch(tend)?;
         let s = self.scratch.as_ref().unwrap();
         self.upload_positions(s, input.position_ids)?;
         self.embed_tokens_at(s, input.token_ids, prefix.len)?;
         self.overwrite_image_rows(s, input, prefix.len)?;
         self.run_window(s, prefix.len, tend, true, None, Some(prefix))?;
-        let mut last = vec![0u8; self.cfg.hidden * BF16];
-        // SAFETY: x holds at least tend rows of the hidden size.
-        unsafe {
-            cuda::download(
-                &mut last,
-                s.at(s.x + (tend - 1) * self.cfg.hidden * BF16),
-                self.stream,
-            )?;
-        }
-        let (pairs, _) = last.as_chunks::<2>();
-        Ok(pairs
-            .iter()
-            .map(|&b| half::bf16::from_le_bytes(b).to_f32())
-            .collect())
+        self.last_hidden(s, tend)
     }
 
     fn embed_tokens(&self, s: &Scratch, ids: &[u32]) -> Result<()> {

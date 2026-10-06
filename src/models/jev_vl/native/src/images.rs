@@ -70,9 +70,7 @@ impl ImageAsset {
 /// The token-expanded multimodal prompt for the language-side boundary.
 pub struct Expanded {
     pub ids: Vec<u32>,
-    pub image_token_indices: Vec<usize>,
     pub positions: [Vec<i64>; 3],
-    pub embeddings: Vec<half::bf16>,
     /// Each image's pad run in expanded-id coordinates plus its position base
     /// and mrope advance, used to split a cached prefix from the question.
     pub blocks: Vec<ImageBlock>,
@@ -135,9 +133,7 @@ pub fn expand(text_ids: &[u32], image_pad: u32, assets: &[Arc<ImageAsset>]) -> R
         assets.len()
     );
     let mut ids: Vec<u32> = Vec::new();
-    let mut indices: Vec<usize> = Vec::new();
     let mut positions: [Vec<i64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
-    let mut embeddings: Vec<half::bf16> = Vec::new();
     let mut blocks: Vec<ImageBlock> = Vec::with_capacity(marks.len());
     let mut cursor = 0usize;
     let mut current = 0i64;
@@ -160,8 +156,6 @@ pub fn expand(text_ids: &[u32], image_pad: u32, assets: &[Arc<ImageAsset>]) -> R
         );
         let (lg_t, lg_h, lg_w) = (gt, gh / 2, gw / 2); // temp_merge=1, spatial_merge=2
         let start = ids.len();
-        indices.extend(start..start + assets[k].n_tokens());
-        embeddings.extend_from_slice(&assets[k].embeddings);
         for _ in 0..assets[k].n_tokens() {
             ids.push(image_pad);
         }
@@ -191,9 +185,7 @@ pub fn expand(text_ids: &[u32], image_pad: u32, assets: &[Arc<ImageAsset>]) -> R
     ids.extend_from_slice(&text_ids[cursor..]);
     Ok(Expanded {
         ids,
-        image_token_indices: indices,
         positions,
-        embeddings,
         blocks,
     })
 }

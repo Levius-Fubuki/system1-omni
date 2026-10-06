@@ -1,6 +1,6 @@
 # JEV-27B-VL validation
 
-## Current integrated H800 validation
+## Historical H800 validation
 
 The ABI 6 candidate was measured on one H800 80 GB with CUDA 13.0.88,
 driver 580.159.03 and BF16 language weights from
