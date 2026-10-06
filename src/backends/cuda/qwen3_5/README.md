@@ -11,9 +11,9 @@ The norm, elementwise and q/k preparation kernels round to bfloat16 where Transf
 `cs1_attention_gated` fuses the sigmoid gate into the attention epilogue, preserving
 the BF16 rounding of both attention and sigmoid before multiplication. The native
 workers use this entry point; the separate operations remain available for kernel
-comparisons. Rebuild the library and workers together for ABI version 6, which
-includes the CUDA Graph entry points, gated attention, the vision operations and
-the continuation operations below.
+comparisons. Rebuild the library and workers together for ABI version 7, which
+includes the CUDA Graph entry points, gated attention, the vision operations, the
+continuation operations and the fixed-algorithm GEMM handle below.
 
 Three operations continue a sequence after a shared prefix, for prefix reuse
 ([#85](https://github.com/ThinkFlowLab/system1-omni/issues/85)); the native
@@ -35,6 +35,17 @@ in their own rows. The existing `cs1_gdn_conv`, `cs1_gdn_prefill` and
 `cs1_attention_gated` are these operations without history, state or cached
 positions. `tests/qwen3_5/kernels.rs` checks each against the unsplit call at
 prefix lengths around and inside 64-token chunks.
+
+cuBLASLt's heuristic picks a GEMM algorithm per M, so a row's result can change with
+the number of rows in the call: a prefix and its branch, run separately, round
+differently from the same tokens in one pass. `cs1_gemm_create_fixed` returns a handle
+that keeps one algorithm per weight shape for every M, the heuristic's first choice at a
+reference M among algorithms without split-K, so each row's result is the same whatever
+M is and wherever the row sits. cuBLASLt doesn't document this property;
+`fixed_gemm_rows_do_not_depend_on_m` checks it, so run it on a new GPU before relying
+on it (it passed on sm_89). It is slower for some shapes and faster for others: on an
+RTX 6000 Ada, the down and output projections take up to about 4 times as long at small
+M without split-K. `cs1_gemm_create` remains the default.
 
 Gated DeltaNet preparation stores converted TF32 operands in three-byte component planes, preserves the original four-term TF32 accumulation, and writes U/W fragments directly as bfloat16. Dynamic shared memory is 72 KiB per block. The [H200 comparison](../../../../benchmarks/gdn/README.md) records complete GDN call latency, numerical checks, and the small end-to-end change measured with the Open-Jev worker from PR #55.
 
