@@ -596,11 +596,11 @@ pub struct Model {
     layers: Vec<Layer>,
     stream: Stream,
     gemm: *mut c_void,
-    /// Buffers for the longest prompt so far; grows as needed.
+    /// Buffers for the largest packed token count so far; grows as needed.
     scratch: Option<Scratch>,
-    /// Opt-in replay with at most eight exact-length captures.
+    /// Opt-in replay with at most 64 captures keyed by ordered sequence lengths.
     graph_enabled: bool,
-    graphs: VecDeque<(usize, cuda::Graph)>,
+    graphs: VecDeque<(Vec<usize>, cuda::Graph)>,
 }
 
 // SAFETY: the raw pointers are device addresses and a cuBLASLt handle owned by the
@@ -717,6 +717,24 @@ impl Model {
         )
     }
 
+    /// Preserve each prompt's output/down GEMM shape and split-K reduction order.
+    fn gemm_sequences(
+        &self,
+        s: &Scratch,
+        x: usize,
+        w: &Tensor,
+        y: usize,
+        lengths: &[usize],
+    ) -> Result<()> {
+        let (n, k) = (w.shape[0], w.shape[1]);
+        let mut offset = 0;
+        for &length in lengths {
+            self.gemm(s, x + offset * k * BF16, w, y + offset * n * BF16, length)?;
+            offset += length;
+        }
+        Ok(())
+    }
+
     /// Finish queued work before releasing external execution admission.
     pub fn synchronize(&self) -> Result<()> {
         cuda::set_device(0)?;
@@ -739,36 +757,55 @@ impl Model {
 
     /// The final-norm hidden state at the last position, as float32.
     pub fn forward(&mut self, ids: &[u32]) -> Result<Vec<f32>> {
-        let t = ids.len();
+        Ok(self.forward_batch(&[ids])?.pop().unwrap())
+    }
+
+    /// Pack independent text prompts for input and gate/up GEMMs.
+    /// Mixers reset at each boundary; final-position hidden states retain input order.
+    pub fn forward_batch(&mut self, inputs: &[&[u32]]) -> Result<Vec<Vec<f32>>> {
+        ensure!(!inputs.is_empty(), "empty batch");
         ensure!(
-            t > 0 && t <= self.cfg.max_positions,
+            inputs
+                .iter()
+                .all(|ids| !ids.is_empty() && ids.len() <= self.cfg.max_positions),
             "empty or oversized prompt"
         );
         ensure!(
-            ids.iter().all(|&i| (i as usize) < self.embed.shape[0]),
+            inputs
+                .iter()
+                .flat_map(|ids| ids.iter())
+                .all(|&id| (id as usize) < self.embed.shape[0]),
             "token id outside the vocabulary"
+        );
+        let lengths: Vec<usize> = inputs.iter().map(|ids| ids.len()).collect();
+        let t = lengths
+            .iter()
+            .try_fold(0usize, |total, &length| total.checked_add(length))
+            .context("packed token count overflow")?;
+        ensure!(
+            t <= i32::MAX as usize,
+            "packed token count exceeds the CUDA layout"
         );
         self.prepare_scratch(t)?;
         let s = self.scratch.as_ref().unwrap();
-        self.embed_tokens(s, ids)?;
+        let ids: Vec<u32> = inputs.iter().flat_map(|ids| ids.iter().copied()).collect();
+        self.embed_tokens(s, &ids)?;
         if self.graph_enabled {
-            if let Some((_, graph)) = self.graphs.iter().find(|(length, _)| *length == t) {
+            if let Some((_, graph)) = self.graphs.iter().find(|(shape, _)| *shape == lengths) {
                 graph.launch(self.stream)?;
             } else {
-                // Warm GEMM plans and keep this eager result for the cache miss.
-                // run() advances s.res in place and no longer embeds tokens, so
-                // launching the new graph here would advance the residual twice.
-                self.run(s, t, false)?;
+                // Warm plans and keep the eager result: run() advances the residual
+                // in place, so replaying on this cache miss would advance it twice.
+                self.run(s, &lengths, false)?;
                 cuda::synchronize(self.stream)?;
-                match cuda::Graph::capture(self.stream, || self.run(s, t, false)) {
+                match cuda::Graph::capture(self.stream, || self.run(s, &lengths, false)) {
                     Ok(graph) => {
                         if self.graphs.len() == 64 {
                             self.graphs.pop_front();
                         }
-                        self.graphs.push_back((t, graph));
+                        self.graphs.push_back((lengths.clone(), graph));
                     }
                     Err(error) => {
-                        // Capture records without executing: the eager result is valid.
                         eprintln!("CUDA Graph capture failed; using eager execution: {error:#}");
                         self.graph_enabled = false;
                         self.graphs.clear();
@@ -776,9 +813,16 @@ impl Model {
                 }
             }
         } else {
-            self.run(s, t, false)?;
+            self.run(s, &lengths, false)?;
         }
-        self.last_hidden(s, t)
+        let mut end = 0;
+        lengths
+            .iter()
+            .map(|&length| {
+                end += length;
+                self.last_hidden(s, end)
+            })
+            .collect()
     }
 
     /// Prefill one unpadded prompt with already-adapted BF16 image embeddings and
@@ -801,7 +845,7 @@ impl Model {
         self.upload_positions(s, input.position_ids)?;
         self.embed_tokens(s, input.token_ids)?;
         self.overwrite_image_rows(s, input, 0)?;
-        self.run(s, t, true)?;
+        self.run(s, &[t], true)?;
         self.last_hidden(s, t)
     }
 
@@ -1023,10 +1067,19 @@ impl Model {
             .collect())
     }
 
-    /// Queue language layers over prepared embeddings in `s.res`, with rotary
-    /// tables in immutable text buffers or separate explicit-position buffers.
+    /// Queue language layers over packed embeddings, resetting sequence positions.
     /// Final-norm hidden states end up in `s.x`.
-    fn run(&self, s: &Scratch, t: usize, custom_positions: bool) -> Result<()> {
+    fn run(&self, s: &Scratch, lengths: &[usize], custom_positions: bool) -> Result<()> {
+        let t: usize = lengths.iter().sum();
+        let mut start = 0;
+        let sequences: Vec<(usize, i32)> = lengths
+            .iter()
+            .map(|&length| {
+                let offset = start;
+                start += length;
+                (offset, length as i32)
+            })
+            .collect();
         let cfg = &self.cfg;
         let st = self.stream;
         let (ti, hi, eps) = (t as i32, cfg.hidden as i32, cfg.eps);
@@ -1039,7 +1092,7 @@ impl Model {
         } else {
             (s.cos, s.sin)
         };
-        // SAFETY (every kernel call below): pointers are weights in the arena or
+        // SAFETY (every kernel call below): the pointers are weights in the arena or
         // scratch buffers laid out for at least t tokens with the widths used here.
         unsafe {
             check(
@@ -1064,21 +1117,23 @@ impl Model {
                     let b = z + vd * BF16;
                     let a = b + hv * BF16;
                     unsafe {
-                        check(
-                            (cuda::api().cs1_gdn_conv)(
-                                p(s.gdn_in),
-                                ld,
-                                la.conv.ptr,
-                                p(s.lq),
-                                p(s.lk),
-                                p(s.lv),
-                                ti,
-                                kd as i32,
-                                vd as i32,
-                                st,
-                            ),
-                            "gdn conv",
-                        )?;
+                        for &(offset, length) in &sequences {
+                            check(
+                                (cuda::api().cs1_gdn_conv)(
+                                    p(s.gdn_in + offset * w.gdn_in * BF16),
+                                    ld,
+                                    la.conv.ptr,
+                                    p(s.lq + offset * kd * BF16),
+                                    p(s.lk + offset * kd * BF16),
+                                    p(s.lv + offset * vd * BF16),
+                                    length,
+                                    kd as i32,
+                                    vd as i32,
+                                    st,
+                                ),
+                                "gdn conv",
+                            )?;
+                        }
                         check(
                             (cuda::api().cs1_gdn_gates)(
                                 p(b),
@@ -1094,23 +1149,25 @@ impl Model {
                             ),
                             "gdn gates",
                         )?;
-                        check(
-                            (cuda::api().cs1_gdn_prefill)(
-                                p(s.lq),
-                                p(s.lk),
-                                p(s.lv),
-                                p(s.g).cast(),
-                                p(s.beta),
-                                p(s.lo),
-                                p(s.workspace).cast(),
-                                ti,
-                                hv as i32,
-                                cfg.lin_k_heads as i32,
-                                (cfg.lin_k_dim as f32).powf(-0.5),
-                                st,
-                            ),
-                            "gdn prefill",
-                        )?;
+                        for &(offset, length) in &sequences {
+                            check(
+                                (cuda::api().cs1_gdn_prefill)(
+                                    p(s.lq + offset * kd * BF16),
+                                    p(s.lk + offset * kd * BF16),
+                                    p(s.lv + offset * vd * BF16),
+                                    p(s.g + offset * hv * F32).cast(),
+                                    p(s.beta + offset * hv * BF16),
+                                    p(s.lo + offset * vd * BF16),
+                                    p(s.workspace).cast(),
+                                    length,
+                                    hv as i32,
+                                    cfg.lin_k_heads as i32,
+                                    (cfg.lin_k_dim as f32).powf(-0.5),
+                                    st,
+                                ),
+                                "gdn prefill",
+                            )?;
+                        }
                         check(
                             (cuda::api().cs1_gated_rms_norm)(
                                 p(s.lo),
@@ -1127,7 +1184,7 @@ impl Model {
                             "gated norm",
                         )?;
                     }
-                    self.gemm(s, s.ln, &la.out, s.delta, t)?;
+                    self.gemm_sequences(s, s.ln, &la.out, s.delta, lengths)?;
                 }
                 Mixer::Full(fa) => {
                     self.gemm(s, s.x, &fa.qkv, s.attn_in, t)?;
@@ -1135,47 +1192,49 @@ impl Model {
                     let k = s.attn_in + w.attn_q * BF16;
                     let v = k + cfg.kv_heads * cfg.head_dim * BF16;
                     unsafe {
-                        check(
-                            (cuda::api().cs1_attn_prep)(
-                                p(s.attn_in),
-                                p(k),
-                                ld,
-                                fa.q_norm.ptr,
-                                fa.k_norm.ptr,
-                                p(cos),
-                                p(sin),
-                                p(s.aq),
-                                p(s.agate),
-                                p(s.ak),
-                                ti,
-                                hq,
-                                hk,
-                                hd,
-                                cfg.rotary_half as i32,
-                                eps,
-                                st,
-                            ),
-                            "attention prep",
-                        )?;
-                        check(
-                            (cuda::api().cs1_attention_gated)(
-                                p(s.aq),
-                                p(s.ak),
-                                p(v),
-                                ld,
-                                p(s.agate),
-                                p(s.ao),
-                                ti,
-                                hq,
-                                hk,
-                                hd,
-                                (cfg.head_dim as f32).powf(-0.5),
-                                st,
-                            ),
-                            "gated attention",
-                        )?;
+                        for &(offset, length) in &sequences {
+                            check(
+                                (cuda::api().cs1_attn_prep)(
+                                    p(s.attn_in + offset * w.attn_in * BF16),
+                                    p(k + offset * w.attn_in * BF16),
+                                    ld,
+                                    fa.q_norm.ptr,
+                                    fa.k_norm.ptr,
+                                    p(cos),
+                                    p(sin),
+                                    p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
+                                    p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
+                                    p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
+                                    length,
+                                    hq,
+                                    hk,
+                                    hd,
+                                    cfg.rotary_half as i32,
+                                    eps,
+                                    st,
+                                ),
+                                "attention prep",
+                            )?;
+                            check(
+                                (cuda::api().cs1_attention_gated)(
+                                    p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
+                                    p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
+                                    p(v + offset * w.attn_in * BF16),
+                                    ld,
+                                    p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
+                                    p(s.ao + offset * cfg.heads * cfg.head_dim * BF16),
+                                    length,
+                                    hq,
+                                    hk,
+                                    hd,
+                                    (cfg.head_dim as f32).powf(-0.5),
+                                    st,
+                                ),
+                                "gated attention",
+                            )?;
+                        }
                     }
-                    self.gemm(s, s.ao, &fa.o, s.delta, t)?;
+                    self.gemm_sequences(s, s.ao, &fa.o, s.delta, lengths)?;
                 }
             }
             unsafe {
@@ -1207,7 +1266,7 @@ impl Model {
                     "silu mul",
                 )?;
             }
-            self.gemm(s, s.act, &layer.down, s.delta, t)?;
+            self.gemm_sequences(s, s.act, &layer.down, s.delta, lengths)?;
             let next = self
                 .layers
                 .get(i + 1)

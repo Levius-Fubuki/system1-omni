@@ -8,6 +8,8 @@ use omni_qwen3_5_native::model::{Config, Model};
 use omni_runtime::SerialScheduler;
 use serde_json::Value;
 
+use crate::batching;
+
 #[derive(Clone)]
 pub(crate) struct DecisionHead {
     weights: Vec<f32>,
@@ -80,7 +82,7 @@ impl Executor {
     }
 
     /// Inputs and outputs are grouped by question, then candidate, in prepared order.
-    /// Admit one whole request; the model lock spans its independent candidate calls.
+    /// Admit one whole request and pack independent candidates for shared GEMMs.
     pub async fn execute(
         &self,
         scheduler: &SerialScheduler,
@@ -93,14 +95,18 @@ impl Executor {
                 let mut model = model
                     .lock()
                     .map_err(|_| anyhow::anyhow!("poisoned model"))?;
-                ids.iter()
-                    .map(|candidates| {
-                        candidates
-                            .iter()
-                            .map(|ids| head.score(model.forward(ids)?))
-                            .collect::<Result<Vec<_>>>()
-                    })
-                    .collect::<Result<Vec<_>>>()
+                let inputs: Vec<&[u32]> = ids.iter().flatten().map(Vec::as_slice).collect();
+                let mut scores = Vec::with_capacity(inputs.len());
+                for range in batching::ranges(&inputs) {
+                    for last in model.forward_batch(&inputs[range])? {
+                        scores.push(head.score(last)?);
+                    }
+                }
+                let mut scores = scores.into_iter();
+                Ok(ids
+                    .iter()
+                    .map(|candidates| scores.by_ref().take(candidates.len()).collect())
+                    .collect())
             })
             .await
     }

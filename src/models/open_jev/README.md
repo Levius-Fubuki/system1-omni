@@ -24,7 +24,13 @@ by question and candidate, plus the response context for identity/order,
 calibration, usage, and metadata. The executor owns the trained head and returns
 one FP32 scalar per candidate. Response finishing adds the `noul` false baseline
 and applies calibrated normalization across each complete question. The worker
-retains request-wide model locking and independent single-prompt execution, with
-the scalar head on the CPU after CUDA prefill. The engine owns a
+retains request-wide model locking and independent sequence semantics, with
+the scalar head on the CPU after CUDA prefill. Its [batch adapter](native/src/batching.rs)
+packs at most 16 candidates and 4096 tokens per group, in prepared order;
+longer individual prompts execute alone without truncation. Input and gate/up
+projections share packed GEMMs. Output/down projections retain their original
+per-prompt GEMM shapes; attention, positions, convolution and GDN state reset
+at each sequence boundary. Results are regrouped before question normalization.
+The engine owns a
 [shared serial scheduler](../../runtime/README.md) that admits the complete request
-before blocking dispatch. GPU batching and batch budgets remain planned.
+before blocking dispatch. Cross-request batching and shared queue budgets remain planned.

@@ -12,9 +12,14 @@ The norm, elementwise and q/k preparation kernels round to bfloat16 where Transf
 the BF16 rounding of both attention and sigmoid before multiplication. The native
 workers use this entry point; the separate operations remain available for kernel
 comparisons. Rebuild the library and workers together for ABI version 6, which
-includes the CUDA Graph entry points and gated attention.
+includes vision, CUDA Graph, gated attention and prefix-continuation entry points.
 
 Gated DeltaNet preparation stores converted TF32 operands in three-byte component planes, preserves the original four-term TF32 accumulation, and writes U/W fragments directly as bfloat16. Dynamic shared memory is 72 KiB per block. The [H200 comparison](../../../../benchmarks/gdn/README.md) records complete GDN call latency, numerical checks, and the small end-to-end change measured with the Open-Jev worker from PR #55.
+
+The shared Rust model can pack independent sequences for input and gate/up GEMMs.
+Output/down GEMMs retain each prompt's original shape and reduction order;
+attention, convolution and GDN calls remain sequence-local. Packing adds no CUDA
+entry points. Open-Jev uses this path within requests; Cua-S1 keeps single-prompt calls.
 
 Prefix continuation retains full-attention KV, three convolution input rows,
 and FP32 Gated DeltaNet state at 64-token chunk boundaries. It is used by the

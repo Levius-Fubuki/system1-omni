@@ -86,6 +86,11 @@ processors and executors. Native workers use shared FIFO admission and
 blocking dispatch per loaded executor. Processing orchestration, batch budgets,
 compatibility grouping and dynamic batching remain planned.
 
+Open-Jev already packs candidates within one request for selected prefill GEMMs,
+with bounded groups and independent sequence state. See the
+[native recipe](recipe/open_jev/native.md) and
+[matched H200 measurements](benchmarks/prefill_batching/README.md).
+
 | Layer | Responsibility | Native target implementation |
 | --- | --- | --- |
 | Rust frontend | API transport, request forwarding, and response delivery. | Rust. |
