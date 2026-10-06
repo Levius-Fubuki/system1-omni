@@ -23,6 +23,10 @@ user instructions for those actions.
 - Record the head and base commit IDs. Review the complete diff from their merge
   base, plus staged, unstaged, and relevant untracked changes. State which changes
   are not yet part of the PR. Disclose if the remote base could not be refreshed.
+- Count changed authored-code lines separately from total diff size using the
+  [contributor guide](../../../CONTRIBUTING.md#large-code-changes). Above 3,000,
+  require a full self-review, the contributor's split rationale and review map,
+  and component/integration validation; a quick precheck cannot establish readiness.
 - Read changed files and enough surrounding code and callers to understand the
   behavior; do not rely only on diff fragments.
 

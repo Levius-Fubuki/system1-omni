@@ -10,6 +10,11 @@ Review the full diff against the target branch for correctness, focused scope,
 architecture alignment and tests. Verify that documentation and PR claims match
 implemented behavior; report commands, outcomes and checks not run.
 
+Apply the [large-code-change requirements](../../../CONTRIBUTING.md#large-code-changes)
+when the diff exceeds 3,000 changed lines of authored code. Use the guide's
+counting convention; require full contributor self-review, a split decision and
+review map, and validation for each affected area before recommending readiness.
+
 This skill prepares a local contributor report. It does not itself authorize edits,
 commits, pushes, external posts, or review-status changes; follow separate user
 instructions for those actions. Distinguish personally run checks, author-reported
