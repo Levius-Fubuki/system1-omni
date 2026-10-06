@@ -2,10 +2,10 @@
   "gpu_2": {
     "gpu_id": 2,
     "status": "AVAILABLE",
-    "details": "free for 0h 1m 12s",
+    "details": "free for 0h 1m 2s",
     "validation": "0MB used",
     "gpu_model": "L20X",
-    "last_released": "2026-10-06T16:08:18.957881279+08:00"
+    "last_released": "2026-10-06T21:20:09.769940773+08:00"
   },
   "all_http_processes_exited": true,
   "validation_children": [
@@ -24,7 +24,7 @@
         "--test-threads=1",
         "--nocapture"
       ],
-      "pid": 128636,
+      "pid": 1331675,
       "returncode": 0
     },
     {
@@ -42,10 +42,10 @@
         "--test-threads=1",
         "--nocapture"
       ],
-      "pid": 131267,
+      "pid": 1332276,
       "returncode": 0
     }
   ],
-  "source_sha": "ae86032cba2466f45f42c2ebdfadbcfa8c30eb9f",
-  "final_graph_test_returncode": 0
+  "final_graph_test_returncode": 0,
+  "runtime_commit": "82b5e7e60363405614bccd79ba83ab774e7513f5"
 }

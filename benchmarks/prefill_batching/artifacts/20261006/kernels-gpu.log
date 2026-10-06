@@ -36,4 +36,3 @@ test residual_rms_norm_matches_rounded_reference ... ok
 test silu_mul_matches_rounded_reference ... ok
 
 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.06s
-

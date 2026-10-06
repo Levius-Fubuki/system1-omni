@@ -1,10 +1,10 @@
 {
-  "graph_launches": 10,
+  "graph_launches": 4,
   "runtime_graph_api_counts": {
     "cudaGraphDestroy_v10000": 10,
     "cudaGraphExecDestroy_v10000": 10,
     "cudaGraphInstantiate_v12000": 10,
-    "cudaGraphLaunch_v10000": 10,
+    "cudaGraphLaunch_v10000": 4,
     "cudaStreamBeginCapture_v10000": 10,
     "cudaStreamEndCapture_v10000": 10
   },
@@ -17,7 +17,7 @@
       "--sample=none",
       "--cpuctxsw=none",
       "--output",
-      "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/reports/final-graph-check",
+      "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/reports/cache-hit-check",
       "/home/hsliu2/.cargo/bin/cargo",
       "test",
       "--release",
@@ -31,11 +31,12 @@
       "--test-threads=1",
       "--nocapture"
     ],
-    "pid": 277918,
+    "pid": 1390803,
     "returncode": 0,
     "graph_mode": "1"
   },
-  "trace_file": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/reports/final-graph-check.nsys-rep",
-  "trace_sha256": "991d0d4e50cc7b909573c3b94f4b0be97e7446b268bd25bf0594cc0b9eef0c9d",
-  "performance_claim": false
+  "trace_file": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/reports/cache-hit-check.nsys-rep",
+  "trace_sha256": "300dc52f657c7ac976557f868ded9d08ec562f68cf001b69a44e606c870974ea",
+  "performance_claim": false,
+  "coverage": "Cache misses, repeated ordered shapes, changed token IDs, reordering, 17-candidate splitting, and a later singleton."
 }

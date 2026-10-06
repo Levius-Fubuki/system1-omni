@@ -127,12 +127,12 @@ Repository checks pass: formatting, strict Clippy, locked workspace tests
 (**90 passed, 13 ignored**) and release workspace build. Reserved GPU validation
 passes all **six CUDA reference tests** and the full-checkpoint packing test with
 `CUA_S1_GRAPH=1`, including unequal lengths, reordered equal-total shapes,
-17-candidate splitting, replay and a later singleton.
+17-candidate splitting, cache hits with changed token IDs, replay and a later singleton.
 [GPU test records](artifacts/20261006/gpu-validation.json) and adjacent logs
 preserve those commands/results. The graph checks are correctness tests, with no
 additional performance measurements.
 The final cardinality/isolation test also passes under Nsight Systems;
-[trace evidence](artifacts/20261006/graph-replay-evidence.json) records **10 actual
+[trace evidence](artifacts/20261006/graph-replay-evidence.json) records **4 actual
 CUDA Graph launches**, confirming replay executes during the regression check.
 
 Other GPU architectures, concurrency above 1, full production distributions,

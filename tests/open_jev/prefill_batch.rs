@@ -40,7 +40,9 @@ async fn packed_candidates_preserve_isolation_order_and_graph_shapes() {
         vec![0, 1, 2],
         vec![1, 0, 2],
         vec![2, 1, 0],
+        vec![0, 1, 2],
         (0..17).map(|index| index % 3).collect(),
+        vec![0, 1, 2],
         vec![0, 1, 2],
     ] {
         let grouped = order.iter().map(|&index| inputs[index].clone()).collect();
@@ -69,4 +71,28 @@ async fn packed_candidates_preserve_isolation_order_and_graph_shapes() {
         .await
         .unwrap();
     assert_eq!(again[0][0], independent[0]);
+
+    // Reuse both singleton and packed graph shapes with changed token IDs.
+    // The new embeddings must replace the residual left by the previous replay.
+    let mut changed = inputs.clone();
+    changed[0][0].fill(42);
+    let expected = engine
+        .executor
+        .execute(&engine.scheduler, vec![changed[0].clone()])
+        .await
+        .unwrap()[0][0];
+    assert_ne!(expected, independent[0]);
+    let packed = engine
+        .executor
+        .execute(&engine.scheduler, changed)
+        .await
+        .unwrap();
+    assert_eq!(packed.len(), 3);
+    for (row, expected) in packed
+        .iter()
+        .zip([expected, independent[1], independent[2]])
+    {
+        assert_eq!(row.len(), 1);
+        assert!((row[0] - expected).abs() <= 0.01);
+    }
 }
