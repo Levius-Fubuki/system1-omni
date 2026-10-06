@@ -1,4 +1,95 @@
 {
+  "date": "2026-10-06",
+  "baseline_sha": "47eff9cdeda01e4847a4fb9634a43f2cab6a233f",
+  "candidate_runtime_sha": "82b5e7e60363405614bccd79ba83ab774e7513f5",
+  "raw_evidence_url": "https://github.com/ThinkFlowLab/system1-omni/tree/7d03326d51debde070f2a0d3a925405032275270/benchmarks/prefill_batching/artifacts/20261006",
+  "input_manifest_sha256": "02a9a45a381a231fa81579f0f642e5ad23f35410fe5f8e2f013ffac3326a2113",
+  "collector_sha256": "8ff176a09380aa257b23c9b8a566dd5fa2862ac40280ea76c9c65993cfbd9d4a",
+  "runtime_source_sha256": {
+    "src/models/qwen3_5/native/src/model.rs": "161599ea12a890b7f1926fa5ce786ffbfeda3cd53149d87e335b5cede9207aec",
+    "src/models/open_jev/native/src/executor.rs": "cea8e9f85514d3d4524702f9a3d7c04be159a1bbd028e67c5f187fdea0326888",
+    "src/models/open_jev/native/src/batching.rs": "32cce2ee7d4ede1f493f6b61fe98efc2e23681aeee018ba614b159364adcb28a",
+    "src/models/open_jev/native/src/lib.rs": "df6a9d85476ed24e1b5c95acf98735086325d1839b04a7d2e9056531753f54f8"
+  },
+  "controls": {
+    "independent_variable": "Within-request input and gate/up GEMM packing; output/down projections and mixers stay sequence-local.",
+    "gpu": "One H200, SM90, 132 SMs; driver/scheduler label L20X",
+    "gpu_id": 2,
+    "gpu_uuid": "GPU-cbf66259-f4ab-0ede-1811-82037dde5924",
+    "numa_node": 0,
+    "cpu_affinity": "0-15",
+    "precision": "BF16 weights/activations, FP32 GEMM accumulation",
+    "cuda_abi": 5,
+    "cuda_toolkit": "13.0 (nvcc 13.0.88)",
+    "rustc": "1.98.1",
+    "model": "Qwen/Qwen3.8-27B with merged Open-Jev-27B-v1.1 adapter and decision head",
+    "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+    "checkpoint_revision": "28cf73067d5b337860bbef3c85b8b82ba8730956",
+    "temperature": 2.5343690298472983,
+    "max_length": 16384,
+    "gemm_workspace_bytes": 33554432,
+    "packing_max_sequences": 16,
+    "packing_max_tokens": 4096,
+    "oversized_prompt": "singleton, original length",
+    "concurrency": 1,
+    "graphs": "CUA_S1_GRAPH=0 during HTTP measurements; 1 in separate correctness tests",
+    "profiler": "disabled during measurements",
+    "matched": "CUDA library, frontend, exported weights, tokenizer, head, temperature and max length",
+    "cache": "warm; no shared cache resets or clock changes",
+    "server_reuse": "one worker/frontend pair per arm, reused across all slices",
+    "budget": {
+      "feasibility_passes_per_arm_slice": 1,
+      "measured_passes_per_arm_slice": 2,
+      "no_extra_measured_runs": true
+    },
+    "timing": "localhost HTTP through the same frontend, includes tokenization, inference and UTF8 response receipt; excludes JSON body construction and JSON parsing, preparation, process-to-readiness, validated first request and full feasibility passes. Profiling disabled during measured runs.",
+    "p50": "median of per-request latencies within each measured pass",
+    "p95": "nearest rank within each measured pass",
+    "reductions": "100 * (1 - mean(candidate pass metrics) / mean(baseline pass metrics))",
+    "decision_rate": "number of question answers / sum of successful request latencies; excludes gaps between requests",
+    "acceptance": {
+      "multi_question_mean_reduction_percent": 15,
+      "single_mean_max_regression_percent": 2,
+      "single_p95_max_regression_percent": 2,
+      "maximum_probability_or_score_drift": 0.001,
+      "decision_flips": 0,
+      "request_failures": 0
+    },
+    "stop_condition": "Stop on reservation/UUID/affinity mismatch, CUDA error, output drift above tolerance, decision flip, request failure or run cap. Preserve failed evidence. Do not silently relax numerical or performance gates."
+  },
+  "workloads": {
+    "single": {
+      "requests": 74,
+      "definition": "original 74 real single-question JevBench Noul requests"
+    },
+    "questions-4": {
+      "requests": 60,
+      "definition": "synthetic repeated questions from short JevBench requests"
+    },
+    "questions-8": {
+      "requests": 60,
+      "definition": "synthetic repeated questions from short JevBench requests"
+    },
+    "mixed-types": {
+      "requests": 12,
+      "definition": "repository Choice/Noul/Score example with varied lengths"
+    }
+  },
+  "measured_requests": 824,
+  "measured_decisions": 3320,
+  "fidelity_comparison": "Every measured and feasibility response matches its baseline feasibility reference after removing metadata.inference_seconds.",
+  "validation": {
+    "workspace_tests": {
+      "passed": 90,
+      "ignored": 13
+    },
+    "cuda_reference_tests_passed": 6,
+    "full_checkpoint_packing_test": "passed with graph replay, updated inputs, ordering, unequal lengths, splitting and singleton execution",
+    "cuda_graph_launches_in_correctness_trace": 4,
+    "cuda_graph_trace_sha256": "300dc52f657c7ac976557f868ded9d08ec562f68cf001b69a44e606c870974ea",
+    "format_clippy_release_build_strict_docs": "passed; original commands and logs in raw evidence snapshot",
+    "task_owned_process_cleanup": "all exited; GPU returned available with 0 MB used"
+  },
   "status": "complete",
   "results": {
     "baseline": {
@@ -160,5 +251,7 @@
   },
   "maximum_drift": 0.0,
   "failures": 0,
-  "decision_flips": 0
+  "decision_flips": 0,
+  "dataset_revision": "f8ce71361165846101d02ebc83ad44e47ae44fc3",
+  "unique_measured_cases": 206
 }

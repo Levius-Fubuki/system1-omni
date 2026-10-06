@@ -127,16 +127,17 @@ projections share GEMMs. Output/down projections preserve their per-prompt shape
 and reduction order, and each sequence retains independent attention, positions,
 convolution and GDN state. Calibration still uses every candidate in its question.
 The [H200 packing comparison](../../benchmarks/prefill_batching/README.md)
-records latency, exact output checks and the rejected fully packed variant.
+records latency, exact output checks and frozen controls.
 Packing validation covers H200 (sm_90); other CUDA architectures remain unverified.
 
 Set `CUA_S1_GRAPH=1` on the worker to enable CUDA Graph replay. The
 shared backend retains at most 64 graphs, keyed by ordered sequence token lengths;
 growing the scratch buffer clears them. A new shape first runs an eager forward
 to initialize its plans and captures the layer loop for later replay.
-This adds cost for new lengths, so graph mode remains opt-in. Warm replay is
-validated on the 74-case H200 workload: its mean HTTP latency is 2.03% below
-eager execution after all workload lengths are warmed. Tokenization, transfers
+This adds cost for new lengths, so graph mode remains opt-in. The earlier
+single-prompt graph comparison on the 74-case H200 workload measured mean HTTP
+latency 2.03% below eager execution after all lengths were warmed. Combined
+packing and graph performance remains unmeasured. Tokenization, transfers
 and the CPU scalar head remain outside the graph. Prefix sharing, GEMM autotuning,
 quantization and multimodal inference are not implemented. The
 [H200 validation](validation.md) reports full-checkpoint results for 74
