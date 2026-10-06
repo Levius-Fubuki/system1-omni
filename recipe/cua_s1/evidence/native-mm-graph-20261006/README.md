@@ -80,22 +80,22 @@ are unchanged. These commands do not turn the vision encoder into a Graph.
 
 ## Recorded scope and environment
 
-One RTX4090, driver595.71.05, CUDA13.0.88, Rust1.98.1; base
+One RTX4090, driver 595.71.05, CUDA 13.0.88, Rust 1.98.1; base
 `Qwen/Qwen3.5-4B@851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a`, adapters
 `cua-ai/cua-s1-4b-0.2@16818868b0cc7813808aae4e87b417657046ab79`.
 Native language uses the appropriate merged BF16 export; native vision retains
 BF16 base weights and separate FP32 LoRA. Official control uses pinned upstream
 `FourBModel.forward`, BF16, original PEFT, default SDPA, no Graph/compile, TF32 off.
-Python3.12.3, torch2.14.0+cu130, Transformers5.17.0, PEFT0.21.0.
+Python 3.12.3, torch 2.14.0+cu130, Transformers 5.17.0, PEFT 0.21.0.
 
 Core fmt, strict workspace Clippy, workspace tests and locked release build
-passed; core tests report89 passed/0 failed/12 ignored. Explicit GREEN GPU
-tests report3 passed/0 failed in8.56 seconds, with tracing unset and two
+passed; core tests report 89 passed/0 failed/12 ignored. Explicit GREEN GPU
+tests report 3 passed/0 failed in 8.56 seconds, with tracing unset and two
 unconditional diagnostics. Ignored core tests are not GPU validation.
 
 Media and complete fresh measurement records are published separately from
 the core diff. The recordings are illustrative synthetic product-filter
-workflows at1x; the fixed-input comparison is a distinct warmed server-local
+workflows at 1x; the fixed-input comparison is a distinct warmed server-local
 HTTP benchmark. Whole-framework versus official speed and Graph-only ON/OFF
 results must be reported separately. Capture costs and peak memory are not
 measured; the result does not establish general model accuracy or a universal
