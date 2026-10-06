@@ -1,0 +1,21 @@
+{
+  "all_task_processes_exited": true,
+  "processes": [
+    {
+      "pid": 4170598,
+      "returncode": -15
+    },
+    {
+      "pid": 4173923,
+      "returncode": 0
+    },
+    {
+      "pid": 18556,
+      "returncode": -15
+    },
+    {
+      "pid": 21950,
+      "returncode": 0
+    }
+  ]
+}

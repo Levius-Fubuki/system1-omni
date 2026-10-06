@@ -1,0 +1,14 @@
+{
+  "gpu_id": 2,
+  "status": "IN_USE",
+  "user": "hsliu2",
+  "duration": "0h 0m 2s",
+  "type": "RUN",
+  "note": "Open-Jev selective projection packing HTTP A/B",
+  "details": "heartbeat 0h 0m 1s ago",
+  "validation": "no usage detected",
+  "gpu_model": "L20X",
+  "last_heartbeat": "2026-10-06T15:55:07.507948758+08:00",
+  "idle_timeout": "30m",
+  "idle_for": "2s"
+}

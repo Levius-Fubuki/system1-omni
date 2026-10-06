@@ -1,0 +1,403 @@
+   Compiling futures-sink v0.3.34
+   Compiling futures-io v0.3.34
+   Compiling slab v0.4.12
+   Compiling futures-task v0.3.34
+   Compiling try-lock v0.2.5
+   Compiling ipnet v2.12.2
+   Compiling base64 v0.23.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling typenum v1.20.1
+   Compiling litemap v0.8.3
+   Compiling writeable v0.6.4
+   Compiling cpufeatures v0.2.17
+   Compiling utf8_iter v1.0.4
+   Compiling bit-vec v0.8.0
+   Compiling zeroize v1.9.0
+   Compiling untrusted v0.9.0
+   Compiling daachorse v3.0.3
+   Compiling subtle v2.6.1
+   Compiling base64 v0.22.1
+   Compiling sync_wrapper v1.0.2
+   Compiling regex-automata v0.4.18
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling serde_json v1.0.151
+   Compiling errno v0.3.14
+   Compiling getrandom v0.2.17
+   Compiling omni-cuda v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/backends/cuda)
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.21
+   Compiling zerofrom v0.1.8
+   Compiling futures-channel v0.3.34
+   Compiling want v0.3.1
+   Compiling axum-core v0.5.6
+   Compiling futures-util v0.3.34
+   Compiling rustls-pki-types v1.15.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling generic-array v0.14.7
+   Compiling yoke v0.8.3
+   Compiling ring v0.17.14
+   Compiling bit-set v0.8.0
+   Compiling dary_heap v0.3.9
+   Compiling ahash v0.8.12
+   Compiling compact_str v0.9.1
+   Compiling spm_precompiled v0.1.4
+   Compiling serde_urlencoded v0.7.1
+   Compiling tokio v1.53.1
+   Compiling safetensors v0.6.2
+   Compiling safetensors v0.8.0
+   Compiling webpki-roots v1.0.9
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling regex v1.13.1
+   Compiling fancy-regex v0.17.0
+   Compiling digest v0.10.7
+   Compiling omni-qwen3-5-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/qwen3_5/native)
+   Compiling tokenizers v0.22.2
+   Compiling rustls-webpki v0.103.15
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling tokenizers v0.23.2
+   Compiling sha2 v0.10.9
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling rustls v0.23.45
+   Compiling icu_provider v2.3.1
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling hyper v1.11.1
+   Compiling tower v0.5.3
+   Compiling omni-runtime v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/runtime)
+   Compiling tokio-util v0.7.19
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling hyper-util v0.1.21
+   Compiling tokio-rustls v0.26.5
+   Compiling omni-laya v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/laya)
+   Compiling url v2.5.8
+   Compiling axum v0.8.9
+   Compiling hyper-rustls v0.27.10
+   Compiling tower-http v0.6.11
+   Compiling reqwest v0.12.28
+   Compiling omni-open-jev-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native)
+   Compiling omni-cua-s1-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/cua_s1/native)
+   Compiling omni-jev v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/frontend)
+   Compiling omni-clm v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/clm)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 42.64s
+     Running unittests src/lib.rs (target/debug/deps/omni_clm-3b851df786c10980)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../tests/clm/checkpoint.rs (target/debug/deps/checkpoint-4c9ea978940f3fca)
+
+running 6 tests
+test decisions_match_the_reference_implementation ... ignored, requires CLM_EXPORT at a converted checkpoint; CPU only
+test every_tensor_conversion_matches_the_oracle ... ignored, requires CLM_EXPORT at a converted checkpoint; CPU only
+test confidence_matches_the_reference_definition ... ok
+test a_tied_score_label_keeps_the_first_level ... ok
+test the_top_level_geometry_fills_in_a_cfg_that_omits_it ... ok
+test the_loader_follows_the_layernorm_flag ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_cua_s1_native-9a203a0a8f151f19)
+
+running 8 tests
+test executor::tests::letter_projection_preserves_fp64_accumulation_and_fp32_readout ... ok
+test executor::tests::letter_projection_rejects_nonfinite_scores_before_later_prompts ... ok
+test contract::tests::answer_and_confidence ... ok
+test contract::tests::maps_a_request ... ok
+test contract::tests::errors ... ok
+test processing::tests::prepared_prompts_and_finished_answers_preserve_order_and_usage ... ok
+test processing::tests::finishing_uses_stable_softmax_and_rejects_incomplete_or_nonfinite_scores ... ok
+test processing::tests::preparation_preserves_errors_and_checks_later_prompts ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src/main.rs (target/debug/deps/omni_cua_s1_native-6a0cb14c74babfa4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_cuda-8cca8dd625512da4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_jev-44c6835d07ab052c)
+
+running 4 tests
+test tests::backend_path_prefix_gets_trailing_slash ... ok
+test tests::defaults_match_documented_values ... ok
+test tests::invalid_backend_url_does_not_expose_credentials ... ok
+test tests::rejects_ambiguous_backend_urls ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/omni_jev-7733eeb210d73220)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../tests/frontend/forwarding_limits.rs (target/debug/deps/forwarding_limits-daa77a827544f021)
+
+running 5 tests
+test rejects_zero_health_timeout_or_response_limit ... ok
+test oversized_response_is_rejected_before_the_worker_finishes ... ok
+test response_limit_covers_declared_and_chunked_bodies_on_both_routes ... ok
+test binary_rejects_invalid_forwarding_limits ... ok
+test health_timeout_is_shorter_than_inference_before_or_after_headers ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+
+     Running tests/frontend.rs (target/debug/deps/frontend-fcff98f9e44e4663)
+
+running 12 tests
+test rejects_invalid_routes_before_forwarding ... ok
+test unreachable_worker_returns_502 ... ok
+test forwards_authorization_when_present ... ok
+test strips_connection_specific_headers_in_both_directions ... ok
+test forwards_prefixed_decision_with_query ... ok
+test health_reflects_worker_health_under_base_path ... ok
+test round_trips_decision_fixtures ... ok
+test streams_uploads_beyond_axum_default_body_limit ... ok
+test returns_worker_responses_unchanged_without_retrying ... ok
+test forwards_every_modality_byte_for_byte ... ok
+test binary_serves_requests_and_exits_cleanly_on_sigterm ... ok
+test slow_worker_returns_504_before_or_after_headers ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_laya-0489b1aa00efd1f1)
+
+running 5 tests
+test decision::tests::rounding_matches_python_at_decimal_boundaries ... ok
+test artifacts::tests::matching_artifacts_pass_without_loading_cuda ... ok
+test artifacts::tests::missing_checkpoint_file_fails_closed ... ok
+test artifacts::tests::each_checkpoint_artifact_is_bound_to_the_bundle ... ok
+test artifacts::tests::missing_checkpoint_hashes_fail_closed ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/bin/laya-pack.rs (target/debug/deps/laya_pack-0e9587d7f72694ad)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/laya-run.rs (target/debug/deps/laya_run-bf01348be89b3e96)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/omni-laya.rs (target/debug/deps/omni_laya-b0a8954a8793c8dc)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../tests/laya/batch.rs (target/debug/deps/batch-c47389a310eab675)
+
+running 4 tests
+test empty_request_needs_no_device_rows ... ok
+test padding_matches_native_sequence_alignment ... ok
+test padding_preserves_order_lengths_and_markers ... ok
+test rejects_executor_capacity_and_invalid_markers ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../tests/laya/checkpoint.rs (target/debug/deps/checkpoint-ad4f0d082c9479f5)
+
+running 6 tests
+test inventory_includes_gated_projection_and_legacy_buffer ... ok
+test f32_conversion_preserves_zero_and_rounds_ties_to_even ... ok
+test inventory_mismatch_names_the_tensors_that_differ ... ok
+test half_precision_inputs_decode_exactly ... ok
+test tensor_shape_names_and_dtype_are_checked ... ok
+test config_accepts_supported_model_and_rejects_incompatible_inputs ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running ../../../tests/laya/decision.rs (target/debug/deps/decision-6b0a2bfa682f8a69)
+
+running 5 tests
+test rejects_bad_row_counts_and_nonfinite_outputs ... ok
+test rejects_inconsistent_question_metadata ... ok
+test rejects_invalid_temperatures_and_scaling_overflow ... ok
+test fp32_reduction_boundary_preserves_answer ... ok
+test matches_official_decode_reference ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../tests/laya/packing.rs (target/debug/deps/packing-d3d4be11c4a83245)
+
+running 1 test
+test official_packing_parity ... ignored, requires pinned tokenizer and packing oracle; run by CPU CI, no GPU
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../tests/laya/preprocess.rs (target/debug/deps/preprocess-8dcb7c39d2bfb3f7)
+
+running 13 tests
+test python_json_numbers_and_order ... ok
+test private_json_keys_stay_objects_from_value ... ok
+test request_rejects_invalid_json_values ... ok
+test request_numbers_keep_arbitrary_precision_and_syntax ... ok
+test rejects_unsupported_language_and_nonfinite_numbers ... ok
+test request_from_value_preserves_deep_values ... ok
+test preserves_question_and_choice_order ... ok
+test validation_names_the_question_and_leaves_preprocessor_usable ... ok
+test strips_python_whitespace_from_noul_labels ... ok
+test rejects_truncated_option_markers ... ok
+test private_json_keys_stay_objects_in_raw_requests ... ok
+test request_keeps_default_json_recursion_limit ... ok
+test keeps_newest_conversation_and_start_of_plain_text ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running ../../../tests/laya/weights.rs (target/debug/deps/weights-63b543f6c2a3eff9)
+
+running 2 tests
+test checkpoint_inventory_covers_legacy_temperature ... ignored, requires LAYA_CHECKPOINT; CPU only
+test every_weight_conversion_matches_torch ... ignored, requires LAYA_CHECKPOINT and LAYA_WEIGHT_ORACLE; CPU only
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_open_jev_native-0c383fc5be45c126)
+
+running 9 tests
+test executor::tests::scalar_projection_preserves_accumulation_rounding_and_bias_order ... ok
+test executor::tests::scalar_projection_rejects_nonfinite_scores ... ok
+test batching::tests::preserves_all_candidates_across_token_and_sequence_limits ... ok
+test processing::tokenization_tests::tokenization_matches_reference_and_rejects_oversize_prompts ... ignored, needs the pinned export at OPEN_JEV_MODEL; no GPU needed
+test processing::tests::preparation_applies_the_saved_chat_prefix_and_suffix ... ok
+test processing::tests::prepared_candidates_have_exact_ids_and_finished_responses_keep_mapping ... ok
+test processing::tests::preparation_rejects_later_oversize_candidates_before_execution ... ok
+test processing::tests::finishing_rejects_missing_candidates_and_nonfinite_scores ... ok
+test processing::tests::complete_questions_match_existing_choice_score_and_noul_reference ... ok
+
+test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (target/debug/deps/omni_open_jev_native-0e834f21707d6977)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../../tests/open_jev/contract.rs (target/debug/deps/contract-8fde1ac139939306)
+
+running 3 tests
+test rejects_malformed_and_unsupported_requests ... ok
+test prompts_and_typed_answers_match_open_jev_reference ... ok
+test choice_and_score_limits_match_reference ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../../tests/open_jev/prefill_batch.rs (target/debug/deps/prefill_batch-301d46d83ce4ed92)
+
+running 1 test
+test packed_candidates_preserve_isolation_order_and_graph_shapes ... ignored, needs the pinned Open-Jev export, CUDA library and a GPU reservation
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_qwen3_5_native-7392c292faca309f)
+
+running 4 tests
+test json::tests::float_repr_matches_python_examples ... ok
+test json::tests::dumps_matches_python ... ok
+test json::tests::precision_features_preserve_numbers_and_private_marker_keys ... ok
+test json::tests::rejects_what_the_contract_rejects ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../../tests/qwen3_5/config.rs (target/debug/deps/config-5b7cbc16adaf5b2e)
+
+running 1 test
+test open_jev_27b_backbone_has_supported_dimensions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../../../tests/qwen3_5/kernels.rs (target/debug/deps/kernels-dd3b275de1599b37)
+
+running 6 tests
+test flash_attention_matches_float64_reference ... ignored, needs a GPU and CUA_S1_CUDA_LIB
+test fused_attention_gate_matches_separate_pass ... ignored, needs a GPU and CUA_S1_CUDA_LIB
+test gated_delta_rule_matches_recurrent_reference ... ignored, needs a GPU and CUA_S1_CUDA_LIB
+test graph_replay_reads_updated_inputs_after_failed_capture ... ignored, needs a GPU and CUA_S1_CUDA_LIB
+test residual_rms_norm_matches_rounded_reference ... ignored, needs a GPU and CUA_S1_CUDA_LIB
+test silu_mul_matches_rounded_reference ... ignored, needs a GPU and CUA_S1_CUDA_LIB
+
+test result: ok. 0 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/omni_runtime-f6bdd23e2dfe2285)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running ../../tests/runtime/scheduler.rs (target/debug/deps/scheduler-2b17aba8f3528f68)
+
+running 5 tests
+test cancelling_queued_work_never_dispatches_it ... ok
+test errors_and_panics_release_admission ... ok
+test loaded_executors_have_independent_admission ... ok
+test cancelling_dispatched_work_retains_admission_and_resources_until_completion ... ok
+test queued_units_run_serially_in_fifo_order ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+   Doc-tests omni_clm
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_cua_s1_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_cuda
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_jev
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_laya
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_open_jev_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_qwen3_5_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests omni_runtime
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

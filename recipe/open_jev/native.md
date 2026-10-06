@@ -97,6 +97,12 @@ and CUDA kernel tests are opt-in; the latter require a GPU reservation:
 # Inside a GPU reservation, after building the library:
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
   cargo test --release --locked -p omni-qwen3-5-native --test kernels -- --ignored
+
+# Full-checkpoint packing, ordering and graph-shape checks, in the reservation:
+OPEN_JEV_MODEL=$PWD/weights/open-jev-27b-merged \
+OPEN_JEV_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so CUA_S1_GRAPH=1 \
+  cargo test --release --locked -p omni-open-jev-native --test prefill_batch \
+  -- --ignored --test-threads=1
 ```
 
 CPU golden fixtures come from Open-Jev's request compiler and response formatter
@@ -115,9 +121,18 @@ RMSNorm keeps thread values in registers at widths 2560/5120. MLP SiLU uses
 16-byte BF16 loads/stores when width, stride and pointers permit it, retaining
 both BF16 rounding points; other layouts use the scalar path.
 
-This recipe leaves `CUA_S1_GRAPH` unset and runs one eager forward pass per
-candidate. Set `CUA_S1_GRAPH=1` on the worker to enable CUDA Graph replay. The
-shared backend retains at most 64 graphs, keyed by exact candidate token length;
+This recipe leaves `CUA_S1_GRAPH` unset and uses eager prefill. Candidates within
+a request are packed in prepared order, up to 16 sequences and 4096 total tokens
+per group; longer prompts execute alone without truncation. Input and gate/up
+projections share GEMMs. Output/down projections preserve their per-prompt shapes
+and reduction order, and each sequence retains independent attention, positions,
+convolution and GDN state. Calibration still uses every candidate in its question.
+The [H200 packing comparison](../../benchmarks/prefill_batching/README.md)
+records latency, exact output checks and the rejected fully packed variant.
+Packing validation covers H200 (sm_90); other CUDA architectures remain unverified.
+
+Set `CUA_S1_GRAPH=1` on the worker to enable CUDA Graph replay. The
+shared backend retains at most 64 graphs, keyed by ordered sequence token lengths;
 growing the scratch buffer clears them. Capturing a new length first runs an
 eager forward to initialize its plans, then captures and replays the forward.
 This adds cost for new lengths, so graph mode remains opt-in. Warm replay is

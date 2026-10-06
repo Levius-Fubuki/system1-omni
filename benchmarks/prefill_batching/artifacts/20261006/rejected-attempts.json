@@ -1,0 +1,63 @@
+{
+  "gemm_heuristic_search": {
+    "status": "complete",
+    "accepted": false,
+    "algorithms_tested": 120,
+    "shapes": 15,
+    "results": [
+      {
+        "tokens": 107,
+        "baseline_gemm_ms": [
+          14.0740304032,
+          14.171392264000001
+        ],
+        "best_sampled_eligible_ms": [
+          13.876674827200002,
+          13.8831260192
+        ],
+        "reduction_percent": [
+          1.4022676542969847,
+          2.034142019569185
+        ]
+      },
+      {
+        "tokens": 936,
+        "baseline_gemm_ms": [
+          58.07218597439999,
+          68.4063233984
+        ],
+        "best_sampled_eligible_ms": [
+          59.445902288,
+          66.39277029760001
+        ],
+        "reduction_percent": [
+          -2.3655322949364788,
+          2.9435189625278024
+        ]
+      },
+      {
+        "tokens": 3399,
+        "baseline_gemm_ms": [
+          213.465563488,
+          242.042555728
+        ],
+        "best_sampled_eligible_ms": [
+          213.96261475199998,
+          241.01560680000003
+        ],
+        "reduction_percent": [
+          -0.23284845381064123,
+          0.4242844506872623
+        ]
+      }
+    ],
+    "limitation": "Synthetic cached operands, two passes with order reversal and observed variability. No algorithm improvement reached the prespecified 10% weighted GEMM gate. No production source change retained."
+  },
+  "fully_packed_gemms": {
+    "status": "failed_feasibility",
+    "maximum_observed_drift": 0.002180055276944648,
+    "error": "('answers.decision_0.noul', 0.942871301505532, 0.9450513567824766, 0.002180055276944648)",
+    "raw_artifacts": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-prefill-batching-20261006",
+    "tolerance_changed": false
+  }
+}

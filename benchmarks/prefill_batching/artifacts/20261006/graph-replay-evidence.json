@@ -1,0 +1,41 @@
+{
+  "graph_launches": 10,
+  "runtime_graph_api_counts": {
+    "cudaGraphDestroy_v10000": 10,
+    "cudaGraphExecDestroy_v10000": 10,
+    "cudaGraphInstantiate_v12000": 10,
+    "cudaGraphLaunch_v10000": 10,
+    "cudaStreamBeginCapture_v10000": 10,
+    "cudaStreamEndCapture_v10000": 10
+  },
+  "test": {
+    "command": [
+      "/usr/local/bin/nsys",
+      "profile",
+      "--trace=cuda",
+      "--cuda-graph-trace=graph",
+      "--sample=none",
+      "--cpuctxsw=none",
+      "--output",
+      "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/reports/final-graph-check",
+      "/home/hsliu2/.cargo/bin/cargo",
+      "test",
+      "--release",
+      "--locked",
+      "-p",
+      "omni-open-jev-native",
+      "--test",
+      "prefill_batch",
+      "--",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "pid": 277918,
+    "returncode": 0,
+    "graph_mode": "1"
+  },
+  "trace_file": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/reports/final-graph-check.nsys-rep",
+  "trace_sha256": "991d0d4e50cc7b909573c3b94f4b0be97e7446b268bd25bf0594cc0b9eef0c9d",
+  "performance_claim": false
+}

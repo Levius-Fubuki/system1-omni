@@ -1,0 +1,7 @@
+    Finished `release` profile [optimized] target(s) in 1.11s
+     Running ../../../../tests/open_jev/prefill_batch.rs (target/release/deps/prefill_batch-077e30e84b542895)
+
+running 1 test
+test packed_candidates_preserve_isolation_order_and_graph_shapes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.14s

@@ -1,0 +1,164 @@
+{
+  "status": "complete",
+  "results": {
+    "baseline": {
+      "single": [
+        {
+          "requests": 74,
+          "mean_ms": 48.172474750695194,
+          "p50_ms": 24.72915966063738,
+          "p95_ms": 224.5118860155344,
+          "successful_decisions_per_second": 20.75874252205755
+        },
+        {
+          "requests": 74,
+          "mean_ms": 48.22013951284257,
+          "p50_ms": 24.79155408218503,
+          "p95_ms": 222.4801992997527,
+          "successful_decisions_per_second": 20.73822286917415
+        }
+      ],
+      "questions-4": [
+        {
+          "requests": 60,
+          "mean_ms": 98.89736136732002,
+          "p50_ms": 80.17506590113044,
+          "p95_ms": 156.57233353704214,
+          "successful_decisions_per_second": 40.44597292281019
+        },
+        {
+          "requests": 60,
+          "mean_ms": 98.69299953182538,
+          "p50_ms": 80.17715532332659,
+          "p95_ms": 153.60662806779146,
+          "successful_decisions_per_second": 40.52972367822427
+        }
+      ],
+      "questions-8": [
+        {
+          "requests": 60,
+          "mean_ms": 197.27637291265032,
+          "p50_ms": 160.30694311484694,
+          "p95_ms": 314.390467479825,
+          "successful_decisions_per_second": 40.55224597799264
+        },
+        {
+          "requests": 60,
+          "mean_ms": 197.39742800593376,
+          "p50_ms": 160.5270393192768,
+          "p95_ms": 309.63018722832203,
+          "successful_decisions_per_second": 40.52737708294517
+        }
+      ],
+      "mixed-types": [
+        {
+          "requests": 12,
+          "mean_ms": 258.3487629890442,
+          "p50_ms": 253.0257422477007,
+          "p95_ms": 406.07699286192656,
+          "successful_decisions_per_second": 11.612209655237331
+        },
+        {
+          "requests": 12,
+          "mean_ms": 257.8881821439912,
+          "p50_ms": 251.08434818685055,
+          "p95_ms": 398.17446283996105,
+          "successful_decisions_per_second": 11.632948726300912
+        }
+      ]
+    },
+    "candidate": {
+      "single": [
+        {
+          "requests": 74,
+          "mean_ms": 47.988532022950615,
+          "p50_ms": 24.715494364500046,
+          "p95_ms": 225.94910021871328,
+          "successful_decisions_per_second": 20.838311943398224
+        },
+        {
+          "requests": 74,
+          "mean_ms": 48.234535003634726,
+          "p50_ms": 24.96536308899522,
+          "p95_ms": 225.2109181135893,
+          "successful_decisions_per_second": 20.73203359221033
+        }
+      ],
+      "questions-4": [
+        {
+          "requests": 60,
+          "mean_ms": 80.8307768466572,
+          "p50_ms": 58.748466428369284,
+          "p95_ms": 141.8829057365656,
+          "successful_decisions_per_second": 49.48610116154565
+        },
+        {
+          "requests": 60,
+          "mean_ms": 80.80487013794482,
+          "p50_ms": 58.697403874248266,
+          "p95_ms": 143.80752388387918,
+          "successful_decisions_per_second": 49.50196681427072
+        }
+      ],
+      "questions-8": [
+        {
+          "requests": 60,
+          "mean_ms": 158.0394523528715,
+          "p50_ms": 114.72253128886223,
+          "p95_ms": 280.44700156897306,
+          "successful_decisions_per_second": 50.62027158976449
+        },
+        {
+          "requests": 60,
+          "mean_ms": 157.91210570993522,
+          "p50_ms": 113.74013777822256,
+          "p95_ms": 277.75721438229084,
+          "successful_decisions_per_second": 50.661093802998224
+        }
+      ],
+      "mixed-types": [
+        {
+          "requests": 12,
+          "mean_ms": 230.52556122032306,
+          "p50_ms": 231.86104418709874,
+          "p95_ms": 381.41810055822134,
+          "successful_decisions_per_second": 13.013741227302654
+        },
+        {
+          "requests": 12,
+          "mean_ms": 230.18229434577128,
+          "p50_ms": 228.89429656788707,
+          "p95_ms": 382.9468786716461,
+          "successful_decisions_per_second": 13.03314839452209
+        }
+      ]
+    }
+  },
+  "reductions": {
+    "single": {
+      "mean_reduction_percent": 0.17589235259133362,
+      "p95_reduction_percent": -0.9324400037364455
+    },
+    "questions-4": {
+      "mean_reduction_percent": 18.196593068067457,
+      "p95_reduction_percent": 7.8949687166685045
+    },
+    "questions-8": {
+      "mean_reduction_percent": 19.946153677430623,
+      "p95_reduction_percent": 10.54715709493067
+    },
+    "mixed-types": {
+      "mean_reduction_percent": 10.756512119184148,
+      "p95_reduction_percent": 4.959453438254624
+    }
+  },
+  "gates": {
+    "multi_question": true,
+    "single_mean": true,
+    "single_p95": true,
+    "fidelity": true
+  },
+  "maximum_drift": 0.0,
+  "failures": 0,
+  "decision_flips": 0
+}

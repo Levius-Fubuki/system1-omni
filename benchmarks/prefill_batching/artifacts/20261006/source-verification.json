@@ -1,0 +1,22 @@
+{
+  "base_sha": "ae86032cba2466f45f42c2ebdfadbcfa8c30eb9f",
+  "runtime_commit": "0c73fc05c6832ddfca520e04f2c0a585a54411c4",
+  "files": {
+    "src/models/qwen3_5/native/src/model.rs": {
+      "sha256": "dad92658ed69d3a8b7eb1564aae334b37797afa8ad8418e6fbfb128893e844d2",
+      "matches_measured_source": true
+    },
+    "src/models/open_jev/native/src/executor.rs": {
+      "sha256": "cea8e9f85514d3d4524702f9a3d7c04be159a1bbd028e67c5f187fdea0326888",
+      "matches_measured_source": true
+    },
+    "src/models/open_jev/native/src/batching.rs": {
+      "sha256": "32cce2ee7d4ede1f493f6b61fe98efc2e23681aeee018ba614b159364adcb28a",
+      "matches_measured_source": true
+    },
+    "src/models/open_jev/native/src/lib.rs": {
+      "sha256": "df6a9d85476ed24e1b5c95acf98735086325d1839b04a7d2e9056531753f54f8",
+      "matches_measured_source": true
+    }
+  }
+}
