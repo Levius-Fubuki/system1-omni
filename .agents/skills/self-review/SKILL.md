@@ -48,6 +48,27 @@ qualify unsupported performance claims. Do not silently change tolerances or
 extend the run budget; fixes require regression coverage and a recorded revised
 protocol. This skill does not itself authorize external posts or paid execution.
 
+## Committed artifact hygiene
+
+Inspect added and changed artifacts in the complete diff, including JSON/JSONL,
+CSV, logs, reports, source/binary hash inventories, and generated media. Classify
+them by purpose and actual consumer, rather than rejecting a file extension.
+
+- Keep necessary configuration, request examples, maintained benchmark inputs,
+  and small deterministic fixtures or reference oracles in the repository's
+  intended locations. Identify the test, tool, or documented workflow that needs
+  each retained artifact.
+- Flag one-off run summaries, response dumps, cache statistics, profiler output,
+  agent process notes, and duplicate historical results that have no maintained
+  source-tree role. A link from PR prose or documentation alone does not justify
+  committing generated run output.
+- Preserve raw measurements, failures, and provenance in a durable artifact
+  archive or PR/CI evidence, and link the exact revision or run from the summary.
+  Do not discard evidence to reduce the diff or hide it in a committed archive.
+- When removing redundant output, check its callers, links, and reproduction
+  commands. Keep replay inputs and expected responses intact; verify their
+  hashes and rerun the affected replay or documentation checks.
+
 ## PR demo/evidence
 
 Prepare a **Demo / evidence** section that shows what changed in inference or

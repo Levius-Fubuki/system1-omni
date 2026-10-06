@@ -30,6 +30,10 @@ user instructions for those actions.
 
 - Match the implementation to the stated problem. Flag unrelated changes, new
   unused code, duplicated logic, or abstractions without a current need.
+- Apply [committed artifact hygiene](../self-review/SKILL.md#committed-artifact-hygiene)
+  in every precheck, including quick checks. Account for retained fixtures and
+  flag redundant generated run output; verify cleanup preserves evidence and
+  does not break replay commands or documentation links.
 - Check ownership against the architecture contracts: transport, independent
   processing and scheduling, model-specific adapters and executors, and hardware
   operations. In the native target, Rust orchestrates host work and dispatch;
