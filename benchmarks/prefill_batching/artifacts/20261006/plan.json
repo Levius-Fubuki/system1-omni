@@ -1,7 +1,7 @@
 {
-  "base_sha": "ae86032cba2466f45f42c2ebdfadbcfa8c30eb9f",
-  "hypothesis": "Pack only input and gate/up GEMMs while preserving each original output/down GEMM shape and reduction order, to reduce repeated weight reads without exceeding the original 0.001 output-drift gate.",
-  "independent_variable": "Selective packed input and gate/up projections in bounded within-request groups; output/down projections, attention, convolution, GDN and position resets remain per sequence.",
+  "base_sha": "47eff9cdeda01e4847a4fb9634a43f2cab6a233f",
+  "hypothesis": "Explicit packed input/gate-up GEMMs retain within-request latency gains after merging current native-vision main; output/down GEMM shapes and per-sequence state remain unchanged.",
+  "independent_variable": "Within-request selective GEMM packing only. Both arms include current-main native vision changes and use the same rebuilt CUDA ABI5 library.",
   "controls": {
     "gpu_ids": [
       2
@@ -32,12 +32,13 @@
     "model": "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k",
     "max_length": 16384,
     "server": "one current-main baseline worker and one candidate worker, reused across all workload slices",
-    "library": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-gemm-search-20261006/harness/baseline/libqwen3_5_cuda.so",
-    "frontend": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-gemm-search-20261006/harness/baseline/frontend",
-    "baseline_worker": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-gemm-search-20261006/harness/baseline/worker",
+    "library": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/library/libqwen3_5_cuda.so",
+    "frontend": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/baseline-source/target/release/omni-jev",
+    "baseline_worker": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/baseline-source/target/release/omni-open-jev-native",
     "candidate_worker": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/target/release/omni-open-jev-native",
     "cache": "warm; no shared cache resets or clocks changed",
-    "concurrency": 1
+    "concurrency": 1,
+    "cuda_abi": 5
   },
   "workloads": {
     "single": {
@@ -73,26 +74,25 @@
   "stop_condition": "Stop on reservation/UUID/affinity mismatch, CUDA error, output drift above tolerance, decision flip, request failure or run cap. Preserve failed evidence. Do not silently relax numerical or performance gates.",
   "timing": "localhost HTTP through the same frontend, includes tokenization, inference and UTF8 response receipt; excludes JSON body construction and JSON parsing, preparation, process-to-readiness, validated first request and full feasibility passes. Profiling disabled during measured runs.",
   "hashes": {
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/harness/collect.py": "8ff176a09380aa257b23c9b8a566dd5fa2862ac40280ea76c9c65993cfbd9d4a",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/harness/requests.json": "02a9a45a381a231fa81579f0f642e5ad23f35410fe5f8e2f013ffac3326a2113",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/target/release/omni-open-jev-native": "3596693d2695a8c27bec9209fca4eb493e14f36698c452f2c2c42292eb59c81a",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-gemm-search-20261006/harness/baseline/worker": "9fbd5f4d3bf0b04bdcfe2cff60706d012c2062d48445c2fde5ed581ae07c8d6c",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-gemm-search-20261006/harness/baseline/frontend": "54e49bd85a2452420e53d2d603a5506be83fba2c6317671fa4ea9f4c5a1b0692",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-gemm-search-20261006/harness/baseline/libqwen3_5_cuda.so": "1503918aac18379448de1dc934526e88ba1e6ed17fc15cd9f65c77ace218d9c2",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/Cargo.lock": "f474bc51765159f59d857ba52cf9aabbfd6ed39654cd9b1fab049ef5f292aa93",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/qwen3_5/native/src/model.rs": "dad92658ed69d3a8b7eb1564aae334b37797afa8ad8418e6fbfb128893e844d2",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native/src/batching.rs": "32cce2ee7d4ede1f493f6b61fe98efc2e23681aeee018ba614b159364adcb28a",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/collect.py": "8ff176a09380aa257b23c9b8a566dd5fa2862ac40280ea76c9c65993cfbd9d4a",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/requests.json": "02a9a45a381a231fa81579f0f642e5ad23f35410fe5f8e2f013ffac3326a2113",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/baseline-source/target/release/omni-open-jev-native": "453f6b459ef59db83bd35877dbb082e656b72fc827956c8672e16b015e08382a",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/target/release/omni-open-jev-native": "0e5f26fdccd1f21cbee1812d3fd0507ec6765f6e59bae48318adfab63e4c44ad",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/baseline-source/target/release/omni-jev": "54e49bd85a2452420e53d2d603a5506be83fba2c6317671fa4ea9f4c5a1b0692",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/harness/library/libqwen3_5_cuda.so": "8b1478ac83571d5ab4a061a07bcf6ea46401a6ebb9cf7c67a8eda2a4a49f9bde",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/Cargo.lock": "1b941642725172c5c0383cc501f1aedc1233631d8c1e64c96853f2b1b11af267",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/qwen3_5/native/src/model.rs": "161599ea12a890b7f1926fa5ce786ffbfeda3cd53149d87e335b5cede9207aec",
     "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native/src/executor.rs": "cea8e9f85514d3d4524702f9a3d7c04be159a1bbd028e67c5f187fdea0326888",
+    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native/src/batching.rs": "32cce2ee7d4ede1f493f6b61fe98efc2e23681aeee018ba614b159364adcb28a",
     "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native/src/lib.rs": "df6a9d85476ed24e1b5c95acf98735086325d1839b04a7d2e9056531753f54f8",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/tests/open_jev/prefill_batch.rs": "8d633943246564f0c1420f2dcdd152018bd6723d60805fd9686fd70e44bb5760",
-    "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native/Cargo.toml": "2f7b4378e0211286d161422ef4bf02d64fab4852784790ada92502670d38e8b3",
     "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k/config.json": "193d46cdde2f62b603269f005044a9fdaf4ad6b4447997c359e16dcc7217edcd",
     "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k/open_jev_export.json": "5fca82e74d77cbbcb83b03505130dad34a923731dc083ec7616cc73997688caa",
-    "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k/tokenizer.json": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523",
-    "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k/model.safetensors.index.json": "5af6c022747934e687d7edf362de832a7fa2c82eedc36a8679495b40bb214b6f"
+    "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k/model.safetensors.index.json": "5af6c022747934e687d7edf362de832a7fa2c82eedc36a8679495b40bb214b6f",
+    "/home/hsliu2/tmp/system1-omni-open-jev-validation/jevbench-l20x-20261001/model-16k/tokenizer.json": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"
   },
   "previous_attempt": {
     "directory": "/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-prefill-batching-20261006",
     "outcome": "Failed feasibility on probability drift 0.002180055276944648 versus the fixed 0.001 gate. No multi-question measured candidate passes completed. All raw results retained; no tolerances relaxed."
-  }
+  },
+  "candidate_sha": "82b5e7e60363405614bccd79ba83ab774e7513f5"
 }

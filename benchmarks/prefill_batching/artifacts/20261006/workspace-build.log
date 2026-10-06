@@ -1,38 +1,21 @@
-   Compiling serde_json v1.0.151
-   Compiling futures-io v0.3.34
-   Compiling futures-task v0.3.34
-   Compiling slab v0.4.12
-   Compiling typenum v1.20.1
-   Compiling bit-vec v0.8.0
-   Compiling cpufeatures v0.2.17
-   Compiling daachorse v3.0.3
-   Compiling futures-channel v0.3.34
-   Compiling generic-array v0.14.7
-   Compiling regex-automata v0.4.18
-   Compiling omni-cuda v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/backends/cuda)
-   Compiling futures-util v0.3.34
-   Compiling bit-set v0.8.0
-   Compiling hyper v1.11.1
-   Compiling crypto-common v0.1.7
-   Compiling block-buffer v0.10.4
-   Compiling digest v0.10.7
-   Compiling sha2 v0.10.9
-   Compiling safetensors v0.8.0
-   Compiling safetensors v0.6.2
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling crc32fast v1.5.2
+   Compiling autocfg v1.5.1
+   Compiling pxfm v0.1.30
+   Compiling zune-core v0.5.3
+   Compiling byteorder-lite v0.1.0
+   Compiling bytemuck v1.25.2
    Compiling omni-qwen3-5-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/qwen3_5/native)
-   Compiling tower v0.5.3
-   Compiling hyper-util v0.1.21
-   Compiling regex v1.13.1
-   Compiling fancy-regex v0.17.0
-   Compiling tower-http v0.6.11
-   Compiling tokenizers v0.22.2
-   Compiling tokenizers v0.23.2
-   Compiling axum v0.8.9
-   Compiling hyper-rustls v0.27.10
-   Compiling reqwest v0.12.28
-   Compiling omni-clm v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/clm)
-   Compiling omni-jev v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/frontend)
+   Compiling fdeflate v0.3.7
+   Compiling miniz_oxide v0.9.1
+   Compiling miniz_oxide v0.8.9
+   Compiling zune-jpeg v0.5.15
+   Compiling num-traits v0.2.19
    Compiling omni-open-jev-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native)
+   Compiling flate2 v1.1.10
+   Compiling png v0.18.1
+   Compiling moxcms v0.8.1
+   Compiling image v0.25.10
    Compiling omni-cua-s1-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/cua_s1/native)
-   Compiling omni-laya v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/laya)
-    Finished `release` profile [optimized] target(s) in 14.83s
+    Finished `release` profile [optimized] target(s) in 15.13s

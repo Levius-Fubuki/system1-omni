@@ -1,9 +1,9 @@
 {
-  "base_sha": "ae86032cba2466f45f42c2ebdfadbcfa8c30eb9f",
-  "runtime_commit": "0c73fc05c6832ddfca520e04f2c0a585a54411c4",
+  "base_sha": "47eff9cdeda01e4847a4fb9634a43f2cab6a233f",
+  "runtime_commit": "82b5e7e60363405614bccd79ba83ab774e7513f5",
   "files": {
     "src/models/qwen3_5/native/src/model.rs": {
-      "sha256": "dad92658ed69d3a8b7eb1564aae334b37797afa8ad8418e6fbfb128893e844d2",
+      "sha256": "161599ea12a890b7f1926fa5ce786ffbfeda3cd53149d87e335b5cede9207aec",
       "matches_measured_source": true
     },
     "src/models/open_jev/native/src/executor.rs": {
@@ -18,5 +18,6 @@
       "sha256": "df6a9d85476ed24e1b5c95acf98735086325d1839b04a7d2e9056531753f54f8",
       "matches_measured_source": true
     }
-  }
+  },
+  "previous_campaign_commit": "03dbd11972389dadd06a945dc4dd6bc1e16687f8"
 }

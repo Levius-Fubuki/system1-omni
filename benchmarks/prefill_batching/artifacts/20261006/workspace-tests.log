@@ -1,91 +1,23 @@
-   Compiling futures-sink v0.3.34
-   Compiling futures-io v0.3.34
-   Compiling slab v0.4.12
-   Compiling futures-task v0.3.34
-   Compiling try-lock v0.2.5
-   Compiling ipnet v2.12.2
-   Compiling base64 v0.23.1
-   Compiling stable_deref_trait v1.2.1
-   Compiling typenum v1.20.1
-   Compiling litemap v0.8.3
-   Compiling writeable v0.6.4
-   Compiling cpufeatures v0.2.17
-   Compiling utf8_iter v1.0.4
-   Compiling bit-vec v0.8.0
-   Compiling zeroize v1.9.0
-   Compiling untrusted v0.9.0
-   Compiling daachorse v3.0.3
-   Compiling subtle v2.6.1
-   Compiling base64 v0.22.1
-   Compiling sync_wrapper v1.0.2
-   Compiling regex-automata v0.4.18
-   Compiling icu_properties_data v2.3.0
-   Compiling icu_normalizer_data v2.3.0
-   Compiling serde_json v1.0.151
-   Compiling errno v0.3.14
-   Compiling getrandom v0.2.17
-   Compiling omni-cuda v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/backends/cuda)
-   Compiling serde v1.0.229
-   Compiling thiserror v2.0.21
-   Compiling zerofrom v0.1.8
-   Compiling futures-channel v0.3.34
-   Compiling want v0.3.1
-   Compiling axum-core v0.5.6
-   Compiling futures-util v0.3.34
-   Compiling rustls-pki-types v1.15.1
-   Compiling signal-hook-registry v1.4.8
-   Compiling generic-array v0.14.7
-   Compiling yoke v0.8.3
-   Compiling ring v0.17.14
-   Compiling bit-set v0.8.0
-   Compiling dary_heap v0.3.9
-   Compiling ahash v0.8.12
-   Compiling compact_str v0.9.1
-   Compiling spm_precompiled v0.1.4
-   Compiling serde_urlencoded v0.7.1
-   Compiling tokio v1.53.1
-   Compiling safetensors v0.6.2
-   Compiling safetensors v0.8.0
-   Compiling webpki-roots v1.0.9
-   Compiling block-buffer v0.10.4
-   Compiling crypto-common v0.1.7
-   Compiling zerovec v0.11.8
-   Compiling zerotrie v0.2.5
-   Compiling regex v1.13.1
-   Compiling fancy-regex v0.17.0
-   Compiling digest v0.10.7
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling pxfm v0.1.30
+   Compiling zune-core v0.5.3
+   Compiling byteorder-lite v0.1.0
+   Compiling bytemuck v1.25.2
+   Compiling crc32fast v1.5.2
+   Compiling num-traits v0.2.19
    Compiling omni-qwen3-5-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/qwen3_5/native)
-   Compiling tokenizers v0.22.2
-   Compiling rustls-webpki v0.103.15
-   Compiling tinystr v0.8.4
-   Compiling potential_utf v0.1.6
-   Compiling tokenizers v0.23.2
-   Compiling sha2 v0.10.9
-   Compiling icu_collections v2.3.0
-   Compiling icu_locale_core v2.3.0
-   Compiling rustls v0.23.45
-   Compiling icu_provider v2.3.1
-   Compiling icu_properties v2.3.0
-   Compiling icu_normalizer v2.3.0
-   Compiling hyper v1.11.1
-   Compiling tower v0.5.3
-   Compiling omni-runtime v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/runtime)
-   Compiling tokio-util v0.7.19
-   Compiling idna_adapter v1.2.2
-   Compiling idna v1.1.0
-   Compiling hyper-util v0.1.21
-   Compiling tokio-rustls v0.26.5
-   Compiling omni-laya v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/laya)
-   Compiling url v2.5.8
-   Compiling axum v0.8.9
-   Compiling hyper-rustls v0.27.10
-   Compiling tower-http v0.6.11
-   Compiling reqwest v0.12.28
+   Compiling miniz_oxide v0.9.1
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling zune-jpeg v0.5.15
+   Compiling flate2 v1.1.10
+   Compiling png v0.18.1
    Compiling omni-open-jev-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/open_jev/native)
+   Compiling moxcms v0.8.1
+   Compiling image v0.25.10
    Compiling omni-cua-s1-native v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/cua_s1/native)
-   Compiling omni-jev v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/frontend)
-   Compiling omni-clm v0.1.0 (/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/src/models/clm)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 42.64s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.87s
      Running unittests src/lib.rs (target/debug/deps/omni_clm-3b851df786c10980)
 
 running 0 tests
@@ -102,23 +34,32 @@ test a_tied_score_label_keeps_the_first_level ... ok
 test the_top_level_geometry_fills_in_a_cfg_that_omits_it ... ok
 test the_loader_follows_the_layernorm_flag ... ok
 
-test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
-     Running unittests src/lib.rs (target/debug/deps/omni_cua_s1_native-9a203a0a8f151f19)
+     Running unittests src/lib.rs (target/debug/deps/omni_cua_s1_native-1d52ea894fc579f8)
 
-running 8 tests
+running 11 tests
 test executor::tests::letter_projection_preserves_fp64_accumulation_and_fp32_readout ... ok
 test executor::tests::letter_projection_rejects_nonfinite_scores_before_later_prompts ... ok
-test contract::tests::answer_and_confidence ... ok
-test contract::tests::maps_a_request ... ok
 test contract::tests::errors ... ok
+test contract::tests::maps_a_request ... ok
+test contract::tests::answer_and_confidence ... ok
+test image_request::tests::request_rejects_truncated_jpeg_segment ... ok
+test image_request::tests::request_rejects_pillow_two_frame_mpo ... ok
+test image_request::tests::request_accepts_single_jpeg_and_unrelated_metadata ... ok
 test processing::tests::prepared_prompts_and_finished_answers_preserve_order_and_usage ... ok
 test processing::tests::finishing_uses_stable_softmax_and_rejects_incomplete_or_nonfinite_scores ... ok
 test processing::tests::preparation_preserves_errors_and_checks_later_prompts ... ok
 
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 
-     Running unittests src/main.rs (target/debug/deps/omni_cua_s1_native-6a0cb14c74babfa4)
+     Running unittests src/main.rs (target/debug/deps/omni_cua_s1_native-4005ab9928acfac4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/vision_main.rs (target/debug/deps/omni_cua_s1_vision-b52ee98098c3c7bf)
 
 running 0 tests
 
@@ -135,8 +76,8 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 4 tests
 test tests::backend_path_prefix_gets_trailing_slash ... ok
 test tests::defaults_match_documented_values ... ok
-test tests::invalid_backend_url_does_not_expose_credentials ... ok
 test tests::rejects_ambiguous_backend_urls ... ok
+test tests::invalid_backend_url_does_not_expose_credentials ... ok
 
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
@@ -155,16 +96,16 @@ test response_limit_covers_declared_and_chunked_bodies_on_both_routes ... ok
 test binary_rejects_invalid_forwarding_limits ... ok
 test health_timeout_is_shorter_than_inference_before_or_after_headers ... ok
 
-test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
 
      Running tests/frontend.rs (target/debug/deps/frontend-fcff98f9e44e4663)
 
 running 12 tests
 test rejects_invalid_routes_before_forwarding ... ok
-test unreachable_worker_returns_502 ... ok
-test forwards_authorization_when_present ... ok
 test strips_connection_specific_headers_in_both_directions ... ok
+test unreachable_worker_returns_502 ... ok
 test forwards_prefixed_decision_with_query ... ok
+test forwards_authorization_when_present ... ok
 test health_reflects_worker_health_under_base_path ... ok
 test round_trips_decision_fixtures ... ok
 test streams_uploads_beyond_axum_default_body_limit ... ok
@@ -230,8 +171,8 @@ test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 running 5 tests
 test rejects_bad_row_counts_and_nonfinite_outputs ... ok
-test rejects_inconsistent_question_metadata ... ok
 test rejects_invalid_temperatures_and_scaling_overflow ... ok
+test rejects_inconsistent_question_metadata ... ok
 test fp32_reduction_boundary_preserves_answer ... ok
 test matches_official_decode_reference ... ok
 
@@ -248,14 +189,14 @@ test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; fini
 
 running 13 tests
 test python_json_numbers_and_order ... ok
-test private_json_keys_stay_objects_from_value ... ok
 test request_rejects_invalid_json_values ... ok
+test private_json_keys_stay_objects_from_value ... ok
 test request_numbers_keep_arbitrary_precision_and_syntax ... ok
 test rejects_unsupported_language_and_nonfinite_numbers ... ok
 test request_from_value_preserves_deep_values ... ok
 test preserves_question_and_choice_order ... ok
-test validation_names_the_question_and_leaves_preprocessor_usable ... ok
 test strips_python_whitespace_from_noul_labels ... ok
+test validation_names_the_question_and_leaves_preprocessor_usable ... ok
 test rejects_truncated_option_markers ... ok
 test private_json_keys_stay_objects_in_raw_requests ... ok
 test request_keeps_default_json_recursion_limit ... ok
@@ -275,8 +216,8 @@ test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; fini
 
 running 9 tests
 test executor::tests::scalar_projection_preserves_accumulation_rounding_and_bias_order ... ok
-test executor::tests::scalar_projection_rejects_nonfinite_scores ... ok
 test batching::tests::preserves_all_candidates_across_token_and_sequence_limits ... ok
+test executor::tests::scalar_projection_rejects_nonfinite_scores ... ok
 test processing::tokenization_tests::tokenization_matches_reference_and_rejects_oversize_prompts ... ignored, needs the pinned export at OPEN_JEV_MODEL; no GPU needed
 test processing::tests::preparation_applies_the_saved_chat_prefix_and_suffix ... ok
 test processing::tests::prepared_candidates_have_exact_ids_and_finished_responses_keep_mapping ... ok

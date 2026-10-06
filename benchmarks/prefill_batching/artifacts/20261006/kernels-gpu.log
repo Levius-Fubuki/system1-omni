@@ -1,4 +1,4 @@
-    Finished `release` profile [optimized] target(s) in 0.53s
+    Finished `release` profile [optimized] target(s) in 0.71s
      Running ../../../../tests/qwen3_5/kernels.rs (target/release/deps/kernels-99c0c2c94956ab22)
 
 running 6 tests
@@ -35,4 +35,5 @@ test graph_replay_reads_updated_inputs_after_failed_capture ... ok
 test residual_rms_norm_matches_rounded_reference ... ok
 test silu_mul_matches_rounded_reference ... ok
 
-test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.22s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.06s
+

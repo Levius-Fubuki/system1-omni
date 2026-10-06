@@ -5,65 +5,65 @@
       "single": [
         {
           "requests": 74,
-          "mean_ms": 48.172474750695194,
-          "p50_ms": 24.72915966063738,
-          "p95_ms": 224.5118860155344,
-          "successful_decisions_per_second": 20.75874252205755
+          "mean_ms": 48.04829193430172,
+          "p50_ms": 24.96585389599204,
+          "p95_ms": 221.37836087495089,
+          "successful_decisions_per_second": 20.812394358728472
         },
         {
           "requests": 74,
-          "mean_ms": 48.22013951284257,
-          "p50_ms": 24.79155408218503,
-          "p95_ms": 222.4801992997527,
-          "successful_decisions_per_second": 20.73822286917415
+          "mean_ms": 48.14348654267756,
+          "p50_ms": 24.60308652371168,
+          "p95_ms": 222.03110624104738,
+          "successful_decisions_per_second": 20.77124179848367
         }
       ],
       "questions-4": [
         {
           "requests": 60,
-          "mean_ms": 98.89736136732002,
-          "p50_ms": 80.17506590113044,
-          "p95_ms": 156.57233353704214,
-          "successful_decisions_per_second": 40.44597292281019
+          "mean_ms": 98.70255975984037,
+          "p50_ms": 80.30658261850476,
+          "p95_ms": 154.39793188124895,
+          "successful_decisions_per_second": 40.52579801104106
         },
         {
           "requests": 60,
-          "mean_ms": 98.69299953182538,
-          "p50_ms": 80.17715532332659,
-          "p95_ms": 153.60662806779146,
-          "successful_decisions_per_second": 40.52972367822427
+          "mean_ms": 98.6181381624192,
+          "p50_ms": 80.3435486741364,
+          "p95_ms": 153.67948170751333,
+          "successful_decisions_per_second": 40.56048993149919
         }
       ],
       "questions-8": [
         {
           "requests": 60,
-          "mean_ms": 197.27637291265032,
-          "p50_ms": 160.30694311484694,
-          "p95_ms": 314.390467479825,
-          "successful_decisions_per_second": 40.55224597799264
+          "mean_ms": 197.46969395006695,
+          "p50_ms": 160.7643635943532,
+          "p95_ms": 310.2688295766711,
+          "successful_decisions_per_second": 40.51254569738136
         },
         {
           "requests": 60,
-          "mean_ms": 197.39742800593376,
-          "p50_ms": 160.5270393192768,
-          "p95_ms": 309.63018722832203,
-          "successful_decisions_per_second": 40.52737708294517
+          "mean_ms": 197.50209141833088,
+          "p50_ms": 160.67188186571002,
+          "p95_ms": 312.95446306467056,
+          "successful_decisions_per_second": 40.50590017831827
         }
       ],
       "mixed-types": [
         {
           "requests": 12,
-          "mean_ms": 258.3487629890442,
-          "p50_ms": 253.0257422477007,
-          "p95_ms": 406.07699286192656,
-          "successful_decisions_per_second": 11.612209655237331
+          "mean_ms": 258.3781545981765,
+          "p50_ms": 250.29732752591372,
+          "p95_ms": 407.54649974405766,
+          "successful_decisions_per_second": 11.610888717219643
         },
         {
           "requests": 12,
-          "mean_ms": 257.8881821439912,
-          "p50_ms": 251.08434818685055,
-          "p95_ms": 398.17446283996105,
-          "successful_decisions_per_second": 11.632948726300912
+          "mean_ms": 257.5930858341356,
+          "p50_ms": 249.6383930556476,
+          "p95_ms": 405.721134506166,
+          "successful_decisions_per_second": 11.646275327171251
         }
       ]
     },
@@ -71,85 +71,85 @@
       "single": [
         {
           "requests": 74,
-          "mean_ms": 47.988532022950615,
-          "p50_ms": 24.715494364500046,
-          "p95_ms": 225.94910021871328,
-          "successful_decisions_per_second": 20.838311943398224
+          "mean_ms": 48.30653577841617,
+          "p50_ms": 24.934389162808657,
+          "p95_ms": 220.3979603946209,
+          "successful_decisions_per_second": 20.701132546267367
         },
         {
           "requests": 74,
-          "mean_ms": 48.234535003634726,
-          "p50_ms": 24.96536308899522,
-          "p95_ms": 225.2109181135893,
-          "successful_decisions_per_second": 20.73203359221033
+          "mean_ms": 48.08322312562047,
+          "p50_ms": 25.28876857832074,
+          "p95_ms": 227.83073224127293,
+          "successful_decisions_per_second": 20.797274704057102
         }
       ],
       "questions-4": [
         {
           "requests": 60,
-          "mean_ms": 80.8307768466572,
-          "p50_ms": 58.748466428369284,
-          "p95_ms": 141.8829057365656,
-          "successful_decisions_per_second": 49.48610116154565
+          "mean_ms": 80.79964901941518,
+          "p50_ms": 59.089095797389746,
+          "p95_ms": 142.11427047848701,
+          "successful_decisions_per_second": 49.50516553653406
         },
         {
           "requests": 60,
-          "mean_ms": 80.80487013794482,
-          "p50_ms": 58.697403874248266,
-          "p95_ms": 143.80752388387918,
-          "successful_decisions_per_second": 49.50196681427072
+          "mean_ms": 80.91472735007603,
+          "p50_ms": 58.53466596454382,
+          "p95_ms": 142.37547758966684,
+          "successful_decisions_per_second": 49.43475843024318
         }
       ],
       "questions-8": [
         {
           "requests": 60,
-          "mean_ms": 158.0394523528715,
-          "p50_ms": 114.72253128886223,
-          "p95_ms": 280.44700156897306,
-          "successful_decisions_per_second": 50.62027158976449
+          "mean_ms": 157.55837899632752,
+          "p50_ms": 113.72156580910087,
+          "p95_ms": 279.7259949147701,
+          "successful_decisions_per_second": 50.774830580012946
         },
         {
           "requests": 60,
-          "mean_ms": 157.91210570993522,
-          "p50_ms": 113.74013777822256,
-          "p95_ms": 277.75721438229084,
-          "successful_decisions_per_second": 50.661093802998224
+          "mean_ms": 157.9782015644014,
+          "p50_ms": 114.35522744432092,
+          "p95_ms": 280.32094053924084,
+          "successful_decisions_per_second": 50.63989791489505
         }
       ],
       "mixed-types": [
         {
           "requests": 12,
-          "mean_ms": 230.52556122032306,
-          "p50_ms": 231.86104418709874,
-          "p95_ms": 381.41810055822134,
-          "successful_decisions_per_second": 13.013741227302654
+          "mean_ms": 230.44868713865677,
+          "p50_ms": 231.44325334578753,
+          "p95_ms": 379.89793717861176,
+          "successful_decisions_per_second": 13.018082408058826
         },
         {
           "requests": 12,
-          "mean_ms": 230.18229434577128,
-          "p50_ms": 228.89429656788707,
-          "p95_ms": 382.9468786716461,
-          "successful_decisions_per_second": 13.03314839452209
+          "mean_ms": 230.4904266881446,
+          "p50_ms": 229.0079789236188,
+          "p95_ms": 377.71117873489857,
+          "successful_decisions_per_second": 13.015724961362599
         }
       ]
     }
   },
   "reductions": {
     "single": {
-      "mean_reduction_percent": 0.17589235259133362,
-      "p95_reduction_percent": -0.9324400037364455
+      "mean_reduction_percent": -0.2058184495515203,
+      "p95_reduction_percent": -1.0868567040844823
     },
     "questions-4": {
-      "mean_reduction_percent": 18.196593068067457,
-      "p95_reduction_percent": 7.8949687166685045
+      "mean_reduction_percent": 18.044899459455866,
+      "p95_reduction_percent": 7.656408577908424
     },
     "questions-8": {
-      "mean_reduction_percent": 19.946153677430623,
-      "p95_reduction_percent": 10.54715709493067
+      "mean_reduction_percent": 20.111614993860428,
+      "p95_reduction_percent": 10.137034018670422
     },
     "mixed-types": {
-      "mean_reduction_percent": 10.756512119184148,
-      "p95_reduction_percent": 4.959453438254624
+      "mean_reduction_percent": 10.665735276136978,
+      "p95_reduction_percent": 6.8438132777811305
     }
   },
   "gates": {

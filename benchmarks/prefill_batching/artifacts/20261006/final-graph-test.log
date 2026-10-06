@@ -1,4 +1,4 @@
-    Finished `release` profile [optimized] target(s) in 0.82s
+    Finished `release` profile [optimized] target(s) in 0.87s
      Running ../../../../tests/open_jev/prefill_batch.rs (target/release/deps/prefill_batch-077e30e84b542895)
 
 running 1 test
@@ -7,20 +7,7 @@ test packed_candidates_preserve_isolation_order_and_graph_shapes ... ok
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.68s
 
 Collecting data...
-Generating '/tmp/nsys-report-1497.qdstrm'
-
-[1/1] [0%                          ] final-graph-check.nsys-rep
-[1/1] [0%                          ] final-graph-check.nsys-rep
-[1/1] [6%                          ] final-graph-check.nsys-rep
-[1/1] [13%                         ] final-graph-check.nsys-rep
-[1/1] [==21%                       ] final-graph-check.nsys-rep
-[1/1] [=====29%                    ] final-graph-check.nsys-rep
-[1/1] [=======36%                  ] final-graph-check.nsys-rep
-[1/1] [=========43%                ] final-graph-check.nsys-rep
-[1/1] [==========49%               ] final-graph-check.nsys-rep
-[1/1] [============56%             ] final-graph-check.nsys-rep
-[1/1] [=============58%            ] final-graph-check.nsys-rep
-[1/1] [========================100%] final-graph-check.nsys-rep
-[1/1] [========================100%] final-graph-check.nsys-rep
+Generating '/tmp/nsys-report-ced3.qdstrm'
+[1/1] [0%                          ] final-graph-check.nsys-rep[1/1] [0%                          ] final-graph-check.nsys-rep[1/1] [6%                          ] final-graph-check.nsys-rep[1/1] [14%                         ] final-graph-check.nsys-rep[1/1] [==21%                       ] final-graph-check.nsys-rep[1/1] [===22%                      ] final-graph-check.nsys-rep[1/1] [====28%                     ] final-graph-check.nsys-rep[1/1] [======35%                   ] final-graph-check.nsys-rep[1/1] [========42%                 ] final-graph-check.nsys-rep[1/1] [==========48%               ] final-graph-check.nsys-rep[1/1] [============55%             ] final-graph-check.nsys-rep[1/1] [============57%             ] final-graph-check.nsys-rep[1/1] [========================100%] final-graph-check.nsys-rep[1/1] [========================100%] final-graph-check.nsys-rep
 Generated:
-	/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-selective-prefill-batching-20261006/reports/final-graph-check.nsys-rep
+	/data/hsliu2/tmp/system1-omni-openjev-gemm-20261006/profile/openjev-pr-cleanup-20261006/reports/final-graph-check.nsys-rep

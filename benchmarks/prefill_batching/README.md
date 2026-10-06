@@ -1,10 +1,10 @@
 # Open-Jev selective prefill packing on H200
 
 Packing input and gate/up projections across candidates reduces mean warm HTTP
-latency by **18.20% for four-question requests**, **19.95% for eight-question
-requests**, and **10.76% for mixed Choice/Noul/Score examples**. All compared
+latency by **18.04% for four-question requests**, **20.11% for eight-question
+requests**, and **10.67% for mixed Choice/Noul/Score examples**. All compared
 answers and token counts match the current-main native reference exactly.
-Single-question mean latency is effectively unchanged; its p95 increases 0.93%,
+Single-question mean latency increases 0.21%; its p95 increases 1.09%,
 within the declared 2% regression limit.
 
 These are within-request, concurrency-1 measurements on one H200, BF16, from
@@ -27,7 +27,10 @@ Output/down projections retain the original per-sequence GEMM shape. Changing
 those shapes can change cuBLASLt split-K reductions and BF16 rounding. CUDA
 Graphs are keyed by ordered sequence lengths, rather than total packed length,
 so equal-size batches with different boundaries cannot share the wrong graph.
-No CUDA ABI, weights, precision, temperature or truncation policy changes.
+The PR uses upstream CUDA ABI5 without changing its interface, weights, precision,
+temperature or truncation policy. Input and gate/up calls select packed GEMMs
+explicitly; a separate helper keeps output/down calls sequence-local. Native
+vision input support and upstream graph cache-miss handling are preserved.
 
 ## Matched warm HTTP results
 
@@ -38,12 +41,12 @@ readiness, a validated first inference and one excluded feasibility pass per sli
 
 | Workload | Requests/pass | Current main, pass 1 / 2 | Packed, pass 1 / 2 | Mean reduction |
 | --- | ---: | ---: | ---: | ---: |
-| Real single-question JevBench | 74 | 48.172 / 48.220 | 47.989 / 48.235 | 0.18% |
-| Four repeated questions | 60 | 98.897 / 98.693 | 80.831 / 80.805 | **18.20%** |
-| Eight repeated questions | 60 | 197.276 / 197.397 | 158.039 / 157.912 | **19.95%** |
-| Mixed Choice/Noul/Score | 12 | 258.349 / 257.888 | 230.526 / 230.182 | **10.76%** |
+| Real single-question JevBench | 74 | 48.048 / 48.143 | 48.307 / 48.083 | -0.21% |
+| Four repeated questions | 60 | 98.703 / 98.618 | 80.800 / 80.915 | 18.04% |
+| Eight repeated questions | 60 | 197.470 / 197.502 | 157.558 / 157.978 | 20.11% |
+| Mixed Choice/Noul/Score | 12 | 258.378 / 257.593 | 230.449 / 230.490 | 10.67% |
 
-Four/eight-question p95 decreases 7.89%/10.55%, using the mean of the two pass
+Four/eight-question p95 decreases 7.66%/10.14%, using the mean of the two pass
 p95 values. The original 74 cases contain one Noul candidate each and span
 80–3399 tokens. The repeated-question slices select the 60 original cases of
 at most 400 tokens, then duplicate each question four/eight times under distinct
@@ -63,7 +66,7 @@ zero flips and zero failures. No measured repetitions were added.
 
 ## Frozen controls and raw evidence
 
-- Baseline source: `ae86032cba2466f45f42c2ebdfadbcfa8c30eb9f`.
+- Baseline source: `47eff9cdeda01e4847a4fb9634a43f2cab6a233f`.
   [Source verification](artifacts/20261006/source-verification.json) pins the
   candidate runtime commit and verifies its files match the measured source hashes.
 - Exact scheduler GPU 2, UUID `GPU-cbf66259-f4ab-0ede-1811-82037dde5924`, SM90,
@@ -73,7 +76,7 @@ zero flips and zero failures. No measured repetitions were added.
   `2.5343690298472983`, max length 16384 and 32 MiB cuBLASLt workspace.
   Base revision `1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0`; checkpoint revision
   `28cf73067d5b337860bbef3c85b8b82ba8730956`.
-- Same CUDA ABI4 library and frontend binary; primary comparison has
+- Same CUDA ABI5 library and frontend binary; primary comparison has
   `CUA_S1_GRAPH=0` and no profiler. Only native Rust packing/execution changes.
 - Reuse the prepared model and environment. Downloads, copies, builds,
   process-to-readiness, first inference and feasibility passes are excluded.
@@ -89,6 +92,10 @@ zero flips and zero failures. No measured repetitions were added.
 JSONL files preserve raw requests, responses, latency and repeated-run results.
 [Final cleanup](artifacts/20261006/final-cleanup.json) verifies task-owned processes
 exited and GPU 2 returned to available with 0 MB used.
+
+This comparison was refreshed after integrating native vision main. The complete
+previous campaign remains in Git commit `03dbd11972389dadd06a945dc4dd6bc1e16687f8`
+and in the local run archive; its ABI4 timings are separate historical results.
 
 For reproduction, prepare a baseline worktree at the pinned SHA and the candidate
 worktree, build both with the same release options and CUDA library, and reuse
@@ -117,7 +124,7 @@ outcomes. The selective variant uses a separate frozen experiment with the same
 numerical and performance gates; no tolerance was relaxed.
 
 Repository checks pass: formatting, strict Clippy, locked workspace tests
-(**87 passed, 13 ignored**) and release workspace build. Reserved GPU validation
+(**90 passed, 13 ignored**) and release workspace build. Reserved GPU validation
 passes all **six CUDA reference tests** and the full-checkpoint packing test with
 `CUA_S1_GRAPH=1`, including unequal lengths, reordered equal-total shapes,
 17-candidate splitting, replay and a later singleton.

@@ -44,9 +44,8 @@ or an incomplete export. The saved limit defaults to 4096 tokens per candidate;
 
 The CUDA kernels require compute capability 8.0 or newer. The current build
 target below is Ada (`89`); pass your GPU's compute capability explicitly.
-The CUDA shared library and both Rust workers must be rebuilt together because
-the gated-attention entry point updates the library ABI to version 4 alongside
-the shared CUDA Graph entry points.
+The CUDA shared library and Rust workers must be rebuilt together for ABI
+version 5, which includes the shared vision and CUDA Graph entry points.
 
 ```sh
 src/backends/cuda/qwen3_5/build.sh target/release 89
@@ -133,8 +132,8 @@ Packing validation covers H200 (sm_90); other CUDA architectures remain unverifi
 
 Set `CUA_S1_GRAPH=1` on the worker to enable CUDA Graph replay. The
 shared backend retains at most 64 graphs, keyed by ordered sequence token lengths;
-growing the scratch buffer clears them. Capturing a new length first runs an
-eager forward to initialize its plans, then captures and replays the forward.
+growing the scratch buffer clears them. A new shape first runs an eager forward
+to initialize its plans and captures the layer loop for later replay.
 This adds cost for new lengths, so graph mode remains opt-in. Warm replay is
 validated on the 74-case H200 workload: its mean HTTP latency is 2.03% below
 eager execution after all workload lengths are warmed. Tokenization, transfers

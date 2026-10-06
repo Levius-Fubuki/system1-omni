@@ -1,13 +1,13 @@
 {
   "worker": {
-    "seconds": 11.421884230338037,
+    "seconds": 11.42228468041867,
     "body": {
       "status": "ready",
       "model": "Qwen/Qwen3.8-27B"
     }
   },
   "frontend": {
-    "seconds": 0.00673358328640461,
+    "seconds": 0.006623663008213043,
     "body": {
       "status": "ready",
       "model": "Qwen/Qwen3.8-27B"

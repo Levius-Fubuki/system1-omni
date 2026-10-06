@@ -1,6 +1,6 @@
 {
   "id": "hard-opus-c-long_policy-04",
-  "latency_s": 0.3075649943202734,
+  "latency_s": 0.3099916875362396,
   "raw": {
     "model": "Qwen/Qwen3.8-27B",
     "answers": {
@@ -17,7 +17,7 @@
       "method": "native_merged_lora_decision_head",
       "temperature": 2.5343690298472983,
       "candidate_sequences": 1,
-      "inference_seconds": 0.307123558,
+      "inference_seconds": 0.309524307,
       "base_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
       "max_length": 16384,
       "prefix_cache": {
