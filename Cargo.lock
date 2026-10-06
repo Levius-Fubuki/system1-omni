@@ -1029,7 +1029,7 @@ dependencies = [
  "safetensors 0.6.2",
  "serde",
  "serde_json",
- "sha2",
+ "sha2 0.10.9",
 ]
 
 [[package]]
