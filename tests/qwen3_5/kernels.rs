@@ -645,7 +645,11 @@ fn device_copy_helpers_roundtrip() {
         cuda::copy2d(dst.at(0), w * 2, src.at(0), ld * 2, w * 2, rows, st).unwrap();
     }
     let full = from_device(&src, rows * ld, st);
-    let want: Vec<f32> = full.chunks_exact(ld).flat_map(|r| &r[..w]).copied().collect();
+    let want: Vec<f32> = full
+        .chunks_exact(ld)
+        .flat_map(|r| &r[..w])
+        .copied()
+        .collect();
     assert_eq!(from_device(&dst, rows * w, st), want);
 }
 
@@ -671,8 +675,18 @@ fn windowed_attention_matches_full_pass_bit_for_bit() {
         unsafe {
             check(
                 (api().cs1_attention_gated)(
-                    q.at(0), k.at(0), v.at(0), ldv as i32, gate.at(0), full.at(0),
-                    t as i32, hq as i32, hk as i32, dh as i32, 0.0625, st,
+                    q.at(0),
+                    k.at(0),
+                    v.at(0),
+                    ldv as i32,
+                    gate.at(0),
+                    full.at(0),
+                    t as i32,
+                    hq as i32,
+                    hk as i32,
+                    dh as i32,
+                    0.0625,
+                    st,
                 ),
                 "full pass",
             )
@@ -685,8 +699,19 @@ fn windowed_attention_matches_full_pass_bit_for_bit() {
             unsafe {
                 check(
                     (api().cs1_attention_gated_prefix)(
-                        q.at(0), k.at(0), v.at(0), ldv as i32, gate.at(0), win.at(0),
-                        t as i32, hq as i32, hk as i32, dh as i32, 0.0625, *qb as i32, st,
+                        q.at(0),
+                        k.at(0),
+                        v.at(0),
+                        ldv as i32,
+                        gate.at(0),
+                        win.at(0),
+                        t as i32,
+                        hq as i32,
+                        hk as i32,
+                        dh as i32,
+                        0.0625,
+                        *qb as i32,
+                        st,
                     ),
                     "windowed pass",
                 )
@@ -747,9 +772,18 @@ fn gdn_prefill_two_phase_matches_one_shot_bit_for_bit() {
         unsafe {
             check(
                 (api().cs1_gdn_prefill)(
-                    qd.at(0), kd.at(0), vd.at(0), gd.at(0).cast(), bd.at(0),
-                    o_full.at(0), ws0.at(0).cast(), t as i32, h as i32, hk as i32,
-                    (d as f32).powf(-0.5), st,
+                    qd.at(0),
+                    kd.at(0),
+                    vd.at(0),
+                    gd.at(0).cast(),
+                    bd.at(0),
+                    o_full.at(0),
+                    ws0.at(0).cast(),
+                    t as i32,
+                    h as i32,
+                    hk as i32,
+                    (d as f32).powf(-0.5),
+                    st,
                 ),
                 "one-shot prefill",
             )
@@ -759,14 +793,27 @@ fn gdn_prefill_two_phase_matches_one_shot_bit_for_bit() {
         let p = ((t as f64 * 0.6) as usize / 64 * 64).max(64);
         let state = DeviceBuffer::new(h * d * d * 4).unwrap();
         let o_p1 = DeviceBuffer::new(p * h * d * 2).unwrap();
-        let ws1 = DeviceBuffer::new(unsafe { (api().cs1_gdn_workspace_floats)(p as i32, h as i32) } * 4).unwrap();
+        let ws1 =
+            DeviceBuffer::new(unsafe { (api().cs1_gdn_workspace_floats)(p as i32, h as i32) } * 4)
+                .unwrap();
         // SAFETY: the p-row prefix of the same inputs; the state buffer is [H][K][V] f32.
         unsafe {
             check(
                 (api().cs1_gdn_prefill_x)(
-                    qd.at(0), kd.at(0), vd.at(0), gd.at(0).cast(), bd.at(0),
-                    o_p1.at(0), ws1.at(0).cast(), p as i32, h as i32, hk as i32,
-                    (d as f32).powf(-0.5), std::ptr::null(), state.at(0).cast(), st,
+                    qd.at(0),
+                    kd.at(0),
+                    vd.at(0),
+                    gd.at(0).cast(),
+                    bd.at(0),
+                    o_p1.at(0),
+                    ws1.at(0).cast(),
+                    p as i32,
+                    h as i32,
+                    hk as i32,
+                    (d as f32).powf(-0.5),
+                    std::ptr::null(),
+                    state.at(0).cast(),
+                    st,
                 ),
                 "capture phase",
             )
@@ -774,15 +821,27 @@ fn gdn_prefill_two_phase_matches_one_shot_bit_for_bit() {
         }
         let t2 = t - p;
         let o_p2 = DeviceBuffer::new(t2 * h * d * 2).unwrap();
-        let ws2 = DeviceBuffer::new(unsafe { (api().cs1_gdn_workspace_floats)(t2 as i32, h as i32) } * 4).unwrap();
+        let ws2 =
+            DeviceBuffer::new(unsafe { (api().cs1_gdn_workspace_floats)(t2 as i32, h as i32) } * 4)
+                .unwrap();
         // SAFETY: the t2-row suffix of the same inputs; the captured state feeds it.
         unsafe {
             check(
                 (api().cs1_gdn_prefill_x)(
-                    qd.at(p * hk * d * 2), kd.at(p * hk * d * 2), vd.at(p * h * d * 2),
-                    gd.at(p * h * 4).cast(), bd.at(p * h * 2),
-                    o_p2.at(0), ws2.at(0).cast(), t2 as i32, h as i32, hk as i32,
-                    (d as f32).powf(-0.5), state.at(0).cast_const(), std::ptr::null_mut(), st,
+                    qd.at(p * hk * d * 2),
+                    kd.at(p * hk * d * 2),
+                    vd.at(p * h * d * 2),
+                    gd.at(p * h * 4).cast(),
+                    bd.at(p * h * 2),
+                    o_p2.at(0),
+                    ws2.at(0).cast(),
+                    t2 as i32,
+                    h as i32,
+                    hk as i32,
+                    (d as f32).powf(-0.5),
+                    state.at(0).cast_const(),
+                    std::ptr::null_mut(),
+                    st,
                 ),
                 "continuation phase",
             )
@@ -792,7 +851,11 @@ fn gdn_prefill_two_phase_matches_one_shot_bit_for_bit() {
         let first = from_device(&o_p1, p * h * d, st);
         let second = from_device(&o_p2, t2 * h * d, st);
         assert_eq!(first, full[..p * h * d], "capture rows diverge at t = {t}");
-        assert_eq!(second, full[p * h * d..], "continuation rows diverge at t = {t}");
+        assert_eq!(
+            second,
+            full[p * h * d..],
+            "continuation rows diverge at t = {t}"
+        );
         eprintln!("gdn two-phase t = {t}, split = {p}: both phases bitwise equal to one-shot");
         // capture-only, T = 0: the state passes through untouched.
         let passthru = DeviceBuffer::new(h * d * d * 4).unwrap();
@@ -801,9 +864,20 @@ fn gdn_prefill_two_phase_matches_one_shot_bit_for_bit() {
         unsafe {
             check(
                 (api().cs1_gdn_prefill_x)(
-                    empty.at(0), empty.at(0), empty.at(0), empty.at(0).cast(), empty.at(0),
-                    empty.at(0), empty.at(0).cast(), 0, h as i32, hk as i32,
-                    1.0, state.at(0).cast_const(), passthru.at(0).cast(), st,
+                    empty.at(0),
+                    empty.at(0),
+                    empty.at(0),
+                    empty.at(0).cast(),
+                    empty.at(0),
+                    empty.at(0),
+                    empty.at(0).cast(),
+                    0,
+                    h as i32,
+                    hk as i32,
+                    1.0,
+                    state.at(0).cast_const(),
+                    passthru.at(0).cast(),
+                    st,
                 ),
                 "state passthrough",
             )
