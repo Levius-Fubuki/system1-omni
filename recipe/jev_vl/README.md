@@ -133,14 +133,15 @@ cargo test --workspace --locked
 cargo build --workspace --release --locked
 ```
 
-The image-prefix tokenizer check requires the exported checkpoint and the frozen
-manifest. It uses the corpus's fixed `[1, 60, 60]` grid and synthetic embedding
+The image-prefix tokenizer check requires the exported checkpoint. First
+[download and restore the frozen corpus](validation.md#download-the-frozen-corpus).
+It uses the corpus's fixed `[1, 60, 60]` grid and synthetic embedding
 rows, so it checks token/position splitting rather than the vision encoder.
 CUDA kernel tests require an allocated GPU and rebuilt ABI 6 library:
 
 ```sh
-python3 recipe/jev_vl/evidence/restore_manifest.py --out /tmp/jev-vl-manifest.jsonl
-JEV_VL_EXPORT=$PWD/weights/jev-vl-merged JEV_VL_MANIFEST=/tmp/jev-vl-manifest.jsonl \
+JEV_VL_EXPORT=$PWD/weights/jev-vl-merged \
+  JEV_VL_MANIFEST="$jev_vl_evidence/manifest.jsonl" \
   cargo test --locked -p omni-jev-vl-native --test jev_vl_prefix -- --ignored
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
   QWEN3_5_CHECKPOINT=$PWD/weights/jev-vl-merged \

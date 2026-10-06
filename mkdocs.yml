@@ -26,7 +26,6 @@ exclude_docs: |
   !/docs/**/*.md
   !/docs/assets/**
   !/recipe/**/*.md
-  !/recipe/jev_vl/evidence/image.png
   !/src/frontend/README.md
   !/src/runtime/README.md
   !/assets/**
