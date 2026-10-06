@@ -158,6 +158,29 @@ fn score_thinking_on_keeps_upstream_message() {
 }
 
 #[test]
+fn decision_controls_reject_non_strings() {
+    for field in ["thinking", "strategy"] {
+        for value in ["true", "null", "42", "[]", "{}"] {
+            let r = reject(&format!(
+                r#"{{"kind":"noul","question":"q?","{field}":{value}}}"#,
+            ));
+            assert_eq!(r.status, 400, "{field}: {value}");
+        }
+    }
+}
+
+#[test]
+fn supported_decision_controls_remain_valid() {
+    for thinking in ["default", "off"] {
+        for strategy in ["auto", "single"] {
+            compile_str(&format!(
+                r#"{{"kind":"noul","question":"q?","thinking":"{thinking}","strategy":"{strategy}"}}"#,
+            ));
+        }
+    }
+}
+
+#[test]
 fn wrong_content_type_body_mirrors_bytes_error() {
     let raw = br#"{"kind":"noul","state":"x","question":"q?"}"#;
     // Non-JSON content type: upstream validates the raw bytes object.

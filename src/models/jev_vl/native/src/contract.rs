@@ -223,7 +223,10 @@ pub fn compile(raw: &[u8], labels: &[String]) -> Result<Compiled, Reject> {
             return Err(Reject::bad_request("question must be a string".to_owned()));
         }
     };
-    if let Some(thinking) = request.get("thinking").and_then(Value::as_str) {
+    if let Some(thinking) = request.get("thinking") {
+        let thinking = thinking
+            .as_str()
+            .ok_or_else(|| Reject::bad_request("thinking must be a string"))?;
         match thinking {
             "default" | "off" => {}
             "auto" | "on" => {
@@ -251,12 +254,15 @@ pub fn compile(raw: &[u8], labels: &[String]) -> Result<Compiled, Reject> {
             "system2_only is not implemented by this worker",
         ));
     }
-    if let Some(strategy) = request.get("strategy").and_then(Value::as_str)
-        && !matches!(strategy, "auto" | "single")
-    {
-        return Err(Reject::bad_request(format!(
-            "strategy {strategy:?} is not implemented by this worker"
-        )));
+    if let Some(strategy) = request.get("strategy") {
+        let strategy = strategy
+            .as_str()
+            .ok_or_else(|| Reject::bad_request("strategy must be a string"))?;
+        if !matches!(strategy, "auto" | "single") {
+            return Err(Reject::bad_request(format!(
+                "strategy {strategy:?} is not implemented by this worker"
+            )));
+        }
     }
     let options: Vec<String> = match kind {
         Kind::Noul => vec!["false".into(), "true".into()],
