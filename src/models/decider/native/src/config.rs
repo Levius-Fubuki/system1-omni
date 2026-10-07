@@ -39,6 +39,7 @@ impl Config {
             "only plain layout supported"
         );
         for (key, want) in [
+            ("chat_template", false),
             ("schema_first", false),
             ("schema_first_trained", false),
             ("neutralize_none", false),

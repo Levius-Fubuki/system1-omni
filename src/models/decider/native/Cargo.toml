@@ -10,3 +10,7 @@ serde = "1.0.229"
 serde_json = { version = "1.0.149", features = ["float_roundtrip", "preserve_order", "raw_value"] }
 tokenizers = { version = "=0.22.2", default-features = false, features = ["onig"] }
 sha2 = "0.10"
+
+[[test]]
+name = "config"
+path = "../../../../tests/decider/config.rs"
