@@ -1,6 +1,6 @@
 # Qwen3.5/3.8 prefill operations
 
-CUDA kernels for a prefill-only Qwen3.5/3.8 forward pass, built into `libqwen3_5_cuda.so` with a C interface ([`ops.h`](ops.h)), so that a Rust model engine loads it at run time and builds without a CUDA toolkit. The Cua-S1 and Open-Jev native workers share the layer loop and buffers in [`src/models/qwen3_5/native/`](../../../models/qwen3_5/native/).
+CUDA kernels for a prefill-only Qwen3.5/3.8 forward pass, built into `libqwen3_5_cuda.so` with a C interface ([`ops.h`](ops.h)), so that a Rust model engine loads it at run time and builds without a CUDA toolkit. The Cua-S1, Open-Jev and Decider native workers share the layer loop and buffers in [`src/models/qwen3_5/native/`](../../../models/qwen3_5/native/).
 
 ```sh
 src/backends/cuda/qwen3_5/build.sh <output dir> [compute capability, default 89]
@@ -20,3 +20,9 @@ The shared Rust model can pack independent sequences for input and gate/up GEMMs
 Output/down GEMMs retain each prompt's original shape and reduction order;
 attention, convolution and GDN calls remain sequence-local. The CUDA ABI is
 unchanged. Open-Jev uses this path within requests; Cua-S1 keeps single-prompt calls.
+
+Decider-2B v11 reuses these operations for eager independent text rows and its
+BF16 selected tied-embedding projection. It pads the 255 retained labels to 256
+GEMM rows and excludes padding from the output; no CUDA ABI or kernel change is
+needed. See the [Decider recipe](../../../../recipe/decider/README.md) and
+[RTX 4090 full-checkpoint scope](../../../../recipe/decider/validation.md).
