@@ -29,7 +29,7 @@ expanded rows to 1,024, total processed row tokens to 1,048,576 and raw bodies t
 8 MiB. Unsupported modes, duplicate JSON keys, depth >=128, nonfinite literals
 and integers outside i64/u64 are rejected. No image/video, chat/schema-first,
 packed-question execution, neutralization, quantization, CPU/Metal inference,
-shared-prefix cache or Decider CUDA Graph optimization is included.
+shared-prefix cache is included. CUDA Graph replay is optional and defaults off.
 
 ## Ownership and execution
 
@@ -57,6 +57,13 @@ complete question. This does not combine separate requests or change admission. 
 its BF16 outputs to FP32 before CPU temperature scaling and normalization. Padding
 never participates in softmax or token accounting. Current GEMM/reduction algorithms
 can differ from Transformers; numerical agreement is measured rather than assumed.
+
+Decider uses an explicit shared-model loader option controlled only by
+`DECIDER_GRAPH`; existing workers retain their `CUA_S1_GRAPH` constructor behavior.
+The backbone caches up to 64 ordered sequence-length shapes, clears them before
+scratch growth, and falls back permanently to eager if capture fails. Effective
+mode and cumulative capture/replay counters appear in health/diagnostic metadata.
+The selected head and calibrated response remain outside the graph.
 
 Both streams synchronize on completion, errors and caught execution panics before
 admission is released. An execution failure retires the loaded model/head and makes

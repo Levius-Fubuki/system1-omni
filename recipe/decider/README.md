@@ -34,15 +34,16 @@ is needed. Keep files immutable while loading and serving.
 Worker terminal:
 
 ```sh
-CUA_S1_GRAPH=0 \
+DECIDER_GRAPH=0 \
 DECIDER_MODEL=/path/to/models/decider-2b-v11 \
 DECIDER_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" \
 DECIDER_HOST=127.0.0.1 DECIDER_PORT=8000 \
   ./target/release/omni-decider
 ```
 
-Decider's first path is eager. `CUA_S1_GRAPH=1` is rejected at startup so a shared
-backbone switch cannot silently change this path. An unset switch is also accepted.
+Decider defaults to eager. `DECIDER_GRAPH=1` opts the backbone into CUDA Graph
+capture/replay; only 0/1 are accepted and an unset switch is off. `CUA_S1_GRAPH`
+has no effect on Decider; other workers retain their existing switch.
 `DECIDER_CUDA_LIB` defaults to the library beside the binary. The worker uses CUDA
 device 0; use `CUDA_VISIBLE_DEVICES` to select a physical device.
 
@@ -56,7 +57,7 @@ OMNI_JEV_BACKEND_URL=http://127.0.0.1:8000 \
   ./target/release/omni-jev
 ```
 
-Health returns the model identity, checkpoint/reference revisions, BF16/eager mode
+Health returns the model identity, checkpoint/reference revisions, BF16/effective execution mode
 and effective per-type temperatures. A retired executor returns HTTP 503 and
 `status: unavailable`. The frontend exposes its existing health behavior; see the
 [frontend configuration](../../src/frontend/README.md) for its own limits/timeouts.
@@ -102,7 +103,7 @@ cargo build --workspace --release --locked
 DECIDER_MODEL=/path/to/models/decider-2b-v11 \
   cargo test --release --locked -p omni-decider-native --test contract -- --ignored
 DECIDER_MODEL=/path/to/models/decider-2b-v11 \
-DECIDER_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" CUA_S1_GRAPH=0 \
+DECIDER_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" DECIDER_GRAPH=0 \
   cargo test --release --locked -p omni-decider-native --test gpu -- --ignored
 DECIDER_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" \
   cargo test --release --locked -p omni-decider-native --lib \
@@ -116,7 +117,7 @@ For exact prepared rows and raw BF16-rounded logits, the diagnostic binary reads
 one JSON request per line and emits rows, logits and complete response:
 
 ```sh
-CUA_S1_GRAPH=0 ./target/release/decider-run \
+DECIDER_GRAPH=0 ./target/release/decider-run \
   /path/to/models/decider-2b-v11 "$PWD/target/release/libqwen3_5_cuda.so" \
   < recipe/decider/example-request.json
 ```
@@ -135,3 +136,19 @@ admission, token usage, or the maximum complete-row length.
 The selected-label head uses persistent buffers sized to the row limit and projects
 each batch in one BF16 GEMM. No cross-request batching is introduced. Keep the
 single-row default until numerical and performance results fit your workload.
+
+## Optional CUDA Graph replay
+
+`DECIDER_GRAPH=1` works with the request-local batch limits above. The backbone
+caches at most 64 captures by the **ordered sequence-length vector**, uploads
+current token IDs before replay, and clears captures after synchronizing before
+scratch growth. A shape miss runs eagerly once and records the warmed layer loop;
+it does not launch that capture on the already-computed residual. Label projection
+and response assembly remain outside the graph.
+
+Health's `graph` object and the diagnostic runner's outer `graph` record report
+requested/enabled mode, captures, replays, fallbacks, invalidations and cached shapes.
+Decision-response fields remain unchanged. Capture failure disables Graph for the
+worker lifetime and keeps the completed eager result; health then reports `eager`.
+Launch/inference failures still retire the worker. Capture and startup costs must
+be measured separately from warm replay.

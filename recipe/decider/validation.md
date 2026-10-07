@@ -16,7 +16,7 @@ reference files before running either implementation and saves them in its proto
 
 RTX 4090, sm_89, 24 GiB; driver 595.71.05, CUDA toolkit 13.0.88, Rust 1.98.1,
 Python 3.12, Torch 2.14.0+cu130 and Transformers 5.17.0. Native runs one complete
-unpadded row at a time, eager with `CUA_S1_GRAPH=0`; it uses the existing ABI5 Qwen
+unpadded row at a time, eager with `DECIDER_GRAPH=0`; it uses the existing ABI5 Qwen
 backend, rebuilt from this branch. The reference uses `DecisionModel.slot_logits`
 with unpadded independent rows and disabled cache. Its missing causal-conv1d and
 flash-linear-attention packages use Transformers' PyTorch reference fallbacks.
@@ -96,7 +96,7 @@ git -C /path/to/decider-reference checkout 50d0be0d7cb43d2066965ce5fa7f3fe4e489a
 From the System1-Omni repository root, with a reserved/available NVIDIA GPU:
 
 ```sh
-CUA_S1_GRAPH=0 python tests/decider/verify_reference.py \
+DECIDER_GRAPH=0 python tests/decider/verify_reference.py \
   --model /path/to/models/decider-2b-v11 \
   --reference /path/to/decider-reference \
   --binary "$PWD/target/release/decider-run" \
@@ -166,3 +166,25 @@ campaign and narrowed-protocol rerun are retained in the PR evidence archive.
 Defaults remain one row; do not extrapolate these small workloads to arbitrary
 requests or hardware. Batch fault injection also verifies a two-row head failure
 retires the complete worker after real startup warmup.
+
+## Graph checks
+
+`DECIDER_GRAPH=1` enables explicit backbone capture/replay. The ignored root
+`tests/qwen3_5/graph.rs` test uses the pinned Decider checkpoint and compares eager
+and graph hidden states exactly for ordered length vectors, token changes under
+the same shape, scratch growth, replay and FIFO eviction beyond 64 shapes. Run:
+
+```sh
+DECIDER_MODEL=/path/to/models/decider-2b-v11 \
+DECIDER_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" CUA_S1_GRAPH=1 \
+  cargo test --release --locked -p omni-qwen3-5-native --test graph -- --ignored --test-threads=1
+```
+
+Set `require_replays: true` on each Graph mode in the comparison plan to require
+actual captures and warm replays with zero fallbacks. The diagnostic runner preserves
+these counters separately from the decision response. `tests/decider/fail_graph.c`
+is a test-only wrapper that rejects capture startup while real CUDA eager inference
+continues; `verify_graph_fallback.py` checks all pinned response cases and proves
+one fallback, zero captures/replays, and effective eager execution. Build the wrapper
+like `fail_head.c` above, then pass `--binary`, `--model`, `--wrapper`,
+`--parity-output` and `--output` to that runner.

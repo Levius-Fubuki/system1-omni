@@ -37,3 +37,7 @@ path = "../../../../tests/decider/config.rs"
 [[test]]
 name = "batching"
 path = "../../../../tests/decider/batching.rs"
+
+[[test]]
+name = "options"
+path = "../../../../tests/decider/options.rs"
