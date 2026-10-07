@@ -98,10 +98,12 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--cases", type=Path, help="maintained additional corpus; replaces default18 cases")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     sources = verify_sources(args.reference / "decider", REFERENCE_FILES)
-    cases = workloads()
+    cases = workloads() if args.cases is None else [(case["name"],case["request"]) for case in json.loads(args.cases.read_text())]
+    assert cases and len({name for name,_ in cases}) == len(cases)
     manifest = {"reference_revision": REFERENCE_REVISION, "reference_source_sha256": sources, "gates": GATES, "runs": 1, "cases": [{"name": name, "request": request} for name, request in cases]}
     # Freeze the manifest before executing either implementation.
     (args.output / "protocol.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")

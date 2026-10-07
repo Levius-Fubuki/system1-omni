@@ -1,7 +1,8 @@
 # Native Decider-2B v11 text decisions
 
 Run these commands from the repository root on Linux with Rust, an NVIDIA GPU,
-CUDA toolkit/nvcc and cuBLASLt. The existing Qwen backend targets compute capability
+CUDA toolkit/nvcc and cuBLASLt. Rebuild the library and every native Qwen consumer together for ABI **7**.
+The existing Qwen backend targets compute capability
 8.0 or newer; hardware validation is described in [validation.md](validation.md).
 The worker itself uses no Python/PyTorch serving process. Python 3.10+ is used only
 for downloading and optional reference validation. Keep at least 8 GB disk free for
@@ -152,3 +153,25 @@ Decision-response fields remain unchanged. Capture failure disables Graph for th
 worker lifetime and keeps the completed eager result; health then reports `eager`.
 Launch/inference failures still retire the worker. Capture and startup costs must
 be measured separately from warm replay.
+
+## Optional request-local shared prefixes (dependent draft)
+
+This integration depends on the pending Qwen continuation/fixed-GEMM/executor
+stack (#97/#98/#99). Build this complete branch with ABI7; an ABI5 library is
+rejected. `DECIDER_PREFIX=1 DECIDER_GRAPH=0` plans exact shared token prefixes
+within the admitted request and restores attention KV, GDN recurrent state and
+three convolution-history rows for every branch. Contiguous rows for one question
+can also share a longer question prefix. The executor ends reusable spans on
+64-token boundaries and repeats their remainder in each suffix. Every branch
+retains at least one token and original row order. Buffers persist but their
+contents are valid only within one call; there is no cross-request cache.
+
+Prefix execution uses the dependency's fixed GEMM algorithms. Set `DECIDER_FIXED=1`
+with prefix/Graph off for the independent full-row control. With no usable prefix
+(less than one reusable 64-token chunk), prefix mode executes independent fixed
+rows. Both modes preserve the batch adapter's head grouping; backbone branches
+run eagerly. Combining prefix/fixed with Graph or enabling prefix and fixed
+together rejects startup. All new switches default off. Health reports effective
+`shared`/`fixed` mode and cumulative `prefix.shared_requests`/`saved_tokens`.
+The diagnostic outer record includes the same counters; decision output and usage
+do not count execution savings differently.

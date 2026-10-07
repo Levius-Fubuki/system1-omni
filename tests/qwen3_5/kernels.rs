@@ -649,7 +649,11 @@ fn conv_with_history_matches_unsplit_conv() {
     let st = setup();
     // 4B/9B (16 key heads, 32 value heads) and 27B (48 value heads); each GDN input
     // row also carries z, b and a after the conv channels.
-    for (key_dim, value_dim, heads) in [(2048usize, 4096usize, 32usize), (2048, 6144, 48)] {
+    for (key_dim, value_dim, heads) in [
+        (2048usize, 2048usize, 16usize),
+        (2048, 4096, 32),
+        (2048, 6144, 48),
+    ] {
         let channels = 2 * key_dim + value_dim;
         let ld = channels + value_dim + 2 * heads;
         let total = 1300usize;
@@ -768,7 +772,7 @@ fn gated_delta_state_continues_unsplit_prefill() {
     let st = setup();
     let d = 128usize;
     // 4B/9B (32 value heads over 16 key heads) and 27B (48 over 16)
-    for (h, hk) in [(32usize, 16usize), (48, 16)] {
+    for (h, hk) in [(16usize, 16usize), (32, 16), (48, 16)] {
         let total = 1300usize;
         let k = random(total * hk * d, 42, 1.0);
         let q: Vec<bf16> = k
@@ -989,7 +993,7 @@ fn cached_attention_matches_unsplit_attention() {
     let st = setup();
     let dh = 256usize;
     // 4B/9B (16 query heads) and 27B (24) over 4 KV heads
-    for (hq, hk) in [(16usize, 4usize), (24, 4)] {
+    for (hq, hk) in [(8usize, 2usize), (16, 4), (24, 4)] {
         let total = 1300usize;
         let ldv = hk * dh + 16; // a strided V buffer, as read from the projection output
         let q = to_device(&random(total * hq * dh, 51, 2.0), st);
@@ -1117,10 +1121,15 @@ fn copy_rows_copies_pitched_rows() {
 #[ignore = "needs a GPU and CUA_S1_CUDA_LIB"]
 fn fixed_gemm_rows_do_not_depend_on_m() {
     let st = setup();
-    // Every projection of the 4B, 9B and 27B backbones as (N, K): the GDN input and
+    // Every projection of the 2B, 4B, 9B and 27B backbones as (N, K): the GDN input and
     // output, the attention input and output, and the MLP's gate|up and down.
     let shapes = [
-        (12352usize, 2560usize),
+        (8224usize, 2048usize),
+        (2048, 2048),
+        (5120, 2048),
+        (12288, 2048),
+        (2048, 6144),
+        (12352, 2560),
         (2560, 4096),
         (10240, 2560),
         (18432, 2560),

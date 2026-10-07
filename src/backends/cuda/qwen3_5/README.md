@@ -58,6 +58,7 @@ unchanged. Open-Jev uses this path within requests; Cua-S1 keeps single-prompt c
 
 Decider-2B v11 reuses these operations for eager independent text rows and its
 BF16 selected tied-embedding projection. It pads the 255 retained labels to 256
-GEMM rows and excludes padding from the output; no CUDA ABI or kernel change is
-needed. See the [Decider recipe](../../../../recipe/decider/README.md) and
+GEMM rows and excludes padding from the output. Optional request-local shared
+prefix execution uses the continuation stack and requires ABI7; default eager
+and Graph execution retain their independent-row math. See the [Decider recipe](../../../../recipe/decider/README.md) and
 [RTX 4090 full-checkpoint scope](../../../../recipe/decider/validation.md).

@@ -29,7 +29,9 @@ expanded rows to 1,024, total processed row tokens to 1,048,576 and raw bodies t
 8 MiB. Unsupported modes, duplicate JSON keys, depth >=128, nonfinite literals
 and integers outside i64/u64 are rejected. No image/video, chat/schema-first,
 packed-question execution, neutralization, quantization, CPU/Metal inference,
-shared-prefix cache is included. CUDA Graph replay is optional and defaults off.
+cross-request prefix cache is included. CUDA Graph replay and request-local prefix
+reuse are optional and default off. Prefix integration is a dependent draft until
+Qwen PRs #97/#98/#99 merge.
 
 ## Ownership and execution
 
@@ -64,6 +66,14 @@ The backbone caches up to 64 ordered sequence-length shapes, clears them before
 scratch growth, and falls back permanently to eager if capture fails. Effective
 mode and cumulative capture/replay counters appear in health/diagnostic metadata.
 The selected head and calibrated response remain outside the graph.
+
+`prefix.rs` independently plans exact request/question token prefixes from complete
+prepared rows. `DECIDER_PREFIX=1` uses shared Qwen continuation and fixed GEMM
+selection; `DECIDER_FIXED=1` provides independent fixed full rows for a matched
+control. Short/no-sharing cases run independent fixed rows. These paths require
+Graph off. The selected head keeps identical batch grouping; calibrated responses
+and unique-prefix usage remain unchanged. Prefix snapshots/KV are overwritten per
+request and never reused across calls. The backend/consumers require ABI7 rebuilds.
 
 Both streams synchronize on completion, errors and caught execution panics before
 admission is released. An execution failure retires the loaded model/head and makes

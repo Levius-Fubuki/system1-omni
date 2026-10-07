@@ -9,7 +9,8 @@ design. Concrete input/output types follow each executor's supported layout.
 The [Rust frontend](../src/frontend/README.md) currently forwards HTTP requests
 to separately running workers. Cua-S1, Open-Jev and Decider have native Rust/CUDA workers
 that share the [Qwen3.5/3.8 executor](../src/models/qwen3_5/native/), which accepts
-single prompts and bounded packed prefill. Cua-S1 uses single-prompt calls;
+single prompts and bounded packed prefill. The same executor also supports request-local prefix continuation with fixed
+GEMM controls. Decider uses it optionally, while Cua-S1 uses single-prompt calls;
 Open-Jev packs candidates within one request for input and gate/up GEMMs while
 preserving per-sequence mixers and output/down GEMM shapes.
 [Laya's native worker](../src/models/laya/README.md)
@@ -43,7 +44,10 @@ equals `forward_fixed` on the full prompt bit for bit; it differs from `forward`
 rounding. The extra device memory is two prefix states (about 49 MiB each for
 Qwen3.5-9B, 147 MiB for Qwen3.8-27B), keys and values for the longest prompt so far
 rounded up to 1,024 positions (32 KiB per position on 9B, 64 KiB on 27B), and a 32 MiB
-GEMM workspace.
+GEMM workspace. Decider optionally uses request-local exact-token sharing with
+whole-question reconstruction; prefix/fixed mode requires Graph off and exposes
+independent fixed full rows for numerical controls. The ABI7 stack is still a
+dependent draft until the underlying Qwen PRs merge.
 
 ## Native worker boundaries
 
