@@ -46,8 +46,14 @@ are loaded from the pinned tied input embedding; all 255 rows are retained, with
 
 `executor.rs` owns the shared Qwen model and a separate CUDA projection stream,
 GEMM handle and persistent head buffers. Each complete request gets one shared
-`SerialScheduler` permit. Rows run eagerly in order, resetting the backbone state
-for each row. The BF16 selected projection uses existing backend GEMM, then converts
+`SerialScheduler` permit. Default execution runs rows eagerly in order. Optional request-local packing
+uses `DECIDER_BATCH_MAX_ROWS` (1–4, default 1) and
+`DECIDER_BATCH_MAX_TOKENS` (1–4096, default 4096). Contiguous complete rows are
+packed with the shared backbone `forward_batch`; each sequence resets its own
+GDN/attention state. A row above the packing budget runs alone under the unchanged
+complete-row limit. A persistent head projects all batch hidden rows in one GEMM.
+Score levels can cross batch boundaries; response normalization still uses the
+complete question. This does not combine separate requests or change admission. The BF16 selected projection uses existing backend GEMM, then converts
 its BF16 outputs to FP32 before CPU temperature scaling and normalization. Padding
 never participates in softmax or token accounting. Current GEMM/reduction algorithms
 can differ from Transformers; numerical agreement is measured rather than assumed.

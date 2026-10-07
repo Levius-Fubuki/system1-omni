@@ -144,3 +144,25 @@ Generated run output and binaries are kept out of the source tree; only maintain
 fixtures and reproduction helpers are committed. The implementation PR links the
 immutable evidence archive and its SHA-256. All requests are synthetic and carry
 no private/customer content. A video is inapplicable to this text API integration.
+
+## Request-local batching comparison
+
+The followup runner `tests/decider/verify_modes.py` accepts a frozen JSON plan with
+`model`, `library`, `parity_output` (the pinned reference run above),
+`repetitions: 2`, `timed_cases` and `modes`. Each mode supplies `name`, an absolute
+`binary` path and an `env` mapping. It hashes binaries, library, reference records
+and comparison scripts before execution; retains complete records; checks prepared
+rows exactly and the same response gates. Time is the diagnostic JSON-lines
+roundtrip at concurrency 1, including processing, synchronization, serialization
+and IPC. Startup to the empty diagnostic response and one workload warmup are
+reported/excluded separately. These measurements do not establish HTTP latency,
+peak memory or production throughput. Device memory is a whole-device sample at
+the end of each mode, not a peak measurement.
+
+On the RTX 4090 followup campaign, row limits 2 and 4 passed all 18 reference
+requests. Row limit 8 failed the unchanged probability gate on structured Unicode
+input (0.0208 > 0.02), so supported packing is capped at **4 rows**. The failed
+campaign and narrowed-protocol rerun are retained in the PR evidence archive.
+Defaults remain one row; do not extrapolate these small workloads to arbitrary
+requests or hardware. Batch fault injection also verifies a two-row head failure
+retires the complete worker after real startup warmup.

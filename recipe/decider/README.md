@@ -123,3 +123,15 @@ CUA_S1_GRAPH=0 ./target/release/decider-run \
 
 See [validation.md](validation.md) for full-checkpoint reference comparison,
 HTTP/frontend checks, prerequisites and the recorded scope.
+
+## Optional request-local packing
+
+Set `DECIDER_BATCH_MAX_ROWS=4 DECIDER_BATCH_MAX_TOKENS=4096` on `omni-decider`
+to pack independent rows within one admitted request. Rows default to 1; accepted
+limits are 1–4 rows and 1–4096 packed tokens. Longer complete rows execute alone.
+Malformed or out-of-range settings fail startup. These limits do not change HTTP
+admission, token usage, or the maximum complete-row length.
+
+The selected-label head uses persistent buffers sized to the row limit and projects
+each batch in one BF16 GEMM. No cross-request batching is introduced. Keep the
+single-row default until numerical and performance results fit your workload.

@@ -50,6 +50,9 @@ and candidate identity, usage, and response metadata outside the executor.
 Cua-S1 input collections are serial work. Open-Jev's model-specific batch adapter
 packs up to 16 independent candidates and 4096 tokens per group; longer prompts
 execute alone. It restores question/candidate grouping before normalization.
+Decider optionally packs bounded contiguous independent complete rows within one
+request, preserving Score-level reconstruction and unique-prefix usage. The
+selected-label projection is batched; request admission remains serial.
 Laya batches questions within one request. Shared runtime
 admission precedes blocking dispatch: Cua-S1 admits one question forward at a
 time; Open-Jev and Laya admit one complete request. Cua-S1's CPU letter projection
