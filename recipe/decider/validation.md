@@ -15,10 +15,9 @@ decider-ai 1.8.1. The comparison harness verifies fixed hashes of all five impor
 reference files before running either implementation and saves them in its protocol.
 
 RTX 4090, sm_89, 24 GiB; driver 595.71.05, CUDA toolkit 13.0.88, Rust 1.98.1,
-Python 3.12, Torch 2.14.0+cu130 and Transformers 5.17.0. The original worker baseline ran one complete
-unpadded row at a time, eager with `DECIDER_GRAPH=0` and ABI 5. This dependent
-prefix branch rebuilds the shared backend and consumers for ABI 7; followup controls
-check unchanged independent eager/Graph behavior as well as fixed/shared execution. The reference uses `DecisionModel.slot_logits`
+Python 3.12, Torch 2.14.0+cu130 and Transformers 5.17.0. The original eager baseline used one complete unpadded row at a time and ABI5.
+This dependent prefix branch rebuilds the backend and consumers for ABI7; followup
+controls below cover unchanged eager/Graph behavior and fixed/shared execution. The reference uses `DecisionModel.slot_logits`
 with unpadded independent rows and disabled cache. Its missing causal-conv1d and
 flash-linear-attention packages use Transformers' PyTorch reference fallbacks.
 No optimized-reference speed comparison is claimed.
@@ -32,7 +31,7 @@ Before execution, the harness fixes these gates:
 - Exact prepared tokens, candidate IDs/order, readout positions, usage and answer
   identities. Complete responses retain all model-specific fields.
 
-## Recorded results
+## Recorded eager baseline results
 
 The 18-request corpus has **41 independent inference rows**. It covers Choice with
 2/3/10/11/26/255 options, Score with 2/3/10 isolated levels, true/false and
@@ -67,7 +66,7 @@ HTTP harness run stopped on a Python variable-shadowing error after its earlier
 checks; the corrected full run passes. The worker binaries were unchanged.
 
 The test-only CUDA wrapper lets the genuine warmup projection complete, then fails
-only the second `1 x256 x2048` head GEMM. The worker returns 503, health becomes
+only the second `1 x 256 x 2048` head GEMM. The worker returns 503, health becomes
 unavailable, two later requests are refused, and exactly two projections are seen.
 Sampled per-process GPU residency drops from **4,192 MiB to 394 MiB**, demonstrating
 retirement of the model allocation; these are two lifecycle samples, not peak-memory
@@ -78,7 +77,8 @@ Cancellation semantics inherit the tested shared SerialScheduler. Decider-specif
 caller cancellation and injected Rust panic are not separately hardware-tested.
 CPU/Metal inference, other GPUs/precisions, dynamic batching, prefix reuse, Decider
 Graph replay, model-quality datasets, throughput and cold/warm latency comparisons
-are outside this validation.
+are outside the original eager campaign; the followup checks below cover batching,
+Graph and request-local prefix reuse.
 
 ## Reproduce
 
@@ -91,7 +91,7 @@ Obtain the pinned reference in a separate directory:
 
 ```sh
 git clone https://github.com/Mapika/decider.git /path/to/decider-reference
-git -C /path/to/decider-reference checkout50d0be0d7cb43d2066965ce5fa7f3fe4e489a60f
+git -C /path/to/decider-reference checkout 50d0be0d7cb43d2066965ce5fa7f3fe4e489a60f
 ```
 
 From the System1-Omni repository root, with a reserved/available NVIDIA GPU:
@@ -113,7 +113,7 @@ python tests/decider/verify_http.py \
   --output /path/to/evidence/http
 ```
 
-The HTTP runner starts local sockets on18110/18111, checks readiness and shuts its
+The HTTP runner starts local sockets on 18110/18111, checks readiness and shuts its
 processes down even on failure. It retains worker/frontend logs and complete results.
 Do not run it over unrelated processes already using these ports.
 
@@ -132,7 +132,7 @@ python tests/decider/verify_retirement.py \
   --output /path/to/evidence/retirement
 ```
 
-This runner uses port18112 and `nvidia-smi` per-process memory reporting. The recipe
+This runner uses port 18112 and `nvidia-smi` per-process memory reporting. The recipe
 also lists the explicit CPU and real-GPU Cargo tests. Ordinary workspace tests
 compile/discover their ignored cases but do not establish hardware validation.
 
@@ -154,14 +154,14 @@ The followup runner `tests/decider/verify_modes.py` accepts a frozen JSON plan w
 `binary` path and an `env` mapping. It hashes binaries, library, reference records
 and comparison scripts before execution; retains complete records; checks prepared
 rows exactly and the same response gates. Time is the diagnostic JSON-lines
-roundtrip at concurrency1, including processing, synchronization, serialization
+roundtrip at concurrency 1, including processing, synchronization, serialization
 and IPC. Startup to the empty diagnostic response and one workload warmup are
 reported/excluded separately. These measurements do not establish HTTP latency,
 peak memory or production throughput. Device memory is a whole-device sample at
 the end of each mode, not a peak measurement.
 
-On the RTX4090 followup campaign, row limits2 and4 passed all18 reference
-requests. Row limit8 failed the unchanged probability gate on structured Unicode
+On the RTX 4090 followup campaign, row limits 2 and 4 passed all 18 reference
+requests. Row limit 8 failed the unchanged probability gate on structured Unicode
 input (0.0208 > 0.02), so supported packing is capped at **4 rows**. The failed
 campaign and narrowed-protocol rerun are retained in the PR evidence archive.
 Defaults remain one row; do not extrapolate these small workloads to arbitrary
@@ -171,9 +171,9 @@ retires the complete worker after real startup warmup.
 ## Graph checks
 
 `DECIDER_GRAPH=1` enables explicit backbone capture/replay. The ignored root
-`tests/qwen 3_5/graph.rs` test uses the pinned Decider checkpoint and compares eager
+`tests/qwen3_5/graph.rs` test uses the pinned Decider checkpoint and compares eager
 and graph hidden states exactly for ordered length vectors, token changes under
-the same shape, scratch growth, replay and FIFO eviction beyond64 shapes. Run:
+the same shape, scratch growth, replay and FIFO eviction beyond 64 shapes. Run:
 
 ```sh
 DECIDER_MODEL=/path/to/models/decider-2b-v11 \
@@ -197,11 +197,11 @@ commits from Qwen PRs #97/#98/#99 while preserving main's packed prefill and Gra
 Rebuild all consumers with ABI7. The unchanged default GEMM handle serves the
 normal/Graph path; fixed/shared modes use a separate no-split-K handle selected
 at reference M64. Model tests compare shared branches bit for bit with independent
-`forward_fixed` rows, including prefixes around64-token boundaries, growth,
+`forward_fixed` rows, including prefixes around 64-token boundaries, growth,
 repetition, reordering, invalid IDs and interleaved Graph calls. Kernel tests now
-include Decider's2048 hidden width, 16 GDN heads and8/2 attention heads alongside
-the existing4B/9B/27B shapes. Run ignored tests serially with `CUA_S 1_CUDA_LIB`,
-`QWEN 3_5_MODEL`, `DECIDER_MODEL` and `DECIDER_CUDA_LIB` set to the ABI7 library
+include Decider's 2048 hidden width, 16 GDN heads and 8/2 attention heads alongside
+the existing 4B/9B/27B shapes. Run ignored tests serially with `CUA_S1_CUDA_LIB`,
+`QWEN3_5_MODEL`, `DECIDER_MODEL` and `DECIDER_CUDA_LIB` set to the ABI7 library
 and pinned Decider checkpoint.
 
 For response controls, put fixed4 before shared4 in the frozen modes plan and set
@@ -224,14 +224,14 @@ shared-context requests (mixed types and ten Score levels). Generate their pinne
 reference records with `verify_reference.py --cases tests/decider/data/prefix-workloads.json`
 and the same model/reference/binary/library/output arguments above. Then point
 `verify_modes.py` at that parity directory, time exactly those two names, and keep
-two repetitions per mode. This corpus is independent of the original18-case run;
+two repetitions per mode. This corpus is independent of the original 18-case run;
 it resolves long-prefix reuse performance and does not replace broader fidelity
 checks. The fixed/shared exact-logit gate also applies to measured repetitions.
 
 ## Followup measurements (diagnostic roundtrip)
 
-The final bounded-row campaign measured `mixed` at25.69 ms for single rows and
-15.75 ms for4-row packing; `score_10` at51.03→29.44 ms. Independent Graph4 measured
+The final bounded-row campaign measured `mixed` at 25.69 ms for single rows and
+15.75 ms for 4-row packing; `score_10` at 51.03→29.44 ms. Independent Graph4 measured
 `mixed` at 15.80→15.12 ms relative to matched eager4, while long-context single-row
 latency was 89.76→89.73 ms. Each value is the median of two warm samples on the
 same RTX 4090. These are narrow synthetic diagnostic timings, not HTTP latency
@@ -244,8 +244,8 @@ The ABI 7 shared-prefix comparison retains the fixed-algorithm control separatel
 | --- | ---: | ---: | ---: |
 | Original mixed, short state |15.73|31.27|31.51|
 | Original structured Unicode |32.43|47.57|41.44|
-| Targeted long mixed,5 rows /17683 processed tokens |414.47|484.32|144.18|
-| Targeted long Score10,10 rows /24460 processed tokens |576.17|672.89|151.96|
+| Targeted long mixed, 5 rows / 17683 processed tokens |414.47|484.32|144.18|
+| Targeted long Score10, 10 rows / 24460 processed tokens |576.17|672.89|151.96|
 
 Every cell uses two warmed repetitions with raw min/max retained in the archive.
 The long shared runs are bit-identical in raw candidate logits and complete
@@ -255,5 +255,5 @@ against matched normal eager4; they do not establish task quality or a workload-
 improvement. Short states can regress due to fixed GEMM selection and branch
 launch overhead, so all optimizations remain opt-in. Shared and Graph are tested
 as separate modes, not combined. End-of-mode whole-device memory samples for the
-long corpus were 4626 MiB eager4,4658 MiB fixed4 and 4746 MiB shared4; peak memory
+long corpus were 4626 MiB eager4, 4658 MiB fixed4 and 4746 MiB shared4; peak memory
 and sustained throughput were not measured.
