@@ -15,6 +15,7 @@ Models that are being added are also tracked in issues labeled [new model](https
 | Cua-S1 4B 0.2, `text` adapter | [Native Rust worker](../recipe/cua_s1/native.md) on the [Qwen3.5 CUDA kernels](../src/backends/cuda/qwen3_5/README.md) | Not supported | Validated on compute capability 8.9 ([#19](https://github.com/ThinkFlowLab/system1-omni/pull/19), [#52](https://github.com/ThinkFlowLab/system1-omni/pull/52)) | Not supported | Compute capability 8.0 or newer, the CUDA toolkit to build, weights merged with `export_text_merged.py` |
 | Cua-S1 4B 0.2, `multimodal` adapter | Reference worker on Transformers and PEFT, [`src/frontend/cua_s1.py`](../src/frontend/cua_s1.py); no recipe yet | Not supported | Validated ([#17](https://github.com/ThinkFlowLab/system1-omni/pull/17), [#18](https://github.com/ThinkFlowLab/system1-omni/pull/18)) | Not supported | The state is one PNG or JPEG image; upstream's `weights.lock.json` next to the base weights |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](../recipe/open_jev/native.md) on the shared Qwen3.5/3.8 executor | Not supported | Validated on H200 (sm_90) for the [74 single-candidate workload](../recipe/open_jev/validation.md) | Not supported | Compute capability 8.0 or newer, CUDA toolkit to build, exported merged weights and trained head |
+| Decider-2B v11 | [Native Rust/CUDA text worker](../recipe/decider/README.md), independent `choice`/`noul` and isolated `score` | CPU processing/checkpoint checks; no CPU inference | BF16 RTX 4090 (sm_89); [validation scope](../recipe/decider/validation.md) | Not supported | Pinned immutable single-file checkpoint, CUDA toolkit/cuBLASLt and existing Qwen backend |
 | CLM-v0.1-8B | [External `clm-serve` recipe](../recipe/clm/README.md) with a CPU stub embeddings server | **Stub-encoder contract checks only** ([#23](https://github.com/ThinkFlowLab/system1-omni/pull/23)); not real Qwen3-8B decisions | Real encoder unverified by the merged recipe | Unverified | Python, upstream CLM and head checkpoint; a real encoder requires a separate embeddings server |
 
 - **Validated:** covered by the recipe on `main` or by the checks in the linked merged pull request.
@@ -22,7 +23,7 @@ Models that are being added are also tracked in issues labeled [new model](https
 - **Planned:** not implemented yet; the linked issue tracks it.
 
 The Cua-S1 workers answer `choice` questions only.
-LAYA's English worker and Open-Jev support `choice`, `score`, and `noul` text questions.
+LAYA's English worker, Open-Jev and Decider support `choice`, `score`, and `noul` text questions.
 CLM's merged recipe exercises these answer shapes with stub embeddings; it does
 not validate decision quality. MPS validation above is for a Python/PyTorch
 worker, not a native Metal backend.
@@ -30,6 +31,7 @@ worker, not a native Metal backend.
 The [architecture contracts](architecture.md) describe the native target.
 Shared processing orchestration and dynamic batching remain planned. Native
 workers reuse serial admission. Qwen workers run independent single-prompt
-prefills with CPU heads; Laya packs questions within one request and runs its
+prefills; Cua-S1/Open-Jev use CPU heads and Decider uses a BF16 CUDA selected-label
+projection. Laya packs questions within one request and runs its
 scorer/action head on CUDA. These target layers do not expand
 the validated model or hardware coverage above.

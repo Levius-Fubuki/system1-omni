@@ -67,5 +67,7 @@ nav:
       - Cua-S1 native text worker: recipe/cua_s1/native.md
       - Open-Jev native text worker: recipe/open_jev/native.md
       - Open-Jev H200 validation: recipe/open_jev/validation.md
+      - Decider native text worker: recipe/decider/README.md
+      - Decider RTX 4090 validation: recipe/decider/validation.md
       - CLM stub-encoder contract: recipe/clm/README.md
   - Contributing: CONTRIBUTING.md

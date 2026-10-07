@@ -15,6 +15,8 @@ For a first real decision, follow the [complete CPU walkthrough](../docs/getting
   the Rust worker, export the merged weights and start the worker.
 - [Open-Jev-27B-v1.1 native text worker](open_jev/native.md): export the merged
   text backbone and trained decision head, then serve with Rust and CUDA.
+- [Decider-2B v11 native text worker](decider/README.md): verify the released
+  checkpoint and serve independent Choice/Noul and isolated Score with Rust/CUDA.
 - [CLM behind the frontend](clm/README.md): run CLM's own server behind the frontend on
   CPU with a stub encoder, and what the response comparison has to allow for.
 
