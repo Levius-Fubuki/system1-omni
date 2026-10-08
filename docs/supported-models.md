@@ -16,6 +16,7 @@ Models that are being added are also tracked in issues labeled [new model](https
 | Cua-S1 4B 0.2, `multimodal` adapter | Reference worker on Transformers and PEFT, [`src/frontend/cua_s1.py`](../src/frontend/cua_s1.py); no recipe yet | Not supported | Validated ([#17](https://github.com/ThinkFlowLab/system1-omni/pull/17), [#18](https://github.com/ThinkFlowLab/system1-omni/pull/18)) | Not supported | The state is one PNG or JPEG image; upstream's `weights.lock.json` next to the base weights |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](../recipe/open_jev/native.md) on the shared Qwen3.5/3.8 executor | Not supported | Validated on H200 (sm_90) for the [74 single-candidate workload](../recipe/open_jev/validation.md) | Not supported | Compute capability 8.0 or newer, CUDA toolkit to build, exported merged weights and trained head |
 | Open-Jev-9B | The same [native Rust/CUDA worker](../recipe/open_jev/native.md) | Not supported | Validated on compute capability 8.9 against the reference for [253 requests](../recipe/open_jev/validation-9b.md) | Not supported | Compute capability 8.0 or newer, CUDA toolkit to build, exported merged weights and trained head |
+| JEMM / Qwen3.8-27B | [Native Rust/CUDA worker](../recipe/jemm/native.md), text and images | No native CPU inference; processing/export checks only | Validated on A800 80 GB (`sm_80`) for the [fixed 13-request / 16-question text/image corpus](../recipe/jemm/validation.md), including preprocessing, responses and HTTP checks | Unverified | Rebuilt CUDA ABI 5 library with 27B vision symbols, pinned BF16 export and selected untied LM-head rows; other GPU configurations unverified |
 | CLM-v0.1-8B | [External `clm-serve` recipe](../recipe/clm/README.md) with a CPU stub embeddings server | **Stub-encoder contract checks only** ([#23](https://github.com/ThinkFlowLab/system1-omni/pull/23)); not real Qwen3-8B decisions | Real encoder unverified by the merged recipe | Unverified | Python, upstream CLM and head checkpoint; a real encoder requires a separate embeddings server |
 
 - **Validated:** covered by the recipe on `main` or by the checks in the linked merged pull request.
@@ -24,6 +25,12 @@ Models that are being added are also tracked in issues labeled [new model](https
 
 The Cua-S1 workers answer `choice` questions only.
 LAYA's English worker and Open-Jev support `choice`, `score`, and `noul` text questions.
+JEMM implements all three for text and up to four PNG/JPEG/WebP images; it
+accepts 2–32 candidates and has [model-specific limits](../recipe/jemm/native.md#image-requests-and-input-limits).
+JEMM's measured reference used unmerged BF16 base/FP32 PEFT LoRA tensors with
+SDPA and FLA, and the Torch convolution fallback because optional
+`causal_conv1d` was absent. Its results cover the recorded corpus and environment,
+without general accuracy or production throughput claims.
 CLM's merged recipe exercises these answer shapes with stub embeddings; it does
 not validate decision quality. MPS validation above is for a Python/PyTorch
 worker, not a native Metal backend.
@@ -31,6 +38,7 @@ worker, not a native Metal backend.
 The [architecture contracts](architecture.md) describe the native target.
 Shared processing orchestration and dynamic batching remain planned. Native
 workers reuse serial admission. Qwen workers run independent single-prompt
-prefills with CPU heads; Laya packs questions within one request and runs its
-scorer/action head on CUDA. These target layers do not expand
+prefills with CPU heads for Cua-S1 and Open-Jev. JEMM runs one prefill per
+question and a BF16 label head on CUDA; Laya packs questions within one request
+and runs its scorer/action head on CUDA. These target layers do not expand
 the validated model or hardware coverage above.

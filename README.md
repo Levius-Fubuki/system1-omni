@@ -43,8 +43,9 @@ scheduling from model execution; a native Metal backend is planned, while LAYA
 already has a Python worker for Apple GPUs through PyTorch MPS.
 
 The Rust frontend forwards requests to a separately running model worker. The
-Cua-S1 4B 0.2 `text` adapter, Open-Jev-27B-v1.1 and Open-Jev-9B have native
-workers using shared CUDA kernels in this repository.
+Cua-S1 4B 0.2 `text` adapter, Open-Jev-27B-v1.1, Open-Jev-9B and JEMM have
+native workers using shared CUDA kernels in this repository. JEMM supports text
+and image decisions, with [A800 validation on a fixed corpus](recipe/jemm/validation.md).
 
 ## News
 
@@ -65,8 +66,11 @@ workers using shared CUDA kernels in this repository.
   processing and executor modules, with shared FIFO admission and blocking
   dispatch in the [native runtime](src/runtime/README.md).
 - **Native CUDA workers.** The Cua-S1 4B 0.2 `text` adapter,
-  Open-Jev-27B-v1.1 and Open-Jev-9B run as native workers with shared CUDA
-  kernels. Cua-S1 also has a Python worker that serves as the correctness reference.
+  Open-Jev-27B-v1.1, Open-Jev-9B and [JEMM](recipe/jemm/native.md) run as native
+  workers with shared CUDA kernels. JEMM adds configurable 27B vision and a BF16
+  GPU label head; [fixed-corpus parity and HTTP timings](recipe/jemm/validation.md)
+  are validated on A800. Cua-S1 also has a
+  Python worker that serves as the correctness reference.
 - **LAYA text serving.** LAYA runs as an external CPU Python worker, the
   in-repository Python MPS/CPU worker, or a native Rust/CUDA worker on Hopper.
 - **CUDA backend and planned Metal backend.** High-performance GPU operations
@@ -116,7 +120,8 @@ internal implementations.
 The [architecture and integration contracts](docs/architecture.md) define
 processor/executor boundaries, compatibility grouping, state and buffer
 lifetimes, and result reconstruction. They also distinguish the native target
-from current single-prompt execution and CPU decision heads.
+from current execution: Cua-S1 and Open-Jev use CPU decision heads, while
+JEMM and Laya execute their heads on CUDA.
 
 ## Repository Layout
 
@@ -158,8 +163,10 @@ The [frontend documentation](src/frontend/README.md) describes transport and con
 LAYA text serving uses the upstream CPU worker, the in-repository Python MPS/CPU
 worker, or a native Rust/CUDA worker on Hopper. The Cua-S1 4B 0.2 `text` adapter
 runs as a Python worker or as a native worker on CUDA. Open-Jev-27B-v1.1
-and Open-Jev-9B run on the same native Rust/CUDA worker. Cua-S1 also has a
-Python screenshot worker, and CLM has a stub-encoder contract recipe:
+and Open-Jev-9B run on the same native Rust/CUDA worker. JEMM has a native
+text/image worker on the shared Qwen executor, validated on A800 for the
+[fixed corpus](recipe/jemm/validation.md). Cua-S1 also has a Python screenshot
+worker, and CLM has a stub-encoder contract recipe:
 
 | Model | Status |
 | --- | --- |
@@ -168,6 +175,7 @@ Python screenshot worker, and CLM has a stub-encoder contract recipe:
 | Cua-S1 4B 0.2 (`multimodal` adapter) | [Python CUDA worker](src/frontend/cua_s1.py); one PNG/JPEG screenshot, `choice`; native screenshot execution remains in progress |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
 | Open-Jev-9B | The same [native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [reference comparison on sm_89](recipe/open_jev/validation-9b.md) |
+| JEMM | [Native Rust/CUDA recipe](recipe/jemm/native.md); text/image `choice`, `score` and `noul`; [fixed-corpus A800 validation](recipe/jemm/validation.md) |
 | CLM-v0.1-8B | [External worker with a CPU stub encoder](recipe/clm/README.md); contract checks only, real Qwen3-8B decisions unverified by this recipe |
 
 [Supported models and hardware](docs/supported-models.md) lists the devices
@@ -182,6 +190,10 @@ requests and a matched comparison with raw HF Transformers and OpenJev-Fast.
 The [Open-Jev optimization notes](docs/blog/2026-10-05-open-jev-optimization.md)
 record PR-by-PR Rust/CUDA changes and isolated A/B measurements, with figures,
 numerical checks and links to the separate experiments.
+The [JEMM A800 comparison](recipe/jemm/validation.md) records fixed-corpus
+text/image parity and warm HTTP timings against the official unmerged
+Transformers/PEFT reference. That reference had SDPA and FLA available and
+used the Torch convolution fallback because optional `causal_conv1d` was absent.
 
 ## Roadmap
 

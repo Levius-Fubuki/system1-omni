@@ -7,22 +7,25 @@ design. Concrete input/output types follow each executor's supported layout.
 ## Implementation status
 
 The [Rust frontend](../src/frontend/README.md) currently forwards HTTP requests
-to separately running workers. Cua-S1 and Open-Jev have native Rust/CUDA workers
-that share the [Qwen3.5/3.8 executor](../src/models/qwen3_5/native/), which accepts
-single prompts and bounded packed prefill. Cua-S1 and Open-Jev-9B use
-single-prompt calls; Open-Jev-27B-v1.1 packs candidates within one request for
-input and gate/up GEMMs while preserving per-sequence mixers and output/down GEMM
+to separately running workers. Cua-S1, Open-Jev and JEMM have native Rust/CUDA
+workers that share the
+[Qwen3.5/3.8 executor](https://github.com/ThinkFlowLab/system1-omni/blob/main/src/models/qwen3_5/native/README.md), which accepts
+single prompts, explicit multimodal inputs and bounded packed prefill.
+Cua-S1, Open-Jev-9B and JEMM use single-prompt language calls;
+Open-Jev-27B-v1.1 packs candidates within one request for input and gate/up GEMMs while preserving per-sequence mixers and output/down GEMM
 shapes.
 [Laya's native worker](../src/models/laya/README.md)
-uses a separate Hopper CUDA backend for one complete padded request. All three
-coordinate independent processors and executors through
+uses a separate Hopper CUDA backend for one complete padded request. These
+workers coordinate independent processors and executors through
 `prepare` → `execute` → `finish` and use the
 [native runtime](../src/runtime/README.md) for FIFO admission and blocking dispatch
 per loaded executor. Shared processing orchestration, batch budgets,
 compatibility grouping and dynamic batching are planned.
 
-Qwen workers compute their decision heads on the CPU after downloading the final
-hidden state. Laya computes its scorer and action head on CUDA. Its fixed-shape
+Cua-S1 and Open-Jev compute their decision heads on the CPU after downloading
+the final hidden state. JEMM projects the selected BF16 rows of the untied LM
+head on CUDA, preserving BF16 output rounding before returning FP32 logits.
+Laya computes its scorer and action head on CUDA. Its fixed-shape
 Graph captures Encoder/Decision; gather, scorer/action head and synchronized
 readback remain outside capture. Native Metal remains planned; Python workers
 retain their documented reference/serving roles.
@@ -39,6 +42,7 @@ and candidate identity, usage, and response metadata outside the executor.
 | --- | --- | --- | --- |
 | Cua-S1 | One unpadded token-ID vector and option count per question, in request order. | One FP32 answer-letter logit vector per question. | Per-question softmax, choice/confidence, ordered answers, and token usage. |
 | Open-Jev | Token-ID vectors grouped by question, then independent candidate, in request order. | One FP32 learned scalar per candidate in the same grouping. | Add the `noul` false logit of zero, calibrate across each complete question, and restore typed answers, usage, and metadata. |
+| JEMM | One unpadded token sequence and candidate count per question, shared CPU image patches, ordered image-token indices and three-axis positions. | One FP32 vector of selected BF16 label logits per question after GPU LM-head projection and synchronized readback. | Calibrate each complete question, restore ordered `choice`, `score` and `noul` answers, and sum complete prompt token usage. |
 | Laya | One padded request: token IDs, true lengths, question types and ordered option markers; at most 16 questions, 512 tokens per row and 2048 markers. | Per-question FP32 option logits and two action logits copied back after GPU heads. | Calibrate and decode ordered `choice`, `score` and `noul` answers, usage and metadata. |
 
 Cua-S1 and Open-Jev-9B input collections are serial work. For Open-Jev-27B-v1.1,
@@ -47,19 +51,46 @@ Open-Jev's model-specific batch adapter packs up to 16 independent candidates an
 execute alone. It restores question/candidate grouping before normalization.
 Laya batches questions within one request. Shared runtime
 admission precedes blocking dispatch: Cua-S1 admits one question forward at a
-time; Open-Jev and Laya admit one complete request. Cua-S1's CPU letter projection
-stays outside admission; Open-Jev's scalar heads and Laya's GPU heads and
-synchronized readback remain inside their request unit. Qwen model mutexes guard
+time; Open-Jev, JEMM and Laya admit one complete request. Cua-S1's CPU letter
+projection stays outside admission; Open-Jev's scalar heads, JEMM's GPU label
+head and Laya's GPU heads and synchronized readback remain inside their
+request unit. Qwen model mutexes guard
 mutable state. Laya's dedicated owning thread confines its non-Send CUDA state
 and receives admitted work over a rendezvous channel. Cancellation after
 dispatch retains the scheduler permit until execution completes. Laya
 synchronizes and disposes a failed model before returning an inference error
 and reports unavailable health thereafter.
 
-Qwen executors own loaded models and CPU head weights, preserving FP64 accumulation and
-the existing FP32 rounding and bias order. Finishing checks output cardinality
-before reconstruction. HTTP validation, error status/body conventions, and real
-warmup before readiness remain model-specific and unchanged.
+Cua-S1 and Open-Jev executors own loaded models and CPU head weights, preserving
+FP64 accumulation and the existing FP32 rounding and bias order. JEMM owns its
+selected BF16 GPU head and performs FP64 calibrated softmax on the host.
+Finishing checks output cardinality before reconstruction. HTTP validation,
+error status/body conventions and real warmup before readiness remain
+model-specific.
+
+[JEMM](../recipe/jemm/native.md) adds a shared configurable vision encoder for
+the exact Qwen3.8-27B layout while retaining Cua-S1's 4B layout and legacy
+kernel calls. Shared preprocessing accepts caller-supplied limits; JEMM owns
+its pinned image limits, prompt rendering, token budgets and three-axis
+positions. JEMM's adapter is merged into language weights for native execution;
+its vision weights remain the unadapted base. The reference uses unmerged PEFT
+language adapters.
+
+JEMM request admission includes every image forward, question prefill, GPU label
+projection and synchronized readback. Prepared inputs own token vectors,
+positions and shared CPU image patches; response context owns question and
+candidate identities, token usage and timing. The executor runs each supplied
+image once and reuses its embeddings for all questions in that request. It does
+not cache images across requests or batch requests dynamically. A loaded-state
+mutex guards model buffers and weights; on errors or panics the executor
+synchronizes all streams and retires failed state before releasing admission.
+Cancellation after dispatch retains the permit until this work completes.
+The [A800 evidence](../recipe/jemm/validation.md) records shared kernel and
+retained 4B checks, exact JEMM preprocessing and fixed-corpus response parity,
+HTTP behavior and matched warm HTTP timings. The official unmerged reference
+had SDPA and FLA available and used the Torch convolution fallback because
+optional `causal_conv1d` was absent; the evidence does not extend this coverage
+to other hardware, general model accuracy or production throughput.
 
 ## Layer ownership and implementation language
 
@@ -98,10 +129,11 @@ semantics.
 
 Cua-S1 prepares one prompt per question and reads option-letter logits.
 Open-Jev prepares independent candidate prompts and normalizes across the
-complete question's candidates. Laya pads prepared questions into one request
-batch and normalizes each question's complete option set. A request, question,
-and GPU batch therefore
-have different boundaries. Scheduler grouping must preserve those distinctions;
+complete question's candidates. JEMM prepares one prompt containing every
+candidate for each question and shares image features within the request. Laya
+pads prepared questions into one request batch and normalizes each question's
+complete option set. A request, question and GPU batch therefore have different
+boundaries. Scheduler grouping must preserve those distinctions;
 probabilities must not be normalized across unrelated questions or requests.
 
 ## Scheduling and batching contracts

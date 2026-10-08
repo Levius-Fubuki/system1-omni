@@ -17,6 +17,11 @@ For a first real decision, follow the [complete CPU walkthrough](../docs/getting
   backbone and trained decision head of Open-Jev-27B-v1.1 or Open-Jev-9B, then
   serve with Rust and CUDA. [Open-Jev-9B validation](open_jev/validation-9b.md)
   compares the 9B worker with the reference.
+- [JEMM native text/image worker](jemm/native.md): download pinned Qwen3.8-27B
+  and adapter artifacts, export on CPU and serve decisions with Rust/CUDA.
+  [A800 validation](jemm/validation.md) records fixed-corpus text/image parity,
+  HTTP behavior and matched warm HTTP timings with the reference environment
+  and its convolution fallback documented.
 - [CLM behind the frontend](clm/README.md): run CLM's own server behind the frontend on
   CPU with a stub encoder, and what the response comparison has to allow for.
 
