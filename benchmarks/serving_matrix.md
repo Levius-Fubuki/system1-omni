@@ -47,7 +47,29 @@ with the expectation's UTF-8 encoding, including whitespace. Invalid JSON fails
 a JSON expectation. An HTTP status other than 200 always fails.
 
 The client captures one global health snapshot and one first inference per case,
-then two sequential warmup requests per case. These phases are excluded from
+then two sequential warmup requests per case. A case may instead provide a
+nonempty `variants` list, replacing its top-level request and expectation:
+
+```json
+{
+  "name": "mixed-shapes",
+  "variants": [
+    {"name": "short", "request": {"state": "short input"}, "expected_response": {"answers": {}}},
+    {"name": "long", "request": {"state": "longer input"}, "expected_response": {"answers": {}}}
+  ]
+}
+```
+
+Each variant needs its own unique name within the case, request and exact
+expectation. Each variant receives an independent first inference and two
+warmup requests. Feasibility and measured requests cycle through variants using
+`index % len(variants)`, starting at variant zero in each wave/round. Summaries
+aggregate the mixed case; decision counts use each actual successful response.
+Every inference record includes `variant` and its zero-based `variant_index`;
+an original single-request case uses its case name as its sole variant name.
+Choose a measured request count divisible by the variant count for equal shares.
+
+Readiness, warmup and feasibility phases are excluded from
 performance metrics. Each case/concurrency pair receives one excluded feasibility
 wave of `min(concurrency, requests_per_case)` requests, followed by two measured
 rounds with `requests_per_case` requests each. Fixed worker threads send their

@@ -21,6 +21,10 @@ def decode_json(data):
     return json.loads(data, parse_constant=reject_constant)
 
 
+def case_variants(case):
+    return case["variants"] if "variants" in case else [case]
+
+
 def validate_plan(plan):
     for key in ("endpoint", "health_endpoint"):
         if key not in plan and key == "health_endpoint":
@@ -38,12 +42,23 @@ def validate_plan(plan):
         if not isinstance(name, str) or not name or name in names:
             raise ValueError("case names must be nonempty and unique")
         names.add(name)
-        if not isinstance(case["request"], dict):
-            raise ValueError("request must be a JSON object")
-        if ("expected_response" in case) == ("expected_response_text" in case):
-            raise ValueError("each case needs exactly one expected response")
-        if "expected_response_text" in case and not isinstance(case["expected_response_text"], str):
-            raise ValueError("expected_response_text must be a string")
+        variants = case_variants(case)
+        if "variants" in case and any(key in case for key in ("request", "expected_response", "expected_response_text")):
+            raise ValueError("variants replaces the case's request and expectation")
+        if not isinstance(variants, list) or not variants:
+            raise ValueError("variants must be a nonempty list")
+        variant_names = set()
+        for variant in variants:
+            variant_name = variant["name"]
+            if not isinstance(variant_name, str) or not variant_name or variant_name in variant_names:
+                raise ValueError("variant names must be nonempty and unique within a case")
+            variant_names.add(variant_name)
+            if not isinstance(variant["request"], dict):
+                raise ValueError("request must be a JSON object")
+            if ("expected_response" in variant) == ("expected_response_text" in variant):
+                raise ValueError("each variant needs exactly one expected response")
+            if "expected_response_text" in variant and not isinstance(variant["expected_response_text"], str):
+                raise ValueError("expected_response_text must be a string")
     count = plan["requests_per_case"]
     concurrency = plan["concurrency"]
     if type(count) is not int or count < 1 or not isinstance(concurrency, list) or not concurrency:
@@ -196,10 +211,15 @@ def run(plan_path, output):
     stopped = threading.Event()
     lock = threading.Lock()
     with (output / "responses.jsonl").open("w") as sink:
-        def request(case, phase, index, concurrency=1, repetition=None):
-            record = exchange(plan["endpoint"], plan["timeout_seconds"], case)
+        def request(case, phase, index, concurrency=1, repetition=None, variant_index=None):
+            variants = case_variants(case)
+            if variant_index is None:
+                variant_index = index % len(variants)
+            variant = variants[variant_index]
+            record = exchange(plan["endpoint"], plan["timeout_seconds"], variant)
             record.update(case=case["name"], phase=phase, index=index,
-                          concurrency=concurrency, repetition=repetition)
+                          concurrency=concurrency, repetition=repetition,
+                          variant=variant["name"], variant_index=variant_index)
             with lock:
                 if record["error"]:
                     stopped.set()
@@ -210,15 +230,19 @@ def run(plan_path, output):
 
         # Preserve first inference even when the independent health snapshot fails.
         for case in plan["cases"]:
-            request(case, "readiness", 0)
-            if health["error"] or stopped.is_set():
-                stopped.set()
+            if stopped.is_set():
                 break
-        for case in plan["cases"]:
-            for index in range(plan["warmup_per_case"]):
-                if stopped.is_set():
+            for variant_index in range(len(case_variants(case))):
+                request(case, "readiness", 0, variant_index=variant_index)
+                if health["error"] or stopped.is_set():
+                    stopped.set()
                     break
-                request(case, "warmup", index)
+        for case in plan["cases"]:
+            for variant_index in range(len(case_variants(case))):
+                for index in range(plan["warmup_per_case"]):
+                    if stopped.is_set():
+                        break
+                    request(case, "warmup", index, variant_index=variant_index)
 
         def wave(case, phase, concurrency, count, repetition=None):
             next_index = 0

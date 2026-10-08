@@ -17,7 +17,7 @@ EXPECTED = {"answers": {"a": {"choice": "yes"}, "b": {"noul": 0.75}}}
 
 
 @contextmanager
-def server(actions=None, health_status=200, barrier_indices=()):
+def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag=None):
     state = {"posts": 0, "active": 0, "peak": 0, "redirect_hits": 0}
     lock = threading.Lock()
     barrier = threading.Barrier(len(barrier_indices)) if barrier_indices else None
@@ -34,7 +34,7 @@ def server(actions=None, health_status=200, barrier_indices=()):
             self.wfile.write(b'{"ready":true}')
 
         def do_POST(self):
-            self.rfile.read(int(self.headers["Content-Length"]))
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             with lock:
                 state["posts"] += 1
                 index = state["posts"]
@@ -43,6 +43,8 @@ def server(actions=None, health_status=200, barrier_indices=()):
             status, payload, delay = (actions or {}).get(
                 index, (200, json.dumps(EXPECTED).encode(), 0.015)
             )
+            if responses_by_tag is not None:
+                payload = json.dumps(responses_by_tag[body["tag"]]).encode()
             try:
                 if index in barrier_indices:
                     barrier.wait(timeout=5)
@@ -236,6 +238,33 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.execute(path)
         self.assertEqual((output / "keep").read_text(), "original")
+
+    def test_mixed_variants_alternate_and_count_actual_decisions(self):
+        responses = {
+            "short": {"answers": {"a": {"choice": "yes"}}},
+            "long": {"answers": {"a": {"choice": "yes"}, "b": {"noul": 0.25}, "c": {"score": 2}}},
+        }
+        case = {"name": "mixed", "variants": [
+            {"name": name, "request": {"tag": name}, "expected_response": response}
+            for name, response in responses.items()
+        ]}
+        with server(responses_by_tag=responses) as (origin, state):
+            code, summary, records, _ = self.execute(self.plan(origin, cases=[case], concurrency=[2]))
+        self.assertEqual(code, 0)
+        self.assertEqual(state["posts"], 16)
+        self.assertEqual([(r["variant"], r["variant_index"]) for r in records if r["phase"] == "readiness"], [("short", 0), ("long", 1)])
+        self.assertEqual([(r["variant"], r["index"]) for r in records if r["phase"] == "warmup"], [("short", 0), ("short", 1), ("long", 0), ("long", 1)])
+        for record in records:
+            self.assertEqual(record["case"], "mixed")
+            self.assertEqual(json.loads(record["raw_response_text"]), responses[record["variant"]])
+            if record["phase"] in ("feasibility", "measured"):
+                self.assertEqual(record["variant_index"], record["index"] % 2)
+                self.assertEqual(record["variant"], ["short", "long"][record["index"] % 2])
+        for result in summary["rounds"]:
+            self.assertEqual(result["case"], "mixed")
+            self.assertEqual(result["successful_requests"], 4)
+            self.assertEqual(result["successful_decisions"], 8)
+            self.assertAlmostEqual(result["successful_decisions_per_second"], 8 / result["elapsed_seconds"])
 
 
 if __name__ == "__main__":
