@@ -138,7 +138,7 @@ python3 recipe/jev_vl/preencode.py --help
 ```
 
 The image-prefix tokenizer check requires the exported checkpoint. First
-[download and restore the frozen corpus](validation.md#download-the-frozen-corpus).
+[restore the frozen corpus](validation.md#restore-the-frozen-corpus).
 It uses the corpus's fixed `[1, 60, 60]` grid and synthetic embedding
 rows, so it checks token/position splitting rather than the vision encoder.
 CUDA kernel tests require an allocated GPU and rebuilt ABI 6 library:

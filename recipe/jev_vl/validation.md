@@ -37,40 +37,34 @@ are in the [fixed result archive](https://github.com/linear3735/system1-omni/tre
 [Earlier measurements and their limitations](https://github.com/linear3735/system1-omni/blob/4927d2a3373ae3e2d825bf63a320178988540031/recipe/jev_vl/validation.md#appendix-historical-evidence-audited-on-2026-10-06)
 remain archived separately.
 
-## Download the frozen corpus
+## Restore the frozen corpus
 
-Inputs and reference responses are retained at a fixed archive revision rather
-than in the current source tree. Download the public archive and extract only
-its evidence directory into a temporary directory:
+The maintained image, manifest template, restoration helper and reference
+responses are in `tests/jev_vl/data/replay/`. From the repository root, restore
+the manifest into a temporary directory:
 
 ```sh
 jev_vl_evidence=$(mktemp -d "${TMPDIR:-/tmp}/jev-vl-evidence.XXXXXX")
-jev_vl_revision=4927d2a3373ae3e2d825bf63a320178988540031
-curl --fail --location \
-  "https://codeload.github.com/linear3735/system1-omni/tar.gz/$jev_vl_revision" \
-  --output "$jev_vl_evidence/source.tar.gz"
-tar -xzf "$jev_vl_evidence/source.tar.gz" -C "$jev_vl_evidence" \
-  --strip-components=3 "system1-omni-$jev_vl_revision/recipe/jev_vl/evidence"
-python3 "$jev_vl_evidence/evidence/restore_manifest.py" \
+python3 tests/jev_vl/data/replay/restore_manifest.py \
   --out "$jev_vl_evidence/manifest.jsonl"
 ```
 
 The restore script verifies the original manifest SHA-256
 `f72d1beaaaf53933d0a6edda26b635f46931990d8cdb56ca5c6a7ca94d2eb0ee`.
-It restores approximately 41 MiB of inputs. The extracted `reference/sha256.json`
-records hashes of the 48 reference answers and eight archived error probes.
+It restores approximately 41 MiB of inputs. The fixture's `reference/sha256.json`
+records hashes of the 48 reference answers and eight error probes.
 These inputs and responses do not establish the provenance of a new executable.
 
 ## Replay
 
 Follow the [deployment recipe](README.md) to export weights, build the worker,
 preencode `"$jev_vl_evidence/manifest.jsonl"`, and start serving. Keep the shell
-variable from the download step. Use a new output directory for every run:
+variable from the restoration step. Use a new output directory for every run:
 
 ```sh
 python3 recipe/jev_vl/replay.py \
   --base http://127.0.0.1:8001 --manifest "$jev_vl_evidence/manifest.jsonl" \
-  --reference "$jev_vl_evidence/evidence/reference" \
+  --reference tests/jev_vl/data/replay/reference \
   --out "$jev_vl_evidence/worker-parity" --warmup 4 --passes 1
 ```
 
@@ -84,7 +78,7 @@ For a paired cache measurement, start the worker with `JEV_VL_CACHE=0`, then run
 ```sh
 python3 recipe/jev_vl/replay.py \
   --base http://127.0.0.1:8001 --manifest "$jev_vl_evidence/manifest.jsonl" \
-  --reference "$jev_vl_evidence/evidence/reference" --pattern img- \
+  --reference tests/jev_vl/data/replay/reference --pattern img- \
   --out "$jev_vl_evidence/cache-off" --warmup 12 --passes 2
 ```
 
