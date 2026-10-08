@@ -13,6 +13,10 @@
     "gemm.cu",
     "runtime.cu"
   ],
+  "models": [
+    "src/models/cua_s1/native/",
+    "src/models/open_jev/native/"
+  ],
   "build": {
     "script": "build.sh",
     "output": "libqwen3_5_cuda.so",
