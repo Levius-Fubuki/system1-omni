@@ -43,7 +43,7 @@ scheduling from model execution; a native Metal backend is planned, while LAYA
 already has a Python worker for Apple GPUs through PyTorch MPS.
 
 The Rust frontend forwards requests to a separately running model worker. The
-Cua-S1 4B 0.2 `text` adapter, Open-Jev-27B-v1.1, Open-Jev-9B and Decider-2B v11 have native
+Cua-S1 4B 0.2 `text` adapter, Open-Jev-27B-v1.1 and Open-Jev-9B have native
 workers using shared CUDA kernels in this repository.
 
 ## News
@@ -168,7 +168,6 @@ Python screenshot worker, and CLM has a stub-encoder contract recipe:
 | Cua-S1 4B 0.2 (`multimodal` adapter) | [Python CUDA worker](src/frontend/cua_s1.py); one PNG/JPEG screenshot, `choice`; native screenshot execution remains in progress |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
 | Open-Jev-9B | The same [native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [reference comparison on sm_89](recipe/open_jev/validation-9b.md) |
-| Decider-2B v11 | [Native Rust/CUDA text worker](recipe/decider/README.md); independent Choice/Noul and isolated Score; [RTX 4090 validation](recipe/decider/validation.md) |
 | CLM-v0.1-8B | [External worker with a CPU stub encoder](recipe/clm/README.md); contract checks only, real Qwen3-8B decisions unverified by this recipe |
 
 [Supported models and hardware](docs/supported-models.md) lists the devices
