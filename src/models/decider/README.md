@@ -30,7 +30,7 @@ expanded rows to 1,024, total processed row tokens to 1,048,576 and raw bodies t
 and integers outside i64/u64 are rejected. No image/video, chat/schema-first,
 packed-question execution, neutralization, quantization, CPU/Metal inference,
 cross-request prefix cache is included. CUDA Graph replay and request-local prefix
-reuse are optional and default off. Prefix integration is a dependent draft until
+reuse are optional and default off. Prefix integration is a pending integration until
 Qwen PRs #97/#98/#99 merge.
 
 ## Ownership and execution

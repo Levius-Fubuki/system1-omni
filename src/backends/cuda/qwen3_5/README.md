@@ -18,8 +18,9 @@ continuation operations and the fixed-algorithm GEMM handle below.
 Three operations continue a sequence after a shared prefix, for prefix reuse
 ([#85](https://github.com/ThinkFlowLab/system1-omni/issues/85)). The shared Qwen
 executor calls them in every pass; without history, state or cached positions they
-give the plain operations' results. Only `forward_shared` continues a prefix, and no
-worker calls it yet:
+give the plain operations' results. `forward_shared` continues a prefix; the Decider
+worker uses it when `DECIDER_PREFIX=1` or the opt-in Auto policy selects reuse. Cua-S1 and Open-Jev keep their existing
+independent prompt paths:
 
 - `cs1_gdn_conv_history` reads the conv inputs of the three positions before its
   first token and can write those of its last three. Every output equals the

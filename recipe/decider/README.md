@@ -91,7 +91,9 @@ cross-request batching remain separate work.
 
 The pinned worker requires released calibration. Images, video, chat/schema-first,
 packed questions, cross-request prefix caching and quantized/CPU/Metal execution
-are unsupported. Request-local prefix reuse and Graph replay are opt-in below. See the [model contract](../../src/models/decider/README.md)
+are unsupported. Request-local prefix reuse is opt-in through `DECIDER_PREFIX=1`
+or the conservative `DECIDER_PREFIX=auto` policy; both require Graph off.
+CUDA Graph replay is opt-in through `DECIDER_GRAPH=1`, as described below. See the [model contract](../../src/models/decider/README.md)
 for native JSON restrictions and the processing/execution boundary.
 
 ## Validation and diagnostics
@@ -154,7 +156,7 @@ worker lifetime and keeps the completed eager result; health then reports `eager
 Launch/inference failures still retire the worker. Capture and startup costs must
 be measured separately from warm replay.
 
-## Optional request-local shared prefixes (dependent draft)
+## Optional request-local shared prefixes (pending integration)
 
 This integration depends on the pending Qwen continuation/fixed-GEMM/executor
 stack (#97/#98/#99). Build this complete branch with ABI7; an ABI5 library is

@@ -48,7 +48,7 @@ rounded up to 1,024 positions (32 KiB per position on 9B, 64 KiB on 27B), and a 
 GEMM workspace. Decider optionally uses request-local exact-token sharing with
 whole-question reconstruction; prefix/fixed mode requires Graph off and exposes
 independent fixed full rows for numerical controls. The ABI7 stack is still a
-dependent draft until the underlying Qwen PRs merge.
+pending integration until the underlying Qwen PRs merge.
 
 ## Native worker boundaries
 
