@@ -156,7 +156,7 @@ worker lifetime and keeps the completed eager result; health then reports `eager
 Launch/inference failures still retire the worker. Capture and startup costs must
 be measured separately from warm replay.
 
-## Optional request-local shared prefixes (pending implementation)
+## Optional request-local shared prefixes (pending integration)
 
 This integration depends on the pending Qwen continuation/fixed-GEMM/executor
 stack (#97/#98/#99). Build this complete branch with ABI7; an ABI5 library is
