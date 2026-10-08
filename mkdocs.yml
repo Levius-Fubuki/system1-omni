@@ -66,6 +66,7 @@ nav:
       - Cua-S1 text worker: recipe/cua_s1/text.md
       - Cua-S1 native text worker: recipe/cua_s1/native.md
       - Open-Jev native text worker: recipe/open_jev/native.md
-      - Open-Jev H200 validation: recipe/open_jev/validation.md
+      - Open-Jev-27B H200 validation: recipe/open_jev/validation.md
+      - Open-Jev-9B validation: recipe/open_jev/validation-9b.md
       - CLM stub-encoder contract: recipe/clm/README.md
   - Contributing: CONTRIBUTING.md
