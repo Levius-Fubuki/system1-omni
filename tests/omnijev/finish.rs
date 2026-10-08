@@ -91,6 +91,29 @@ fn answers_match_reference() {
 }
 
 #[test]
+fn invalid_calibration_is_an_error() {
+    let good = calibration(&common::fixture("finish.json"));
+    let mut bad = vec![Calibration {
+        noul_bias: f64::NAN,
+        ..good
+    }];
+    for t in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        for i in 0..3 {
+            let mut c = good;
+            c.temperatures[i] = t;
+            bad.push(c);
+        }
+    }
+    let keys = ["a".to_string(), "b".to_string()];
+    for c in &bad {
+        for kind in [Kind::Noul, Kind::Choice, Kind::Score] {
+            let err = contract::answer(&question(kind, &keys), &[0.3, 0.6], c, 0.0).unwrap_err();
+            assert_eq!(err.to_string(), "invalid calibration");
+        }
+    }
+}
+
+#[test]
 fn round4_matches_python() {
     // round(x, 4) on exactly representable ties goes to the even digit.
     for (x, expected) in [

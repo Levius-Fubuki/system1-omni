@@ -38,8 +38,8 @@ hf download Qwen/Qwen3.5-4B --revision 851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a 
 ```
 
 The export checks the checkpoint files it reads against the release's
-`release_manifest.json` and the base shards against their pinned SHA-256, then
-writes:
+`release_manifest.json` and the base model's shards, index and `config.json` against
+their pinned SHA-256, then writes:
 
 - the language model in BF16 with the adapter merged, its tied embedding resized to
   the tokenizer's 248,079 entries and the two option tokens' saved rows restored, and
@@ -50,7 +50,9 @@ writes:
 - `omnijev_export.json`, written last, with the revisions, calibration, image budget,
   and the SHA-256 of the checked inputs and of every output file.
 
-It needs about 18 GB of host RAM and writes 9 GB; on a 48-core workstation it takes
+It writes into `.<out>.partial` next to the output and renames it at the end, so a
+failed export leaves no output directory; the next run removes the partial one. It
+needs about 18 GB of host RAM and writes 9 GB; on a 48-core workstation it takes
 under a minute.
 
 ## Fixtures and tests

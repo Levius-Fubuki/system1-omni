@@ -9,6 +9,8 @@ is needed. Needs about 18 GB of host RAM and writes 9 GB.
 import argparse
 import hashlib
 import json
+import math
+import shutil
 from pathlib import Path
 
 import torch
@@ -20,7 +22,9 @@ MODEL_ID = "tinnel123/OmniJev"
 CHECKPOINT_REVISION = "ffe5f436eaf22e20e2f041f8e74e121fd057a6cb"
 BASE_MODEL_ID = "Qwen/Qwen3.5-4B"
 BASE_REVISION = "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
-BASE_SHARDS = {
+BASE_FILES = {
+    "config.json": "ddc63e1c717afa86c865bb5e01313d89d72bb53b97ad4a8a03ba8510c0621670",
+    "model.safetensors.index.json": "cf3f798ee02ba45f9622aa8892a47369ab667d0afbf154ee7c2212de42e6302d",
     "model.safetensors-00001-of-00002.safetensors": "26a93f066e1916adb13453dae5a0c707c0fbc71299ed98779571a907b8e74c61",
     "model.safetensors-00002-of-00002.safetensors": "cb544bd9bfae93dc59b0f22b292f5933573854a7f9b97835c67060d7d910e188",
 }
@@ -57,7 +61,7 @@ def main():
         if digest != release["files"][name]["sha256"]:
             raise ValueError(f"{name} does not match the release manifest")
         inputs[f"checkpoint/{name}"] = digest
-    for name, expected in BASE_SHARDS.items():
+    for name, expected in BASE_FILES.items():
         if sha256(args.base / name) != expected:
             raise ValueError(f"{name} does not match {BASE_MODEL_ID} @ {BASE_REVISION}")
         inputs[f"base/{name}"] = expected
@@ -67,6 +71,10 @@ def main():
     extra = set(meta.get("biases", {})) - {"noul"}
     if extra:
         raise ValueError(f"unsupported calibration biases: {sorted(extra)}")
+    temperatures, noul_bias = meta["temperatures"], meta["biases"]["noul"]
+    if not (sorted(temperatures) == ["choice", "noul", "score"]
+            and all(math.isfinite(t) and t > 0 for t in temperatures.values()) and math.isfinite(noul_bias)):
+        raise ValueError("expected positive, finite temperatures and a finite Noul bias")
 
     tokenizer = AutoTokenizer.from_pretrained(args.checkpoint, local_files_only=True)
     if len(tokenizer) != VOCABULARY or any(tokenizer.convert_tokens_to_ids(t) != i for t, i in OPTION_TOKENS.items()):
@@ -87,10 +95,15 @@ def main():
         raise ValueError("expected tied input and output embeddings")
 
     model = PeftModel.from_pretrained(model, args.checkpoint).merge_and_unload(safe_merge=True)
-    model.model.language_model.save_pretrained(args.out, max_shard_size="5GB")
-    model.config.to_json_file(args.out / "config.json")
+    # Write next to the output and rename at the end, so a failed or killed export
+    # leaves no output behind; the next run removes what it left.
+    staging = args.out.with_name(f".{args.out.name}.partial")
+    if staging.exists():
+        shutil.rmtree(staging)
+    model.model.language_model.save_pretrained(staging, max_shard_size="5GB")
+    model.config.to_json_file(staging / "config.json")
     vision = {f"model.visual.{k}": v.contiguous() for k, v in model.model.visual.state_dict().items()}
-    save_file(vision, args.out / "vision.safetensors")
+    save_file(vision, staging / "vision.safetensors")
 
     heads = {}
     for prefix, name in (("head", "head.pt"), ("ord", "ord.pt")):
@@ -99,21 +112,22 @@ def main():
             if not torch.isfinite(value).all():
                 raise ValueError(f"non-finite {prefix}.{key}")
             heads[f"{prefix}.{key}"] = value.float().contiguous()
-    save_file(heads, args.out / "heads.safetensors")
-    tokenizer.save_pretrained(args.out)
+    save_file(heads, staging / "heads.safetensors")
+    tokenizer.save_pretrained(staging)
 
-    outputs = {p.name: sha256(p) for p in sorted(args.out.iterdir()) if p.is_file()}
+    outputs = {p.name: sha256(p) for p in sorted(staging.iterdir()) if p.is_file()}
     # Written last: the worker refuses incomplete exports.
-    (args.out / "omnijev_export.json").write_text(json.dumps({
+    (staging / "omnijev_export.json").write_text(json.dumps({
         "format": "omnijev-merged/1",
         "model_id": MODEL_ID, "checkpoint_revision": CHECKPOINT_REVISION,
         "base_model_id": BASE_MODEL_ID, "base_revision": BASE_REVISION,
         "lora": {"rank": 32, "alpha": 64, "merged": "bfloat16"},
         "vocabulary": VOCABULARY, "option_tokens": OPTION_TOKENS, "max_pixels": MAX_PIXELS,
         "heads": {"norm": meta["norm"], "lm_features": True, "ordinal": True},
-        "calibration": {"temperatures": meta["temperatures"], "noul_bias": meta["biases"]["noul"]},
+        "calibration": {"temperatures": temperatures, "noul_bias": noul_bias},
         "inputs": inputs, "outputs": outputs,
     }, indent=1, allow_nan=False) + "\n")
+    staging.rename(args.out)
 
 
 if __name__ == "__main__":

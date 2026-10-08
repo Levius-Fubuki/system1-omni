@@ -411,7 +411,7 @@ impl Calibration {
 
 /// Python's `round(x, 4)`: the nearest four-decimal value, ties to even.
 pub fn round4(x: f64) -> f64 {
-    format!("{x:.4}").parse().expect("formatted float")
+    format!("{x:.4}").parse().unwrap_or(x)
 }
 
 /// Jev's confidence `(K p_max - 1) / (K - 1)`, in float32 as the reference computes it.
@@ -439,6 +439,14 @@ pub fn answer(
     ensure!(
         !mu.is_empty() && mu.len() == question.keys.len() && mu.iter().all(|v| v.is_finite()),
         "invalid head output"
+    );
+    ensure!(
+        calibration
+            .temperatures
+            .iter()
+            .all(|t| t.is_finite() && *t > 0.0)
+            && calibration.noul_bias.is_finite(),
+        "invalid calibration"
     );
     let latency = round4(latency);
     if question.kind == Kind::Noul {
