@@ -63,9 +63,9 @@ impl Mlp {
 fn dot(a: &[f32], b: &[f32]) -> f32 {
     // Eight partial sums, which the compiler vectorizes.
     let mut acc = [0.0f32; 8];
-    let (a8, a_rest) = a.split_at(a.len() / 8 * 8);
-    let (b8, b_rest) = b.split_at(a8.len());
-    for (x, y) in a8.chunks_exact(8).zip(b8.chunks_exact(8)) {
+    let (a8, a_rest) = a.as_chunks::<8>();
+    let (b8, b_rest) = b.as_chunks::<8>();
+    for (x, y) in a8.iter().zip(b8) {
         for i in 0..8 {
             acc[i] += x[i] * y[i];
         }
@@ -97,8 +97,10 @@ fn tensor(tensors: &SafeTensors, name: &str, shape: &[usize]) -> Result<Vec<f32>
     );
     Ok(view
         .data()
-        .chunks_exact(4)
-        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|&b| f32::from_le_bytes(b))
         .collect())
 }
 
