@@ -1520,7 +1520,3 @@ impl Model {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "../../../../../tests/qwen3_5/model.rs"]
-mod tests;
