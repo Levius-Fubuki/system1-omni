@@ -1159,3 +1159,7 @@ impl Model {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/qwen3_5/multimodal_graph.rs"]
+mod graph_tests;
