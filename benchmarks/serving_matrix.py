@@ -26,6 +26,10 @@ def case_variants(case):
 
 
 def validate_plan(plan):
+    try:
+        json.dumps(plan, allow_nan=False)
+    except ValueError as exc:
+        raise ValueError("plan must contain only finite JSON values") from exc
     for key in ("endpoint", "health_endpoint"):
         if key not in plan and key == "health_endpoint":
             continue
@@ -209,6 +213,8 @@ def run(plan_path, output):
     all_records = []
     rounds = []
     stopped = threading.Event()
+    if health["error"]:
+        stopped.set()
     lock = threading.Lock()
     with (output / "responses.jsonl").open("w") as sink:
         def request(case, phase, index, concurrency=1, repetition=None, variant_index=None):
@@ -228,14 +234,12 @@ def run(plan_path, output):
                 sink.flush()
             return record
 
-        # Preserve first inference even when the independent health snapshot fails.
         for case in plan["cases"]:
             if stopped.is_set():
                 break
             for variant_index in range(len(case_variants(case))):
                 request(case, "readiness", 0, variant_index=variant_index)
-                if health["error"] or stopped.is_set():
-                    stopped.set()
+                if stopped.is_set():
                     break
         for case in plan["cases"]:
             for variant_index in range(len(case_variants(case))):

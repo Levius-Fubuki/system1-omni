@@ -18,7 +18,7 @@ EXPECTED = {"answers": {"a": {"choice": "yes"}, "b": {"noul": 0.75}}}
 
 @contextmanager
 def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag=None):
-    state = {"posts": 0, "active": 0, "peak": 0, "redirect_hits": 0}
+    state = {"gets": 0, "posts": 0, "active": 0, "peak": 0, "redirect_hits": 0}
     lock = threading.Lock()
     barrier = threading.Barrier(len(barrier_indices)) if barrier_indices else None
 
@@ -27,6 +27,7 @@ def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag
             pass
 
         def do_GET(self):
+            state["gets"] += 1
             if self.path == "/redirected":
                 state["redirect_hits"] += 1
             self.send_response(health_status)
@@ -186,12 +187,13 @@ class MatrixTests(unittest.TestCase):
         self.assertTrue((output / "health.json").exists())
         self.assertEqual(summary["failures"], {"http": 1})
 
-    def test_health_failure_still_preserves_readiness(self):
+    def test_health_failure_stops_before_readiness(self):
         with server(health_status=503) as (origin, state):
             code, summary, records, output = self.execute(self.plan(origin))
         self.assertEqual(code, 1)
-        self.assertEqual(state["posts"], 1)
-        self.assertEqual(records[0]["phase"], "readiness")
+        self.assertEqual(state["posts"], 0)
+        self.assertEqual(records, [])
+        self.assertEqual(summary["rounds"], [])
         self.assertEqual(json.loads((output / "health.json").read_text())["status"], 503)
         self.assertEqual(summary["failures"], {"http": 1})
 
@@ -229,6 +231,24 @@ class MatrixTests(unittest.TestCase):
         path = self.plan("http://127.0.0.1:1", repetitions=3)
         with self.assertRaises(ValueError):
             self.execute(path)
+
+    def test_nonfinite_plan_values_fail_before_http_or_output(self):
+        with server() as (origin, state):
+            for section in ("request", "metadata", "expected_response"):
+                with self.subTest(section=section):
+                    path = self.plan(origin)
+                    plan = json.loads(path.read_text())
+                    if section == "metadata":
+                        plan["metadata"]["nested"] = {"overflow": [float("inf")]}
+                    else:
+                        plan["cases"][0][section]["overflow"] = [float("inf")]
+                    path.write_text(json.dumps(plan).replace("Infinity", "1e309"))
+                    output = self.root / f"results-{section}"
+                    with self.assertRaisesRegex(ValueError, "finite JSON"):
+                        serving_matrix.main([str(path), "--output", str(output)])
+                    self.assertFalse(output.exists())
+                    self.assertEqual(state["gets"], 0)
+                    self.assertEqual(state["posts"], 0)
 
     def test_refuses_existing_output(self):
         path = self.plan("http://127.0.0.1:1")

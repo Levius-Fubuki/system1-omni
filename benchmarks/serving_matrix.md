@@ -37,7 +37,10 @@ request and exact response with the workload's reference):
 Case names and positive concurrency values must be unique. `requests_per_case`
 must be at least the largest concurrency value; repetitions and warmup count
 must each equal two. Requests are POSTed unchanged as JSON. There is no token
-injection or additional model selection.
+injection or additional model selection. The complete decoded plan, including
+requests, expectations and metadata, must serialize as finite JSON. Nonfinite
+values, including exponent overflow such as `1e309`, fail before creating output
+or making HTTP requests.
 
 Each case must specify exactly one of `expected_response` or
 `expected_response_text`. JSON expectations compare decoded values recursively,
@@ -77,8 +80,8 @@ next request only after the prior one completes; at most `concurrency` client
 requests are in flight. There is no arrival-rate simulation.
 
 Any error stops new dispatch and subsequent phases. Requests already in flight
-finish and are retained. A failed health snapshot still permits one first
-inference to preserve readiness evidence, then stops the matrix. No exchange is
+finish and are retained. A failed health snapshot is saved with the summary and
+stops the matrix before any readiness inference is dispatched. No exchange is
 retried, redirected, or routed through an environment proxy. Socket connection
 operations use the declared timeout; once connected, the remaining deadline
 also covers request transmission, headers and the complete response body.
