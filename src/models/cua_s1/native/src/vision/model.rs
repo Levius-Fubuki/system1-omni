@@ -505,3 +505,7 @@ impl Work {
         })
     }
 }
+
+#[cfg(test)]
+#[path = "../../../../../../tests/cua_s1/vision_graph.rs"]
+mod graph_tests;
