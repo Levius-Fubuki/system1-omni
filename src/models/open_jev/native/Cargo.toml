@@ -3,7 +3,7 @@ name = "omni-open-jev-native"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Native Rust/CUDA worker for Open-Jev-27B-v1.1"
+description = "Native Rust/CUDA worker for Open-Jev-27B-v1.1 and Open-Jev-9B"
 
 [dependencies]
 anyhow = "1.0.100"
