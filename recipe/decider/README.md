@@ -89,8 +89,8 @@ do not bound all waiting requests together; runtime pending-queue limits and
 cross-request batching remain separate work.
 
 The pinned worker requires released calibration. Images, video, chat/schema-first,
-packed questions, shared-prefix caching, quantized/CPU/Metal execution and Graph
-optimizations are unsupported. See the [model contract](../../src/models/decider/README.md)
+packed questions, prefix sharing and quantized/CPU/Metal execution are unsupported.
+CUDA Graph replay is opt-in through `DECIDER_GRAPH=1`, as described below. See the [model contract](../../src/models/decider/README.md)
 for native JSON restrictions and the processing/execution boundary.
 
 ## Validation and diagnostics
