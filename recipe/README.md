@@ -15,8 +15,10 @@ For a first real decision, follow the [complete CPU walkthrough](../docs/getting
   the Rust worker, export the merged weights and start the worker.
 - [Cua-S1 native vision Graph](cua_s1/native_vision_graph.md): opt in to exact-grid
   CUDA Graph replay and reproduce feature/decision parity measurements.
-- [Open-Jev-27B-v1.1 native text worker](open_jev/native.md): export the merged
-  text backbone and trained decision head, then serve with Rust and CUDA.
+- [Open-Jev native text worker](open_jev/native.md): export the merged text
+  backbone and trained decision head of Open-Jev-27B-v1.1 or Open-Jev-9B, then
+  serve with Rust and CUDA. [Open-Jev-9B validation](open_jev/validation-9b.md)
+  compares the 9B worker with the reference.
 - [CLM behind the frontend](clm/README.md): run CLM's own server behind the frontend on
   CPU with a stub encoder, and what the response comparison has to allow for.
 
