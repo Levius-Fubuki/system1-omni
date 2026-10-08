@@ -46,7 +46,13 @@ impl Engine {
     }
 }
 fn error(status: StatusCode, message: impl ToString) -> Response {
-    (status, Json(json!({"error":message.to_string()}))).into_response()
+    let kind = match status {
+        StatusCode::UNPROCESSABLE_ENTITY | StatusCode::PAYLOAD_TOO_LARGE => "ValueError",
+        StatusCode::UNSUPPORTED_MEDIA_TYPE => "TypeError",
+        _ => "RuntimeError",
+    };
+    let detail: String = message.to_string().chars().take(200).collect();
+    (status, Json(json!({"error":kind,"detail":detail}))).into_response()
 }
 pub async fn decide(engine: &Engine, raw: &[u8]) -> Response {
     if !engine.executor.available() {
