@@ -17,6 +17,12 @@ fn common(rows: &[RowInput], skip: usize) -> usize {
         .count()
 }
 impl<'a> PrefixPlan<'a> {
+    /// Conservative opt-in policy; savings are aligned token work, not a speed guarantee.
+    pub fn worth_auto(&self, rows: &[RowInput]) -> bool {
+        let total = rows.iter().map(|row| row.ids.len()).sum::<usize>();
+        self.saved_tokens >= 4096 && self.saved_tokens >= total.div_ceil(3)
+    }
+
     pub fn new(rows: &'a [RowInput]) -> Option<Self> {
         if rows.len() < 2 || rows.iter().any(|row| row.ids.is_empty()) {
             return None;
@@ -61,6 +67,7 @@ impl<'a> PrefixPlan<'a> {
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct PrefixStats {
     pub shared_requests: u64,
+    pub auto_independent_requests: u64,
     pub saved_tokens: u64,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -69,6 +76,7 @@ pub enum PrefixMode {
     Off,
     Fixed,
     Shared,
+    Auto,
 }
 impl PrefixMode {
     pub fn name(self) -> &'static str {
@@ -76,6 +84,7 @@ impl PrefixMode {
             Self::Off => "off",
             Self::Fixed => "fixed",
             Self::Shared => "shared",
+            Self::Auto => "auto",
         }
     }
 }

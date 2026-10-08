@@ -90,8 +90,8 @@ do not bound all waiting requests together; runtime pending-queue limits and
 cross-request batching remain separate work.
 
 The pinned worker requires released calibration. Images, video, chat/schema-first,
-packed questions, shared-prefix caching, quantized/CPU/Metal execution and Graph
-optimizations are unsupported. See the [model contract](../../src/models/decider/README.md)
+packed questions, cross-request prefix caching and quantized/CPU/Metal execution
+are unsupported. Request-local prefix reuse and Graph replay are opt-in below. See the [model contract](../../src/models/decider/README.md)
 for native JSON restrictions and the processing/execution boundary.
 
 ## Validation and diagnostics
@@ -175,3 +175,29 @@ together rejects startup. All new switches default off. Health reports effective
 `shared`/`fixed` mode and cumulative `prefix.shared_requests`/`saved_tokens`.
 The diagnostic outer record includes the same counters; decision output and usage
 do not count execution savings differently.
+
+## Conservative automatic prefix selection
+
+`DECIDER_PREFIX=auto` is a default-off alternative to forced `DECIDER_PREFIX=1`.
+The worker uses shared fixed-GEMM execution only when the existing aligned prefix
+plan saves at least 4096 tokens and at least one third of the original row-token
+work. Other requests use the normal independent/packed eager path, including
+single-row and short/no-sharing requests. This avoids forcing short work through
+the slower fixed-GEMM path. These are conservative host-policy thresholds, not a
+guarantee of faster execution on every GPU or workload.
+
+`DECIDER_PREFIX=1` and `DECIDER_FIXED=1` retain their existing forced semantics.
+Auto, forced prefix and fixed modes reject `DECIDER_GRAPH=1`; all switches default
+off. Auto retains request-local state only. Input/output contracts and token usage
+are unchanged, but normal and fixed GEMM algorithms can differ numerically: check
+the original reference gates for both selected paths. Health reports `prefix_mode:
+auto`, total shared requests/saved tokens and `auto_independent_requests`; counts
+include the readiness warmup.
+
+```sh
+DECIDER_PREFIX=auto DECIDER_GRAPH=0 \
+DECIDER_BATCH_MAX_ROWS=4 DECIDER_BATCH_MAX_TOKENS=4096 \
+DECIDER_MODEL=/path/to/models/decider-2b-v11 \
+DECIDER_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" \
+  target/release/omni-decider
+```

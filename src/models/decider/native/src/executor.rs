@@ -155,23 +155,25 @@ impl Loaded {
         cuda::set_device(0)?;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let lengths: Vec<usize> = rows.iter().map(|row| row.ids.len()).collect();
-            if self.prefix_mode != PrefixMode::Off {
-                let hidden = if self.prefix_mode == PrefixMode::Shared {
-                    if let Some(plan) = PrefixPlan::new(rows) {
-                        let hidden = self
-                            .model
-                            .forward_shared(&plan.prompts)?
-                            .into_iter()
-                            .flatten()
-                            .collect::<Vec<_>>();
-                        self.prefix_stats.shared_requests += 1;
-                        self.prefix_stats.saved_tokens += plan.saved_tokens as u64;
-                        hidden
-                    } else {
-                        rows.iter()
-                            .map(|row| self.model.forward_fixed(&row.ids))
-                            .collect::<Result<Vec<_>>>()?
-                    }
+            let plan = match self.prefix_mode {
+                PrefixMode::Shared => PrefixPlan::new(rows),
+                PrefixMode::Auto => PrefixPlan::new(rows).filter(|plan| plan.worth_auto(rows)),
+                _ => None,
+            };
+            if self.prefix_mode == PrefixMode::Fixed
+                || self.prefix_mode == PrefixMode::Shared
+                || plan.is_some()
+            {
+                let hidden = if let Some(plan) = plan {
+                    let hidden = self
+                        .model
+                        .forward_shared(&plan.prompts)?
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>();
+                    self.prefix_stats.shared_requests += 1;
+                    self.prefix_stats.saved_tokens += plan.saved_tokens as u64;
+                    hidden
                 } else {
                     rows.iter()
                         .map(|row| self.model.forward_fixed(&row.ids))
@@ -208,6 +210,9 @@ impl Loaded {
                         batch.iter().map(|row| row.candidate_ids.len()).collect();
                     logits.extend(self.head.project_batch(&hidden, &counts)?);
                 }
+            }
+            if self.prefix_mode == PrefixMode::Auto {
+                self.prefix_stats.auto_independent_requests += 1;
             }
             Ok(logits)
         }))

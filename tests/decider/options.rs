@@ -26,3 +26,17 @@ fn prefix_and_fixed_controls_reject_graph_or_each_other() {
     assert!(prefix_values(None, Some("1"), true).is_err());
     assert!(prefix_values(Some("true"), None, false).is_err());
 }
+
+#[test]
+fn auto_prefix_mode_is_opt_in_and_rejects_fixed_or_graph() {
+    use omni_decider_native::{options::prefix_values, prefix::PrefixMode};
+    assert_eq!(
+        prefix_values(Some("auto"), None, false).unwrap(),
+        PrefixMode::Auto
+    );
+    assert!(prefix_values(Some("auto"), Some("1"), false).is_err());
+    assert!(prefix_values(Some("auto"), None, true).is_err());
+    for invalid in ["AUTO", " auto", "auto ", "2"] {
+        assert!(prefix_values(Some(invalid), None, false).is_err());
+    }
+}

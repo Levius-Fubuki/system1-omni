@@ -74,3 +74,37 @@ fn short_unique_single_and_identical_rows_fallback_safely() {
             .all(|b| !b.is_empty())
     );
 }
+
+#[test]
+fn auto_reuse_requires_saved_work_and_a_large_shared_fraction() {
+    let pair = |prefix: usize, suffix: usize| {
+        let mut a = vec![100; prefix];
+        a.extend(vec![101; suffix]);
+        let mut b = vec![100; prefix];
+        b.extend(vec![102; suffix]);
+        vec![row(a, "q"), row(b, "q")]
+    };
+    // Exactly 4096 aligned tokens saved and at least one third of the original work.
+    let fits = pair(4096, 1);
+    assert!(PrefixPlan::new(&fits).unwrap().worth_auto(&fits));
+    let too_small = pair(4032, 1);
+    assert!(!PrefixPlan::new(&too_small).unwrap().worth_auto(&too_small));
+    let exact_fraction = pair(4096, 2048);
+    assert!(
+        PrefixPlan::new(&exact_fraction)
+            .unwrap()
+            .worth_auto(&exact_fraction)
+    );
+    let below_fraction = pair(4096, 2049);
+    assert!(
+        !PrefixPlan::new(&below_fraction)
+            .unwrap()
+            .worth_auto(&below_fraction)
+    );
+    let too_much_suffix = pair(4096, 8192);
+    assert!(
+        !PrefixPlan::new(&too_much_suffix)
+            .unwrap()
+            .worth_auto(&too_much_suffix)
+    );
+}

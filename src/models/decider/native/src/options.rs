@@ -27,18 +27,23 @@ pub fn prefix_values(
         Some("1") => Ok(true),
         Some(_) => bail!("{name} must be 0 or 1"),
     };
-    let prefix = switch("DECIDER_PREFIX", prefix)?;
+    let prefix = match prefix {
+        None | Some("0") => PrefixMode::Off,
+        Some("1") => PrefixMode::Shared,
+        Some("auto") => PrefixMode::Auto,
+        Some(_) => bail!("DECIDER_PREFIX must be 0, 1 or auto"),
+    };
     let fixed = switch("DECIDER_FIXED", fixed)?;
     anyhow::ensure!(
-        !(prefix && fixed),
+        !(prefix != PrefixMode::Off && fixed),
         "select only one of DECIDER_PREFIX and DECIDER_FIXED"
     );
     anyhow::ensure!(
-        !(graph && (prefix || fixed)),
+        !(graph && (prefix != PrefixMode::Off || fixed)),
         "shared/fixed execution requires DECIDER_GRAPH=0"
     );
-    Ok(if prefix {
-        PrefixMode::Shared
+    Ok(if prefix != PrefixMode::Off {
+        prefix
     } else if fixed {
         PrefixMode::Fixed
     } else {
