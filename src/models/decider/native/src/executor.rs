@@ -367,3 +367,7 @@ fn validate_rows(rows: &[RowInput], labels: &[u32]) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/decider/executor.rs"]
+mod tests;

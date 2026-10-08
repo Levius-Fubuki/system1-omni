@@ -21,3 +21,31 @@ tokio = { version = "1.49.0", features = ["macros", "net", "rt-multi-thread", "s
 [[bin]]
 name = "omni-decider"
 path = "src/main.rs"
+
+[[test]]
+name = "gpu"
+path = "../../../../tests/decider/gpu.rs"
+
+[[test]]
+name = "contract"
+path = "../../../../tests/decider/contract.rs"
+
+[[test]]
+name = "config"
+path = "../../../../tests/decider/config.rs"
+
+[[test]]
+name = "batching"
+path = "../../../../tests/decider/batching.rs"
+
+[[test]]
+name = "options"
+path = "../../../../tests/decider/options.rs"
+
+[[test]]
+name = "prefix"
+path = "../../../../tests/decider/prefix.rs"
+
+[[example]]
+name = "decider-run"
+path = "../../../../tests/decider/runner.rs"
