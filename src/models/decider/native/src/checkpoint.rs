@@ -143,3 +143,7 @@ fn selected_rows(
     }
     Ok(rows)
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/decider/checkpoint.rs"]
+mod tests;
