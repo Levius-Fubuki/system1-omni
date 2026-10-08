@@ -9,10 +9,11 @@ design. Concrete input/output types follow each executor's supported layout.
 The [Rust frontend](../src/frontend/README.md) currently forwards HTTP requests
 to separately running workers. Cua-S1, Open-Jev and Decider have native Rust/CUDA workers
 that share the [Qwen3.5/3.8 executor](../src/models/qwen3_5/native/), which accepts
-single prompts and bounded packed prefill. The same executor also supports request-local prefix continuation with fixed
-GEMM controls. Decider uses it optionally, while Cua-S1 uses single-prompt calls;
-Open-Jev packs candidates within one request for input and gate/up GEMMs while
-preserving per-sequence mixers and output/down GEMM shapes.
+single prompts and bounded packed prefill. The same executor also supports
+request-local prefix continuation with fixed GEMM controls. Decider uses it
+optionally, while Cua-S1 and Open-Jev-9B use single-prompt calls;
+Open-Jev-27B-v1.1 packs candidates within one request for input and gate/up GEMMs
+while preserving per-sequence mixers and output/down GEMM shapes.
 [Laya's native worker](../src/models/laya/README.md)
 uses a separate Hopper CUDA backend for one complete padded request. All four
 coordinate independent processors and executors through
@@ -68,8 +69,9 @@ and candidate identity, usage, and response metadata outside the executor.
 | Decider | Complete independent unpadded rows, including separate no/yes rows for each Score level, with selected-label IDs and final readout positions. | BF16-projection-rounded FP32 candidate logits in row order. | Per-type calibration, whole-question isolated Score assembly, ordered typed answers and unique-prefix usage. |
 | Laya | One padded request: token IDs, true lengths, question types and ordered option markers; at most 16 questions, 512 tokens per row and 2048 markers. | Per-question FP32 option logits and two action logits copied back after GPU heads. | Calibrate and decode ordered `choice`, `score` and `noul` answers, usage and metadata. |
 
-Cua-S1 input collections are serial work. Open-Jev's model-specific batch adapter
-packs up to 16 independent candidates and 4096 tokens per group; longer prompts
+Cua-S1 and Open-Jev-9B input collections are serial work. For Open-Jev-27B-v1.1,
+Open-Jev's model-specific batch adapter packs up to 16 independent candidates and
+4096 tokens per group; longer prompts
 execute alone. It restores question/candidate grouping before normalization.
 Decider optionally packs bounded contiguous independent complete rows within one
 request, preserving Score-level reconstruction and unique-prefix usage. The
