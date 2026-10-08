@@ -250,6 +250,44 @@ class MatrixTests(unittest.TestCase):
                     self.assertEqual(state["gets"], 0)
                     self.assertEqual(state["posts"], 0)
 
+    def test_surrogate_text_expectation_fails_before_http_or_output(self):
+        case = {"name": "text", "request": {}, "expected_response_text": "\ud800"}
+        with server({1: (200, b"ok", 0)}) as (origin, state):
+            path = self.plan(origin, cases=[case])
+            output = self.root / "results"
+            with self.assertRaisesRegex(ValueError, "UTF-8"):
+                serving_matrix.main([str(path), "--output", str(output)])
+            self.assertFalse(output.exists())
+            self.assertEqual(state["gets"], 0)
+            self.assertEqual(state["posts"], 0)
+
+    def test_deep_json_response_is_retained_as_correctness_failure(self):
+        payload = b"[" * 20000 + b"0" + b"]" * 20000
+        with server({1: (200, payload, 0)}) as (origin, state):
+            try:
+                code, summary, records, _ = self.execute(self.plan(origin))
+            except RecursionError:
+                self.fail("deep response must be retained as a correctness failure")
+        self.assertEqual(code, 1)
+        self.assertEqual(state["posts"], 1)
+        self.assertEqual(summary["failures"], {"correctness": 1})
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["status"], 200)
+        self.assertEqual(records[0]["raw_response_text"].encode(), payload)
+
+    def test_deep_json_comparison_is_retained_as_correctness_failure(self):
+        payload = b"[" * 500 + b"0" + b"]" * 500
+        case = {"name": "deep", "request": {}, "expected_response": json.loads(payload)}
+        with server({1: (200, payload, 0)}) as (origin, state):
+            try:
+                code, summary, records, _ = self.execute(self.plan(origin, cases=[case]))
+            except RecursionError:
+                self.fail("deep comparison must be retained as a correctness failure")
+        self.assertEqual(code, 1)
+        self.assertEqual(state["posts"], 1)
+        self.assertEqual(summary["failures"], {"correctness": 1})
+        self.assertEqual(records[0]["raw_response_text"].encode(), payload)
+
     def test_refuses_existing_output(self):
         path = self.plan("http://127.0.0.1:1")
         output = self.root / "results"

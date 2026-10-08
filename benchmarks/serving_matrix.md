@@ -47,7 +47,11 @@ Each case must specify exactly one of `expected_response` or
 including scalar types, with no tolerance or ignored fields. Object key order
 does not matter; array order does. Text expectations compare the response bytes
 with the expectation's UTF-8 encoding, including whitespace. Invalid JSON fails
-a JSON expectation. An HTTP status other than 200 always fails.
+a JSON expectation. Text expectations must be encodable as UTF-8; lone surrogates
+are rejected before output creation or HTTP. With JSON expectations, responses
+that exceed decoding or recursive comparison limits count as correctness failures,
+retaining raw bytes and the failure summary. An HTTP status other than 200 always
+fails.
 
 The client captures one global health snapshot and one first inference per case,
 then two sequential warmup requests per case. A case may instead provide a

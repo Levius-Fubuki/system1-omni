@@ -28,8 +28,8 @@ def case_variants(case):
 def validate_plan(plan):
     try:
         json.dumps(plan, allow_nan=False)
-    except ValueError as exc:
-        raise ValueError("plan must contain only finite JSON values") from exc
+    except (ValueError, RecursionError) as exc:
+        raise ValueError("plan must contain only finite JSON values within serialization limits") from exc
     for key in ("endpoint", "health_endpoint"):
         if key not in plan and key == "health_endpoint":
             continue
@@ -63,6 +63,11 @@ def validate_plan(plan):
                 raise ValueError("each variant needs exactly one expected response")
             if "expected_response_text" in variant and not isinstance(variant["expected_response_text"], str):
                 raise ValueError("expected_response_text must be a string")
+            if "expected_response_text" in variant:
+                try:
+                    variant["expected_response_text"].encode("utf-8")
+                except UnicodeEncodeError as exc:
+                    raise ValueError("expected_response_text must be valid UTF-8 text") from exc
     count = plan["requests_per_case"]
     concurrency = plan["concurrency"]
     if type(count) is not int or count < 1 or not isinstance(concurrency, list) or not concurrency:
@@ -139,7 +144,7 @@ def exchange(endpoint, timeout, case=None):
         elif case:
             try:
                 decoded = decode_json(bytes(payload))
-            except (ValueError, UnicodeError):
+            except (ValueError, UnicodeError, RecursionError):
                 decoded = None
             if "expected_response_text" in case:
                 matches = bytes(payload) == case["expected_response_text"].encode("utf-8")
@@ -149,12 +154,14 @@ def exchange(endpoint, timeout, case=None):
                 if decoded is None:
                     try:
                         decode_json(bytes(payload))
-                    except (ValueError, UnicodeError):
+                    except (ValueError, UnicodeError, RecursionError):
                         matches = False
             if not matches:
                 error = {"kind": "correctness", "message": "response differs from frozen expectation"}
             elif isinstance(decoded, dict) and isinstance(decoded.get("answers"), (dict, list)):
                 decisions = len(decoded["answers"])
+    except RecursionError:
+        error = {"kind": "correctness", "message": "response validation exceeds recursion limit"}
     except (OSError, http.client.HTTPException) as exc:
         kind = "timeout" if expired.is_set() or isinstance(exc, TimeoutError) else "transport"
         error = {"kind": kind, "message": f"{type(exc).__name__}: {exc}"}
