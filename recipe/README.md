@@ -17,6 +17,8 @@ For a first real decision, follow the [complete CPU walkthrough](../docs/getting
   backbone and trained decision head of Open-Jev-27B-v1.1 or Open-Jev-9B, then
   serve with Rust and CUDA. [Open-Jev-9B validation](open_jev/validation-9b.md)
   compares the 9B worker with the reference.
+- [JEV-27B-VL experimental worker](jev_vl/README.md): native text and preencoded
+  image decisions; bounded H800 validation with explicit deployment limits.
 - [CLM behind the frontend](clm/README.md): run CLM's own server behind the frontend on
   CPU with a stub encoder, and what the response comparison has to allow for.
 
