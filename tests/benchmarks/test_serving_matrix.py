@@ -17,8 +17,8 @@ EXPECTED = {"answers": {"a": {"choice": "yes"}, "b": {"noul": 0.75}}}
 
 
 @contextmanager
-def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag=None):
-    state = {"gets": 0, "posts": 0, "active": 0, "peak": 0, "redirect_hits": 0}
+def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag=None, authorization=None):
+    state = {"gets": 0, "posts": 0, "active": 0, "peak": 0, "redirect_hits": 0, "authorization": []}
     lock = threading.Lock()
     barrier = threading.Barrier(len(barrier_indices)) if barrier_indices else None
 
@@ -28,6 +28,11 @@ def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag
 
         def do_GET(self):
             state["gets"] += 1
+            state["authorization"].append(self.headers.get("Authorization"))
+            if authorization and self.headers.get("Authorization") != authorization:
+                self.send_response(401)
+                self.end_headers()
+                return
             if self.path == "/redirected":
                 state["redirect_hits"] += 1
             self.send_response(health_status)
@@ -36,6 +41,11 @@ def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag
 
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            state["authorization"].append(self.headers.get("Authorization"))
+            if authorization and self.headers.get("Authorization") != authorization:
+                self.send_response(401)
+                self.end_headers()
+                return
             with lock:
                 state["posts"] += 1
                 index = state["posts"]
@@ -91,7 +101,13 @@ class MatrixTests(unittest.TestCase):
                        "expected_response": EXPECTED}],
             "concurrency": [1, 2], "requests_per_case": 4,
             "repetitions": 2, "warmup_per_case": 2,
-            "timeout_seconds": 2, "metadata": {"revision": "pinned"},
+            "timeout_seconds": 2, "metadata": {
+                "gpu": "N/A: local CPU test server", "gpu_ids": "N/A",
+                "driver": "N/A", "cuda": "N/A", "precision": "N/A",
+                "model_revision": "synthetic-test-v1", "runtime_revision": "test-server-v1",
+                "cache_policy": "none", "cuda_evidence": "N/A: no CUDA execution",
+                "reservation": "N/A: local CPU test",
+            },
         }
         plan.update(overrides)
         path = self.root / "input.json"
@@ -105,6 +121,46 @@ class MatrixTests(unittest.TestCase):
         summary = json.loads((output / "summary.json").read_text())
         records = [json.loads(line) for line in (output / "responses.jsonl").read_text().splitlines()]
         return code, summary, records, output
+
+    def test_metadata_requires_each_pinned_identity_before_creating_output(self):
+        path = self.plan("http://127.0.0.1:1")
+        baseline = json.loads(path.read_text())
+        for field in baseline["metadata"]:
+            for index, value in enumerate((None, "", "   ", [], {})):
+                with self.subTest(field=field, value=value):
+                    output = self.root / (field + str(index))
+                    plan = json.loads(json.dumps(baseline))
+                    plan["metadata"][field] = value
+                    path.write_text(json.dumps(plan))
+                    with self.assertRaisesRegex(ValueError, "metadata requires " + field):
+                        serving_matrix.run(path, output)
+                    self.assertFalse(output.exists())
+        baseline["metadata"] = {}
+        path.write_text(json.dumps(baseline))
+        with self.assertRaisesRegex(ValueError, "metadata requires gpu"):
+            serving_matrix.run(path, self.root / "results")
+
+    def test_environment_bearer_auth_covers_health_and_every_phase_without_saving_secret(self):
+        token = "matrix-local-test-secret"
+        with server(authorization="Bearer " + token) as (origin, state), patch.dict(
+            os.environ, {"OMNI_JEV_TEST_TOKEN": token}
+        ):
+            code, summary, records, output = self.execute(self.plan(origin))
+        self.assertEqual(code, 0)
+        self.assertTrue(summary["complete"])
+        self.assertEqual(len(state["authorization"]), 23)
+        self.assertEqual(set(state["authorization"]), {"Bearer " + token})
+        self.assertEqual({r["phase"] for r in records}, {"readiness", "warmup", "feasibility", "measured"})
+        for file in output.iterdir():
+            self.assertNotIn(token, file.read_text())
+
+    def test_invalid_environment_bearer_token_fails_before_network_or_output(self):
+        path = self.plan("http://127.0.0.1:1")
+        for token in ("unsafe\r\nInjected: header", "not-latin-1-☃"):
+            with self.subTest(token=token), patch.dict(os.environ, {"OMNI_JEV_TEST_TOKEN": token}):
+                with self.assertRaisesRegex(ValueError, "invalid OMNI_JEV_TEST_TOKEN"):
+                    serving_matrix.run(path, self.root / "results")
+                self.assertFalse((self.root / "results").exists())
 
     def test_closed_loop_counts_metrics_and_provenance(self):
         with server() as (origin, state):

@@ -8,6 +8,7 @@ import hashlib
 import http.client
 import json
 import math
+import os
 from pathlib import Path
 import socket
 import threading
@@ -83,6 +84,13 @@ def validate_plan(plan):
         raise ValueError("timeout_seconds must be finite and positive")
     if not isinstance(plan["metadata"], dict):
         raise ValueError("metadata must be a pinned JSON object")
+    for name in (
+        "gpu", "gpu_ids", "driver", "cuda", "precision", "model_revision",
+        "runtime_revision", "cache_policy", "cuda_evidence", "reservation",
+    ):
+        value = plan["metadata"].get(name)
+        if not value or (isinstance(value, str) and not value.strip()):
+            raise ValueError(f"metadata requires {name}")
 
 
 def exact_json(left, right):
@@ -95,7 +103,7 @@ def exact_json(left, right):
     return left == right
 
 
-def exchange(endpoint, timeout, case=None):
+def exchange(endpoint, timeout, case=None, request_headers=None):
     """One connection, no proxy, redirect, pooling or retry; retain raw bytes."""
     started = time.perf_counter()
     parts = urlsplit(endpoint)
@@ -129,7 +137,7 @@ def exchange(endpoint, timeout, case=None):
         timer.start()
         body = json.dumps(case["request"], allow_nan=False).encode() if case else None
         connection.request("POST" if case else "GET", path, body=body,
-                           headers={"Content-Type": "application/json"} if case else {})
+                           headers={**(request_headers or {}), **({"Content-Type": "application/json"} if case else {})})
         response = connection.getresponse()
         status = response.status
         headers = dict(response.getheaders())
@@ -201,6 +209,11 @@ def run(plan_path, output):
     snapshot = plan_path.read_bytes()
     plan = decode_json(snapshot)
     validate_plan(plan)
+    request_headers = {}
+    if token := os.environ.get("OMNI_JEV_TEST_TOKEN"):
+        if any(ord(c) < 32 or ord(c) > 126 for c in token):
+            raise ValueError("invalid OMNI_JEV_TEST_TOKEN: expected printable ASCII")
+        request_headers["Authorization"] = f"Bearer {token}"
     output.mkdir(parents=True, exist_ok=False)
 
     def save(name, value):
@@ -215,7 +228,7 @@ def run(plan_path, output):
     })
     parts = urlsplit(plan["endpoint"])
     health_endpoint = plan.get("health_endpoint", urlunsplit((parts.scheme, parts.netloc, "/health", "", "")))
-    health = exchange(health_endpoint, plan["timeout_seconds"])
+    health = exchange(health_endpoint, plan["timeout_seconds"], request_headers=request_headers)
     save("health.json", health)
     all_records = []
     rounds = []
@@ -229,7 +242,7 @@ def run(plan_path, output):
             if variant_index is None:
                 variant_index = index % len(variants)
             variant = variants[variant_index]
-            record = exchange(plan["endpoint"], plan["timeout_seconds"], variant)
+            record = exchange(plan["endpoint"], plan["timeout_seconds"], variant, request_headers)
             record.update(case=case["name"], phase=phase, index=index,
                           concurrency=concurrency, repetition=repetition,
                           variant=variant["name"], variant_index=variant_index)
