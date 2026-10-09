@@ -11,12 +11,23 @@ The norm, elementwise and q/k preparation kernels round to bfloat16 where Transf
 `cs1_attention_gated` fuses the sigmoid gate into the attention epilogue, preserving
 the BF16 rounding of both attention and sigmoid before multiplication. The native
 workers use this entry point; the separate operations remain available for kernel
-comparisons. Rebuild the library and workers together for ABI version 5, which
-includes the shared vision and CUDA Graph entry points alongside gated attention.
+comparisons. Rebuild the library and workers together for ABI version 7, which
+includes shared vision and CUDA Graph entry points, request-local continuation
+state/KV operations and fixed-algorithm GEMM selection alongside gated attention.
 
 Gated DeltaNet preparation stores converted TF32 operands in three-byte component planes, preserves the original four-term TF32 accumulation, and writes U/W fragments directly as bfloat16. Dynamic shared memory is 72 KiB per block. The [H200 comparison](../../../../benchmarks/gdn/README.md) records complete GDN call latency, numerical checks, and the small end-to-end change measured with the Open-Jev worker from PR #55.
 
 The shared Rust model can pack independent sequences for input and gate/up GEMMs.
 Output/down GEMMs retain each prompt's original shape and reduction order;
-attention, convolution and GDN calls remain sequence-local. The CUDA ABI is
-unchanged. Open-Jev uses this path within requests; Cua-S1 keeps single-prompt calls.
+attention, convolution and GDN calls remain sequence-local. Packed prefill preserves per-sequence state. Open-Jev uses this path within
+requests; Cua-S1 keeps single-prompt calls. Decider optionally packs complete
+question rows within one admitted request.
+
+ABI7 adds `cs1_copy_rows`, `cs1_gdn_conv_history`, `cs1_gdn_prefill_state`,
+`cs1_attention_gated_cached` and `cs1_gemm_create_fixed` for request-local prefix
+continuations. Shared spans end on 64-token GDN chunk boundaries. Fixed GEMM
+selection fails explicitly if a requested shape cannot use the selected algorithm;
+M-independent output equality is a device-tested requirement, not a portable
+cuBLAS guarantee. See the [Decider recipe](../../../../recipe/decider/README.md).
+Rebuild `libqwen3_5_cuda.so` and restart every Qwen consumer together; the Rust
+loader rejects an older ABI at startup with a rebuild hint.
