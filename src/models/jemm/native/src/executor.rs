@@ -285,3 +285,11 @@ fn guarded<T, R>(
     }
     result
 }
+
+#[cfg(test)]
+#[path = "../../../../../tests/jemm/cleanup.rs"]
+mod cleanup_tests;
+
+#[cfg(test)]
+#[path = "../../../../../tests/jemm/cuda.rs"]
+mod cuda_tests;

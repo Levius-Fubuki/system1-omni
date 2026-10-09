@@ -16,3 +16,23 @@ omni-runtime = { path = "../../../runtime" }
 serde_json = { version = "1.0.149", features = ["float_roundtrip", "preserve_order"] }
 tokenizers = { version = "=0.22.2", default-features = false, features = ["onig"] }
 tokio = { version = "1.49.0", features = ["macros", "net", "rt-multi-thread", "sync"] }
+
+[[test]]
+name = "contract"
+path = "../../../../tests/jemm/contract.rs"
+
+[[test]]
+name = "processing"
+path = "../../../../tests/jemm/processing.rs"
+
+[[test]]
+name = "head"
+path = "../../../../tests/jemm/head.rs"
+
+[[test]]
+name = "artifacts"
+path = "../../../../tests/jemm/artifacts.rs"
+
+[[test]]
+name = "tokenization"
+path = "../../../../tests/jemm/tokenization.rs"
