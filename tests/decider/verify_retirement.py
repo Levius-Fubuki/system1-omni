@@ -29,7 +29,11 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     log = args.output / "worker.log"
     environment = os.environ.copy()
-    environment.update(DECIDER_MODEL=str(args.model), DECIDER_CUDA_LIB=str(args.wrapper), DECIDER_PORT="18112", CUA_S1_GRAPH="0")
+    environment.update(
+        DECIDER_MODEL=str(args.model), DECIDER_CUDA_LIB=str(args.wrapper), DECIDER_PORT="18112",
+        DECIDER_BATCH_MAX_ROWS="2" if args.batched else "1", DECIDER_BATCH_MAX_TOKENS="4096",
+        CUA_S1_GRAPH="0", DECIDER_GRAPH="0", DECIDER_PREFIX="0", DECIDER_FIXED="0",
+    )
     with log.open("w") as output:
         child = subprocess.Popen([str(args.worker)], env=environment, stdout=output, stderr=subprocess.STDOUT)
         try:
