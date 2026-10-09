@@ -1,4 +1,9 @@
 import hashlib
+import base64
+from datetime import datetime
+import platform
+import socket
+import statistics
 import json
 import os
 import tempfile
@@ -56,6 +61,8 @@ def server(actions=None, health_status=200, barrier_indices=(), responses_by_tag
             )
             if responses_by_tag is not None:
                 payload = json.dumps(responses_by_tag[body["tag"]]).encode()
+            if callable(payload):
+                payload = payload(index)
             try:
                 if index in barrier_indices:
                     barrier.wait(timeout=5)
@@ -106,7 +113,7 @@ class MatrixTests(unittest.TestCase):
                 "driver": "N/A", "cuda": "N/A", "precision": "N/A",
                 "model_revision": "synthetic-test-v1", "runtime_revision": "test-server-v1",
                 "cache_policy": "none", "cuda_evidence": "N/A: no CUDA execution",
-                "reservation": "N/A: local CPU test",
+                "reservation": "N/A: local CPU test", "host": "synthetic-loopback",
             },
         }
         plan.update(overrides)
@@ -161,6 +168,164 @@ class MatrixTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "invalid OMNI_JEV_TEST_TOKEN"):
                     serving_matrix.run(path, self.root / "results")
                 self.assertFalse((self.root / "results").exists())
+
+    def test_declared_json_pointers_allow_native_timers_and_preserve_raw_evidence(self):
+        for model, pointer in [("Open-Jev-9B", "/metadata/inference_seconds"), ("JEMM", "/usage/latency_ms")]:
+            with self.subTest(model=model), tempfile.TemporaryDirectory() as scratch:
+                self.root = Path(scratch)
+                expected = {"model": model, "answers": EXPECTED["answers"],
+                            "usage": {"input_tokens": 12, "output_tokens": 0}}
+                parent, key = pointer[1:].split("/")
+                expected.setdefault(parent, {})[key] = 0.0
+                def payload(index):
+                    response = json.loads(json.dumps(expected))
+                    response[parent][key] = float(index)
+                    return json.dumps(response).encode()
+                actions = {i: (200, payload, 0) for i in range(1, 40)}
+                with server(actions) as (origin, _):
+                    path = self.plan(origin, ignore_paths=[pointer], cases=[{
+                        "name": "native", "request": {}, "expected_response": expected}])
+                    snapshot = path.read_bytes()
+                    code, summary, records, output = self.execute(path)
+                self.assertEqual(code, 0)
+                self.assertTrue(summary["complete"])
+                self.assertEqual((output / "plan.json").read_bytes(), snapshot)
+                config = json.loads((output / "config.json").read_text())
+                self.assertEqual(config["plan_sha256"], hashlib.sha256(snapshot).hexdigest())
+                self.assertEqual(config["plan"]["cases"][0]["expected_response"], expected)
+                for record in records:
+                    raw = json.loads(record["raw_response_text"])
+                    self.assertGreater(raw[parent][key], 0)
+                    self.assertEqual(base64.b64decode(record["raw_response_base64"]), record["raw_response_text"].encode())
+
+    def test_timer_exclusion_still_rejects_changed_answers_missing_fields_and_types(self):
+        expected = {"answers": EXPECTED["answers"], "metadata": {"inference_seconds": 0.0}}
+        for mutation in ("answer", "missing", "type", "extra"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as scratch:
+                self.root = Path(scratch)
+                actual = json.loads(json.dumps(expected))
+                actual["metadata"]["inference_seconds"] = 1.0
+                if mutation == "answer": actual["answers"]["a"]["choice"] = "no"
+                elif mutation == "missing": del actual["metadata"]["inference_seconds"]
+                elif mutation == "type": actual["metadata"]["inference_seconds"] = "not a number"
+                else: actual["metadata"]["unexpected"] = True
+                with server({1: (200, json.dumps(actual).encode(), 0)}) as (origin, state):
+                    code, summary, records, _ = self.execute(self.plan(origin,
+                        ignore_paths=["/metadata/inference_seconds"], cases=[{
+                            "name": "native", "request": {}, "expected_response": expected}]))
+                self.assertEqual(code, 1)
+                self.assertEqual(summary["failures"], {"correctness": 1})
+                self.assertEqual(state["posts"], 1)
+                self.assertEqual(json.loads(records[0]["raw_response_text"]), actual)
+
+    def test_strict_default_reproduces_native_timing_oracle_failure(self):
+        expected = {"answers": EXPECTED["answers"], "metadata": {"inference_seconds": 0.0}}
+        actual = {"answers": EXPECTED["answers"], "metadata": {"inference_seconds": 1.0}}
+        with server({1: (200, json.dumps(actual).encode(), 0)}) as (origin, state):
+            code, summary, _, _ = self.execute(self.plan(origin, cases=[{
+                "name": "native", "request": {}, "expected_response": expected}]))
+        self.assertEqual(code, 1)
+        self.assertEqual(state["posts"], 1)
+        self.assertEqual(summary["rounds"], [])
+        self.assertEqual(summary["failures"], {"correctness": 1})
+
+    def test_invalid_exclusions_fail_before_network_or_output(self):
+        for index, paths in enumerate([None, "wrong", [""], ["metadata/t"],
+                ["/metadata/~2bad"], ["/missing"], ["/metadata"], ["/metadata/t", "/metadata/t"],
+                [1], ["/items/01"], ["/items/-"]]):
+            with self.subTest(paths=paths):
+                path = self.plan("http://127.0.0.1:1", ignore_paths=paths, cases=[{
+                    "name": "native", "request": {}, "expected_response": {
+                        "metadata": {"t": 0.0}, "items": [0.0, 0.0]}}])
+                output = self.root / str(index)
+                with self.assertRaisesRegex(ValueError, "ignore_paths"):
+                    serving_matrix.run(path, output)
+                self.assertFalse(output.exists())
+        path = self.plan("http://127.0.0.1:1", ignore_paths=["/timer"], cases=[{
+            "name": "bytes", "request": {}, "expected_response_text": "literal"}])
+        with self.assertRaisesRegex(ValueError, "ignore_paths"):
+            serving_matrix.run(path, self.root / "text")
+
+    def test_json_pointer_escaping_and_array_indices_preserve_unexcluded_values(self):
+        expected = {"a/b": {"~timer": 0.0}, "items": [{"timer": 0.0}, {"timer": 0.0}], "answer": "yes"}
+        actual = {"a/b": {"~timer": 3.0}, "items": [{"timer": 7.0}, {"timer": 9.0}], "answer": "yes"}
+        actions = {i: (200, json.dumps(actual).encode(), 0) for i in range(1, 40)}
+        with server(actions) as (origin, _):
+            code, _, _, _ = self.execute(self.plan(origin,
+                ignore_paths=["/a~1b/~0timer", "/items/0/timer", "/items/1/timer"],
+                cases=[{"name": "escaped", "request": {}, "expected_response": expected}]))
+        self.assertEqual(code, 0)
+
+    def test_excluded_float_still_rejects_nonfinite_numeric_lexeme(self):
+        raw = b'{"answers":{},"metadata":{"inference_seconds":1e309}}'
+        expected = {"answers": {}, "metadata": {"inference_seconds": 0.0}}
+        with server({i: (200, raw, 0) for i in range(1, 40)}) as (origin, _):
+            code, summary, records, _ = self.execute(self.plan(origin,
+                ignore_paths=["/metadata/inference_seconds"], cases=[{
+                    "name": "native", "request": {}, "expected_response": expected}]))
+        self.assertEqual(code, 1)
+        self.assertEqual(summary["failures"], {"correctness": 1})
+        self.assertEqual(records[0]["raw_response_text"].encode(), raw)
+
+    def test_partial_round_is_counted_but_excluded_from_spread(self):
+        with server({6: (503, b"unavailable", 0)}) as (origin, _):
+            code, summary, _, output = self.execute(self.plan(origin, concurrency=[1], repetitions=3))
+        self.assertEqual(code, 1)
+        self.assertEqual(len(summary["rounds"]), 1)
+        group = summary["round_aggregates"][0]
+        self.assertEqual(group["planned_rounds"], 3)
+        self.assertEqual(group["attempted_rounds"], 1)
+        self.assertEqual(group["complete_rounds"], 0)
+        self.assertEqual(group["incomplete_rounds"], 1)
+        self.assertTrue(all(value is None for value in group["metrics"].values()))
+        self.assertFalse(summary["rounds"][0]["steady_state"]["available"])
+        self.assertIsNotNone(json.loads((output / "config.json").read_text())["finished_at"])
+
+    def test_predeclared_budget_and_descriptive_spread(self):
+        with server() as (origin, state):
+            code, summary, records, _ = self.execute(self.plan(origin,
+                concurrency=[1], repetitions=3, warmup_per_case=3))
+        self.assertEqual(code, 0)
+        self.assertEqual(state["posts"], 17)
+        self.assertEqual(len([r for r in records if r["phase"] == "warmup"]), 3)
+        self.assertEqual(len(summary["rounds"]), 3)
+        self.assertIn("round_aggregates", summary)
+        group = summary["round_aggregates"][0]
+        self.assertEqual(group["complete_rounds"], 3)
+        rates = [r["successful_requests_per_second"] for r in summary["rounds"]]
+        spread = group["metrics"]["successful_requests_per_second"]
+        self.assertEqual(spread["min"], min(rates))
+        self.assertEqual(spread["median"], statistics.median(rates))
+        self.assertEqual(spread["max"], max(rates))
+        self.assertAlmostEqual(spread["relative_spread"], (max(rates)-min(rates))/statistics.median(rates))
+
+    def test_omitted_budgets_use_recorded_defaults(self):
+        with server() as (origin, _):
+            path = self.plan(origin, concurrency=[1])
+            plan = json.loads(path.read_text());del plan["repetitions"];del plan["warmup_per_case"]
+            path.write_text(json.dumps(plan))
+            code, summary, _, output = self.execute(path)
+        self.assertEqual(code, 0)
+        self.assertEqual(len(summary["rounds"]), 2)
+        config = json.loads((output / "config.json").read_text())
+        self.assertEqual(config["effective_budget"], {"repetitions": 2, "warmup_per_case": 2})
+
+    def test_run_provenance_and_connection_cost_are_recorded(self):
+        with server() as (origin, _):
+            code, _, records, output = self.execute(self.plan(origin, concurrency=[1]))
+        self.assertEqual(code, 0)
+        config = json.loads((output / "config.json").read_text())
+        self.assertIn("started_at", config)
+        started, finished = [datetime.fromisoformat(config[key]) for key in ("started_at", "finished_at")]
+        self.assertEqual(started.utcoffset().total_seconds(), 0)
+        self.assertGreaterEqual(finished, started)
+        self.assertEqual(config["client"], {"hostname": socket.gethostname(), "platform": platform.platform(),
+            "python_version": platform.python_version(), "cpu_count": os.cpu_count()})
+        self.assertEqual(config["connection_policy"], "new_connection_per_request")
+        for record in records:
+            self.assertGreaterEqual(record["connect_seconds"], 0)
+            self.assertLessEqual(record["connect_seconds"], record["latency_seconds"])
+            self.assertGreater(record["completed_at_monotonic_seconds"], 0)
 
     def test_closed_loop_counts_metrics_and_provenance(self):
         with server() as (origin, state):
@@ -284,7 +449,7 @@ class MatrixTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.execute(path)
         self.assertFalse((self.root / "results").exists())
-        path = self.plan("http://127.0.0.1:1", repetitions=3)
+        path = self.plan("http://127.0.0.1:1", repetitions=1)
         with self.assertRaises(ValueError):
             self.execute(path)
 
@@ -379,6 +544,36 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(result["successful_requests"], 4)
             self.assertEqual(result["successful_decisions"], 8)
             self.assertAlmostEqual(result["successful_decisions_per_second"], 8 / result["elapsed_seconds"])
+
+
+class MetricTests(unittest.TestCase):
+    def records(self, count):
+        return [{"error": None, "latency_seconds": 0.02,
+                 "successful_decisions": i + 1, "completed_at_monotonic_seconds": float(i+1)}
+                for i in range(count)]
+
+    def test_interior_completion_window_excludes_ramp_and_drain(self):
+        records = self.records(8)
+        records = [records[i] for i in [7, 0, 6, 1, 5, 2, 4, 3]]
+        result = serving_matrix.round_summary(records, 9.0, "case", 2, 1, 8)
+        self.assertIn("steady_state", result)
+        window = result["steady_state"]
+        self.assertTrue(window["available"])
+        self.assertEqual(window["requests"], 4)
+        self.assertEqual(window["decisions"], 18)
+        self.assertEqual(window["elapsed_seconds"], 4.0)
+        self.assertEqual(window["requests_per_second"], 1.0)
+        self.assertEqual(window["decisions_per_second"], 4.5)
+        self.assertAlmostEqual(result["successful_requests_per_second"], 8/9)
+        self.assertEqual(result["throughput_scope"], "complete_wave_including_ramp_and_drain")
+
+    def test_no_steady_state_estimate_for_short_or_failed_rounds(self):
+        for count, failed in [(4, False), (8, True)]:
+            records = self.records(count)
+            if failed: records[0]["error"] = {"kind": "http"}
+            result = serving_matrix.round_summary(records, 9.0, "case", 2, 1, count)
+            self.assertIn("steady_state", result)
+            self.assertFalse(result["steady_state"]["available"])
 
 
 if __name__ == "__main__":

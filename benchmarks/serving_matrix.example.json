@@ -37,6 +37,7 @@
     "runtime_revision": "local-test-server-v1",
     "cache_policy": "none",
     "cuda_evidence": "N/A: no CUDA execution",
-    "reservation": "N/A: local CPU fixture"
+    "reservation": "N/A: local CPU fixture",
+    "host": "127.0.0.1: synthetic CPU fixture"
   }
 }

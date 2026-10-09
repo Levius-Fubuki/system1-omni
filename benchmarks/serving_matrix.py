@@ -4,13 +4,17 @@ import argparse
 import base64
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+import copy
+from datetime import datetime, timezone
 import hashlib
 import http.client
 import json
 import math
 import os
 from pathlib import Path
+import platform
 import socket
+import statistics
 import threading
 import time
 from urllib.parse import urlsplit, urlunsplit
@@ -24,6 +28,34 @@ def decode_json(data):
 
 def case_variants(case):
     return case["variants"] if "variants" in case else [case]
+
+
+def pointer_parent(value, pointer):
+    """Resolve a non-root RFC 6901 pointer; array indices must be canonical."""
+    if not isinstance(pointer, str) or not pointer.startswith("/"):
+        raise ValueError("ignore_paths entries must be non-root JSON Pointers")
+    tokens = pointer[1:].split("/")
+    for token in tokens:
+        if any(i + 1 == len(token) or token[i + 1] not in "01"
+               for i, char in enumerate(token) if char == "~"):
+            raise ValueError("ignore_paths has an invalid JSON Pointer escape")
+    tokens = [token.replace("~1", "/").replace("~0", "~") for token in tokens]
+    parent = value
+    for index, token in enumerate(tokens):
+        if isinstance(parent, dict) and token in parent:
+            key = token
+        elif isinstance(parent, list) and token.isascii() and token.isdigit():
+            # Bound the lexeme before integer conversion, including pathological inputs.
+            if len(token) > len(str(len(parent))):
+                raise ValueError("ignore_paths array index is out of range")
+            key = int(token)
+            if str(key) != token or key >= len(parent):
+                raise ValueError("ignore_paths array index is invalid")
+        else:
+            raise ValueError("ignore_paths does not resolve to an existing field")
+        if index == len(tokens) - 1:
+            return parent, key
+        parent = parent[key]
 
 
 def validate_plan(plan):
@@ -42,6 +74,11 @@ def validate_plan(plan):
     if not isinstance(cases, list) or not cases:
         raise ValueError("cases must be a nonempty list")
     names = set()
+    ignore_paths = plan.get("ignore_paths", [])
+    if (not isinstance(ignore_paths, list)
+            or any(not isinstance(path, str) for path in ignore_paths)
+            or len(set(ignore_paths)) != len(ignore_paths)):
+        raise ValueError("ignore_paths must be a list of unique JSON Pointers")
     for case in cases:
         name = case["name"]
         if not isinstance(name, str) or not name or name in names:
@@ -62,6 +99,12 @@ def validate_plan(plan):
                 raise ValueError("request must be a JSON object")
             if ("expected_response" in variant) == ("expected_response_text" in variant):
                 raise ValueError("each variant needs exactly one expected response")
+            for pointer in ignore_paths:
+                if "expected_response_text" in variant:
+                    raise ValueError("ignore_paths cannot be combined with an exact-byte oracle")
+                parent, key = pointer_parent(variant["expected_response"], pointer)
+                if isinstance(parent[key], (dict, list)):
+                    raise ValueError("ignore_paths may exclude only primitive leaf values")
             if "expected_response_text" in variant and not isinstance(variant["expected_response_text"], str):
                 raise ValueError("expected_response_text must be a string")
             if "expected_response_text" in variant:
@@ -75,10 +118,10 @@ def validate_plan(plan):
         raise ValueError("requests_per_case and concurrency must be positive")
     if any(type(c) is not int or c < 1 or c > count for c in concurrency) or len(set(concurrency)) != len(concurrency):
         raise ValueError("concurrency values must be unique positive integers <= requests_per_case")
-    if type(plan["repetitions"]) is not int or plan["repetitions"] != 2:
-        raise ValueError("repetitions must be exactly 2")
-    if type(plan["warmup_per_case"]) is not int or plan["warmup_per_case"] != 2:
-        raise ValueError("warmup_per_case must be exactly 2")
+    for name in ("repetitions", "warmup_per_case"):
+        value = plan.get(name, 2)
+        if type(value) is not int or value < 2:
+            raise ValueError(f"{name} must be an integer >= 2")
     timeout = plan["timeout_seconds"]
     if type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("timeout_seconds must be finite and positive")
@@ -86,7 +129,7 @@ def validate_plan(plan):
         raise ValueError("metadata must be a pinned JSON object")
     for name in (
         "gpu", "gpu_ids", "driver", "cuda", "precision", "model_revision",
-        "runtime_revision", "cache_policy", "cuda_evidence", "reservation",
+        "runtime_revision", "cache_policy", "cuda_evidence", "reservation", "host",
     ):
         value = plan["metadata"].get(name)
         if not value or (isinstance(value, str) and not value.strip()):
@@ -103,7 +146,25 @@ def exact_json(left, right):
     return left == right
 
 
-def exchange(endpoint, timeout, case=None, request_headers=None):
+def matches_json(actual, expected, ignore_paths):
+    if not ignore_paths:
+        return exact_json(actual, expected)
+    actual, expected = copy.deepcopy(actual), copy.deepcopy(expected)
+    try:
+        for pointer in ignore_paths:
+            actual_parent, actual_key = pointer_parent(actual, pointer)
+            expected_parent, expected_key = pointer_parent(expected, pointer)
+            if type(actual_parent[actual_key]) is not type(expected_parent[expected_key]):
+                return False
+            if isinstance(actual_parent[actual_key], float) and not math.isfinite(actual_parent[actual_key]):
+                return False
+            actual_parent[actual_key] = expected_parent[expected_key] = None
+    except ValueError:
+        return False
+    return exact_json(actual, expected)
+
+
+def exchange(endpoint, timeout, case=None, request_headers=None, ignore_paths=()):
     """One connection, no proxy, redirect, pooling or retry; retain raw bytes."""
     started = time.perf_counter()
     parts = urlsplit(endpoint)
@@ -117,8 +178,11 @@ def exchange(endpoint, timeout, case=None, request_headers=None):
     headers = {}
     error = None
     decisions = 0
+    connect_seconds = None
     try:
+        connect_started = time.perf_counter()
         connection.connect()
+        connect_seconds = time.perf_counter() - connect_started
         remaining = timeout - (time.perf_counter() - started)
         if remaining <= 0:
             raise TimeoutError("connection exceeded deadline")
@@ -157,7 +221,7 @@ def exchange(endpoint, timeout, case=None, request_headers=None):
             if "expected_response_text" in case:
                 matches = bytes(payload) == case["expected_response_text"].encode("utf-8")
             else:
-                matches = exact_json(decoded, case["expected_response"])
+                matches = matches_json(decoded, case["expected_response"], ignore_paths)
                 # Invalid JSON must fail even when the oracle is JSON null.
                 if decoded is None:
                     try:
@@ -177,11 +241,13 @@ def exchange(endpoint, timeout, case=None, request_headers=None):
         if timer:
             timer.cancel()
         connection.close()
+    completed_at = time.perf_counter()
     return {
         "endpoint": endpoint, "status": status, "headers": headers,
         "raw_response_base64": base64.b64encode(payload).decode("ascii"),
         "raw_response_text": bytes(payload).decode("utf-8", errors="replace"),
-        "latency_seconds": time.perf_counter() - started,
+        "latency_seconds": completed_at - started, "connect_seconds": connect_seconds,
+        "completed_at_monotonic_seconds": completed_at,
         "successful_decisions": decisions, "error": error,
     }
 
@@ -191,6 +257,24 @@ def round_summary(records, elapsed, case, concurrency, repetition, planned):
     latencies = sorted(r["latency_seconds"] for r in successful)
     quantiles = {f"p{p}": latencies[math.ceil(p / 100 * len(latencies)) - 1] if latencies else None for p in (50, 95)}
     decisions = sum(r["successful_decisions"] for r in successful)
+    complete = len(records) == planned and len(successful) == planned
+    steady = {"available": False, "excluded_each_end": concurrency,
+              "reason": "round incomplete" if not complete else "requires more than 2 * concurrency completions"}
+    if complete and len(records) > 2 * concurrency:
+        ordered = sorted(records, key=lambda r: r["completed_at_monotonic_seconds"])
+        interior = ordered[concurrency:-concurrency]
+        start = ordered[concurrency - 1]["completed_at_monotonic_seconds"]
+        end = interior[-1]["completed_at_monotonic_seconds"]
+        duration = end - start
+        if duration > 0:
+            count = sum(r["successful_decisions"] for r in interior)
+            steady = {"available": True, "excluded_each_end": concurrency,
+                      "requests": len(interior), "decisions": count,
+                      "started_at_monotonic_seconds": start, "finished_at_monotonic_seconds": end,
+                      "elapsed_seconds": duration, "requests_per_second": len(interior) / duration,
+                      "decisions_per_second": count / duration}
+        else:
+            steady["reason"] = "completion window has no positive elapsed time"
     return {
         "case": case, "concurrency": concurrency, "repetition": repetition,
         "planned_requests": planned, "attempted_requests": len(records),
@@ -201,8 +285,38 @@ def round_summary(records, elapsed, case, concurrency, repetition, planned):
         "successful_latency_seconds": quantiles,
         "failures": dict(Counter(r["error"]["kind"] for r in records if r["error"])),
         "failure_latency_seconds": [r["latency_seconds"] for r in records if r["error"]],
-        "complete": len(records) == planned and len(successful) == planned,
+        "complete": complete, "steady_state": steady,
+        "throughput_scope": "complete_wave_including_ramp_and_drain",
     }
+
+
+def aggregate_rounds(rounds, repetitions):
+    groups = {}
+    for result in rounds:
+        groups.setdefault((result["case"], result["concurrency"]), []).append(result)
+
+    def spread(values):
+        if not values:
+            return None
+        low, median, high = min(values), statistics.median(values), max(values)
+        return {"rounds": len(values), "min": low, "median": median, "max": high,
+                "relative_spread": (high - low) / median if median else (0.0 if high == low else None)}
+
+    aggregated = []
+    for (case, concurrency), results in groups.items():
+        complete = [r for r in results if r["complete"]]
+        windows = [r["steady_state"] for r in complete if r["steady_state"]["available"]]
+        metrics = {key: spread([r[key] for r in complete]) for key in (
+            "successful_requests_per_second", "successful_decisions_per_second")}
+        for p in ("p50", "p95"):
+            metrics[p + "_seconds"] = spread([r["successful_latency_seconds"][p] for r in complete])
+        for kind in ("requests", "decisions"):
+            metrics["steady_state_" + kind + "_per_second"] = spread([w[kind + "_per_second"] for w in windows])
+        aggregated.append({"case": case, "concurrency": concurrency,
+                           "planned_rounds": repetitions, "attempted_rounds": len(results),
+                           "complete_rounds": len(complete), "incomplete_rounds": len(results) - len(complete),
+                           "metrics": metrics})
+    return aggregated
 
 
 def run(plan_path, output):
@@ -220,12 +334,19 @@ def run(plan_path, output):
         (output / name).write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
 
     (output / "plan.json").write_bytes(snapshot)
-    save("config.json", {
+    repetitions, warmup = plan.get("repetitions", 2), plan.get("warmup_per_case", 2)
+    config = {
         "plan_sha256": hashlib.sha256(snapshot).hexdigest(),
         "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "plan": plan, "timing": "client wall time including response validation",
+        "plan": plan, "timing": "client wall time including DNS/TCP/TLS, request serialization and response validation",
         "retries": 0, "redirects": False, "environment_proxy": False,
-    })
+        "effective_budget": {"repetitions": repetitions, "warmup_per_case": warmup},
+        "started_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+        "client": {"hostname": socket.gethostname(), "platform": platform.platform(),
+                   "python_version": platform.python_version(), "cpu_count": os.cpu_count()},
+        "connection_policy": "new_connection_per_request",
+    }
+    save("config.json", config)
     parts = urlsplit(plan["endpoint"])
     health_endpoint = plan.get("health_endpoint", urlunsplit((parts.scheme, parts.netloc, "/health", "", "")))
     health = exchange(health_endpoint, plan["timeout_seconds"], request_headers=request_headers)
@@ -242,7 +363,8 @@ def run(plan_path, output):
             if variant_index is None:
                 variant_index = index % len(variants)
             variant = variants[variant_index]
-            record = exchange(plan["endpoint"], plan["timeout_seconds"], variant, request_headers)
+            record = exchange(plan["endpoint"], plan["timeout_seconds"], variant, request_headers,
+                              plan.get("ignore_paths", []))
             record.update(case=case["name"], phase=phase, index=index,
                           concurrency=concurrency, repetition=repetition,
                           variant=variant["name"], variant_index=variant_index)
@@ -263,7 +385,7 @@ def run(plan_path, output):
                     break
         for case in plan["cases"]:
             for variant_index in range(len(case_variants(case))):
-                for index in range(plan["warmup_per_case"]):
+                for index in range(warmup):
                     if stopped.is_set():
                         break
                     request(case, "warmup", index, variant_index=variant_index)
@@ -296,7 +418,7 @@ def run(plan_path, output):
                 if stopped.is_set():
                     break
                 wave(case, "feasibility", concurrency, min(concurrency, plan["requests_per_case"]))
-                for repetition in range(1, plan["repetitions"] + 1):
+                for repetition in range(1, repetitions + 1):
                     if stopped.is_set():
                         break
                     records, elapsed = wave(case, "measured", concurrency, plan["requests_per_case"], repetition)
@@ -306,9 +428,12 @@ def run(plan_path, output):
         "complete": not bool(failures), "failures": dict(failures),
         "inference_requests": len(all_records), "health_requests": 1,
         "rounds": rounds,
+        "round_aggregates": aggregate_rounds(rounds, repetitions),
         "excluded_phases": ["health", "readiness", "warmup", "feasibility"],
     }
     save("summary.json", summary)
+    config["finished_at"] = datetime.now(timezone.utc).isoformat()
+    save("config.json", config)
     return summary
 
 
