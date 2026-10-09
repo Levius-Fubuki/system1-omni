@@ -40,3 +40,7 @@ cargo test -p omni-cua-s1-native
 CUA_S1_CUDA_LIB=$PWD/target/release/libqwen3_5_cuda.so \
   cargo test --release -p omni-qwen3-5-native --test kernels -- --ignored
 ```
+
+For the screenshot worker, [the vision Graph recipe](native_vision_graph.md)
+documents `CUA_S1_VISION_GRAPH`, retained single-grid scratch, memory/lifetime
+limits and the real CUDA capture-failure wrapper build and test commands.
