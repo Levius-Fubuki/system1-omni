@@ -131,3 +131,165 @@ fn vision_capture_failure_keeps_eager_result_and_disables_replay() {
     assert!(model.scratch.as_ref().unwrap().graph.is_none());
     assert_eq!(bits(&model.forward(&input).unwrap()), expected);
 }
+
+#[test]
+#[ignore = "requires CUDA and pinned CUA_S1_BASE/CUA_S1_VISION_ADAPTER/CUA_S1_CUDA_LIB"]
+fn vision_cache_aba_probe() {
+    let mut model = load();
+    model.graph_enabled = false;
+    let inputs = [image([1, 8, 32], 21), image([1, 16, 16], 22)];
+    let expected: Vec<_> = inputs
+        .iter()
+        .map(|i| bits(&model.forward(i).unwrap()))
+        .collect();
+    model.graph_enabled = true;
+    eprintln!("VISION_CACHE_ABA_BEGIN");
+    for index in [0, 1, 0] {
+        assert_eq!(
+            bits(&model.forward(&inputs[index]).unwrap()),
+            expected[index]
+        );
+    }
+    eprintln!("VISION_CACHE_ABA_END");
+}
+
+#[test]
+fn vision_cache_budget_policy() {
+    let patch_bytes = Scratch::bytes_for_grid([1, 2, 2]) / 4;
+    assert_eq!(patch_bytes, 64_096);
+    let geometry = Geometry::new([1, 2, 2]).unwrap();
+    let geometry_bytes =
+        (geometry.indices.len() + geometry.weights.len() + geometry.cos.len() + geometry.sin.len())
+            * 4;
+    assert_eq!(geometry_bytes / 4, 288);
+    assert_eq!(Scratch::bytes_for_grid([1, 32, 72]), 147_677_184);
+    let limits = CacheLimits {
+        entries: 2,
+        bytes: 100,
+    };
+    assert!(limits.retains(100));
+    assert!(!limits.retains(101));
+    assert!(
+        !CacheLimits {
+            entries: 0,
+            bytes: 100
+        }
+        .retains(1)
+    );
+    assert!(!limits.needs_eviction(1, 60, 40));
+    assert!(limits.needs_eviction(2, 0, 1));
+    assert!(limits.needs_eviction(1, 61, 40));
+}
+
+fn clear_scratch(model: &mut VisionModel) {
+    model.synchronize().unwrap();
+    model.scratch = None;
+    model.cached.clear();
+}
+
+#[test]
+#[ignore = "requires CUDA and pinned CUA_S1_BASE/CUA_S1_VISION_ADAPTER/CUA_S1_CUDA_LIB"]
+fn vision_cache_capacity_lru_and_invalid_input() {
+    let mut model = load();
+    model.cache_limits = CacheLimits {
+        entries: 2,
+        bytes: 256 << 20,
+    };
+    model.graph_enabled = false;
+    let inputs = [
+        image([1, 8, 32], 30),
+        image([1, 16, 16], 31),
+        image([1, 32, 8], 32),
+    ];
+    let expected: Vec<_> = inputs
+        .iter()
+        .map(|i| bits(&model.forward(i).unwrap()))
+        .collect();
+    clear_scratch(&mut model);
+    model.graph_enabled = true;
+    for index in [0, 1, 0] {
+        assert_eq!(
+            bits(&model.forward(&inputs[index]).unwrap()),
+            expected[index]
+        );
+    }
+    let a = model.scratch.as_ref().unwrap().pixels.at(0);
+    assert!(model.scratch.as_ref().unwrap().graph.is_some());
+    assert_eq!(model.cached[0].grid, inputs[1].image_grid_thw);
+    let b = model.cached[0].pixels.at(0);
+    let mut invalid = image([1, 16, 16], 31);
+    invalid.pixel_values.pop();
+    assert!(model.forward(&invalid).is_err());
+    invalid = image([2, 8, 32], 30);
+    assert!(model.forward(&invalid).is_err());
+    assert_eq!(model.scratch.as_ref().unwrap().pixels.at(0), a);
+    assert_eq!(model.cached[0].pixels.at(0), b);
+    assert_eq!(bits(&model.forward(&inputs[2]).unwrap()), expected[2]);
+    assert_eq!(model.cached.len(), 1);
+    assert_eq!(
+        model.cached[0].grid, inputs[0].image_grid_thw,
+        "B must be LRU victim after A/B/A/C"
+    );
+    assert_eq!(model.cached[0].pixels.at(0), a);
+    assert_eq!(model.retained_bytes(), 512 * 64_096);
+    assert_eq!(bits(&model.forward(&inputs[0]).unwrap()), expected[0]);
+    assert_eq!(model.scratch.as_ref().unwrap().pixels.at(0), a);
+    drop(model);
+}
+
+#[test]
+#[ignore = "requires CUDA and pinned CUA_S1_BASE/CUA_S1_VISION_ADAPTER/CUA_S1_CUDA_LIB"]
+fn vision_cache_byte_eviction_and_transient_oversize() {
+    let mut model = load();
+    model.cache_limits = CacheLimits {
+        entries: 4,
+        bytes: 512 * 64_096,
+    };
+    model.graph_enabled = false;
+    let inputs = [
+        image([1, 8, 32], 40),
+        image([1, 16, 32], 41),
+        image([1, 32, 8], 42),
+        image([1, 32, 32], 43),
+    ];
+    let expected: Vec<_> = inputs
+        .iter()
+        .map(|i| bits(&model.forward(i).unwrap()))
+        .collect();
+    clear_scratch(&mut model);
+    model.graph_enabled = true;
+    for index in [0, 1, 2, 0] {
+        assert_eq!(
+            bits(&model.forward(&inputs[index]).unwrap()),
+            expected[index]
+        );
+        assert!(model.retained_bytes() <= model.cache_limits.bytes);
+    }
+    assert_eq!(model.cached.len(), 1);
+    assert_eq!(model.cached[0].grid, inputs[2].image_grid_thw);
+    let a = model.scratch.as_ref().unwrap().pixels.at(0);
+    let c = model.cached[0].pixels.at(0);
+    for _ in 0..2 {
+        assert_eq!(bits(&model.forward(&inputs[3]).unwrap()), expected[3]);
+        assert_eq!(model.scratch.as_ref().unwrap().pixels.at(0), a);
+        assert_eq!(model.cached[0].pixels.at(0), c);
+        assert_eq!(model.retained_bytes(), model.cache_limits.bytes);
+        assert!(model.graph_enabled);
+    }
+    assert!(
+        model
+            .forward_with_trace(&inputs[3], |_, _| anyhow::bail!("test trace failure"))
+            .is_err()
+    );
+    assert_eq!(bits(&model.forward(&inputs[0]).unwrap()), expected[0]);
+    model.cache_limits.bytes = 1;
+    assert_eq!(bits(&model.forward(&inputs[0]).unwrap()), expected[0]);
+    // Internal test-only budget changes may encounter an already resident same grid.
+    assert_eq!(model.scratch.as_ref().unwrap().pixels.at(0), a);
+    clear_scratch(&mut model);
+    model.cache_limits.entries = 0;
+    assert_eq!(bits(&model.forward(&inputs[0]).unwrap()), expected[0]);
+    assert_eq!(bits(&model.forward(&inputs[0]).unwrap()), expected[0]);
+    assert_eq!(model.retained_bytes(), 0);
+    assert!(model.scratch.is_none() && model.cached.is_empty());
+}
