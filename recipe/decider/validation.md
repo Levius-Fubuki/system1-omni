@@ -16,7 +16,7 @@ reference files before running either implementation and saves them in its proto
 
 RTX 4090, sm_89, 24 GiB; driver 595.71.05, CUDA toolkit 13.0.88, Rust 1.98.1,
 Python 3.12, Torch 2.14.0+cu130 and Transformers 5.17.0. The original eager baseline used one complete unpadded row at a time and ABI5.
-This dependent prefix branch rebuilds the backend and consumers for ABI7; followup
+The recorded dependent prefix campaign rebuilt the backend and consumers for ABI7; followup
 controls below cover unchanged eager/Graph behavior and fixed/shared execution. The reference uses `DecisionModel.slot_logits`
 with unpadded independent rows and disabled cache. Its missing causal-conv1d and
 flash-linear-attention packages use Transformers' PyTorch reference fallbacks.
@@ -195,14 +195,14 @@ like `fail_head.c` above, then pass `--binary`, `--model`, `--wrapper`,
 
 The dependent prefix branch consumes the continuation, fixed-GEMM and executor
 commits from Qwen PRs #97/#98/#99 while preserving main's packed prefill and Graph.
-Rebuild all consumers with ABI7. The unchanged default GEMM handle serves the
+Rebuild all current-branch consumers with ABI8. The unchanged default GEMM handle serves the
 normal/Graph path; fixed/shared modes use a separate no-split-K handle selected
 at reference M64. Model tests compare shared branches bit for bit with independent
 `forward_fixed` rows, including prefixes around 64-token boundaries, growth,
 repetition, reordering, invalid IDs and interleaved Graph calls. Kernel tests now
 include Decider's 2048 hidden width, 16 GDN heads and 8/2 attention heads alongside
 the existing 4B/9B/27B shapes. Run ignored tests serially with `CUA_S1_CUDA_LIB`,
-`QWEN3_5_MODEL`, `DECIDER_MODEL` and `DECIDER_CUDA_LIB` set to the ABI7 library
+`QWEN3_5_MODEL`, `DECIDER_MODEL` and `DECIDER_CUDA_LIB` set to the ABI8 library
 and pinned Decider checkpoint.
 
 For response controls, put fixed4 before shared4 in the frozen modes plan and set

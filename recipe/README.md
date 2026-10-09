@@ -19,6 +19,8 @@ For a first real decision, follow the [complete CPU walkthrough](../docs/getting
   compares the 9B worker with the reference.
 - [Decider-2B v11 native worker](decider/README.md): pinned BF16 text decisions,
   optional request-local batching, Graph and prefix reuse; [validation](decider/validation.md).
+- [JEV-27B-VL experimental worker](jev_vl/README.md): native text and preencoded
+  image decisions; bounded H800 validation with explicit deployment limits.
 - [CLM behind the frontend](clm/README.md): run CLM's own server behind the frontend on
   CPU with a stub encoder, and what the response comparison has to allow for.
 

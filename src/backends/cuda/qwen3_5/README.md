@@ -11,7 +11,7 @@ The norm, elementwise and q/k preparation kernels round to bfloat16 where Transf
 `cs1_attention_gated` fuses the sigmoid gate into the attention epilogue, preserving
 the BF16 rounding of both attention and sigmoid before multiplication. The native
 workers use this entry point; the separate operations remain available for kernel
-comparisons. Rebuild the library and workers together for ABI version 7, which
+comparisons. Rebuild the library and workers together for ABI version 8, which
 includes shared vision and CUDA Graph entry points, request-local continuation
 state/KV operations and fixed-algorithm GEMM selection alongside gated attention.
 
@@ -23,11 +23,23 @@ attention, convolution and GDN calls remain sequence-local. Packed prefill prese
 requests; Cua-S1 keeps single-prompt calls. Decider optionally packs complete
 question rows within one admitted request.
 
-ABI7 adds `cs1_copy_rows`, `cs1_gdn_conv_history`, `cs1_gdn_prefill_state`,
+ABI8 retains `cs1_copy_rows`, `cs1_gdn_conv_history`, `cs1_gdn_prefill_state`,
 `cs1_attention_gated_cached` and `cs1_gemm_create_fixed` for request-local prefix
-continuations. Shared spans end on 64-token GDN chunk boundaries. Fixed GEMM
+continuations, alongside JEV-VL's `cs1_copy_dd`, `cs1_copy2d`, `cs1_gdn_prefill_x`
+and `cs1_attention_gated_prefix`. Full-buffer prefix attention and suffix-only
+cached attention retain separate kernels and indexing contracts. Shared spans end on 64-token GDN chunk boundaries. Fixed GEMM
 selection fails explicitly if a requested shape cannot use the selected algorithm;
 M-independent output equality is a device-tested requirement, not a portable
 cuBLAS guarantee. See the [Decider recipe](../../../../recipe/decider/README.md).
 Rebuild `libqwen3_5_cuda.so` and restart every Qwen consumer together; the Rust
 loader rejects an older ABI at startup with a rebuild hint.
+
+JEV-VL retains full-attention KV, three convolution input rows and FP32 GDN state
+at 64-token chunk boundaries through its model-bound capture/continuation APIs.
+
+ABI8 requires the union of the former ABI6 JEV-VL and ABI7 Decider interfaces.
+Rebuild the library and every consumer together; both earlier versions are rejected.
+The public model-bound `PrefixState` for multimodal continuation remains distinct
+from the request-local `SharedPrefixState` used by Decider. Current-branch GPU
+regression is required before release; earlier campaign results do not validate
+this combined interface.
