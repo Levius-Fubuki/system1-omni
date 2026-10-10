@@ -4,6 +4,7 @@ import argparse
 import gc
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -11,6 +12,19 @@ import sys
 import types
 
 GATES = {"max_probability_drift": 0.02, "max_score_drift": 0.1, "discrete_margin": 0.05}
+ROUNDING_HALF_UNIT = 0.00005
+VALIDATION_PROTOCOL = {
+    "version": 2,
+    "original_gates": GATES,
+    "schema": "exact response/usage/answer keys; finite non-bool numbers; model-specific ranges, pinned wire rounding and ordered identities",
+    "auxiliary_method": "confidence, certainty and x_p_max must fit pinned formulas over probability rounding intervals; Score confidence includes every feasible modal index",
+    "probability_rounding_half_unit": ROUNDING_HALF_UNIT,
+    "score_rounding_half_unit": 0.005,
+    "fit_mass_consistency_bound": "(number_of_levels + 1) * probability_rounding_half_unit",
+    "fit_mass_reference_bound": "number_of_levels * max_probability_drift + 2 * (number_of_levels + 1) * probability_rounding_half_unit",
+    "score_method": "two-decimal expectation consistency plus unchanged reference max_score_drift",
+    "numerical_slack": 1e-12,
+}
 REFERENCE_REVISION = "50d0be0d7cb43d2066965ce5fa7f3fe4e489a60f"
 REFERENCE_FILES = {
     "model.py": "74e0ca564bb52f7c2bd74c23cb34b16e0004ceadf7a13816f223c68829b5e1c5",
@@ -61,8 +75,107 @@ def workloads():
     return cases
 
 
+def number(value, low, high, where, digits=4):
+    assert type(value) in (int, float) and (type(value) is int or math.isfinite(value)), (where, "finite number required", value)
+    assert low <= value <= high, (where, "out of range", value, low, high)
+    assert abs(value - round(value, digits)) <= 1e-12, (where, "wire rounding", value, digits)
+    return value
+
+
+def within(value, low, high, rounding, where):
+    # Round-to-even at an interval endpoint and binary64 evaluation need only
+    # this tiny arithmetic slack, not an additional empirical fidelity gate.
+    assert low - rounding - 1e-12 <= value <= high + rounding + 1e-12, (where, "formula mismatch", value, low, high)
+
+
+def validate_answer(answer, where):
+    assert isinstance(answer, dict), (where, "answer must be an object")
+    kind = answer.get("type")
+    assert kind in ("choice", "score", "noul"), (where, "unknown answer type", kind)
+    if kind == "noul":
+        assert set(answer) == {"type", "noul"}, (where, "answer keys")
+        number(answer["noul"], 0, 1, (where, "noul"))
+        return
+    expected = {"type", "confidence", "certainty", "x_p_max", "probabilities"}
+    expected |= {"choice"} if kind == "choice" else {"score", "legend", "level_fit", "fit_mass"}
+    assert set(answer) == expected, (where, "answer keys")
+    probabilities = answer["probabilities"]
+    assert isinstance(probabilities, dict) and all(isinstance(k, str) for k in probabilities), (where, "probability keys")
+    n = len(probabilities)
+    assert 2 <= n <= (255 if kind == "choice" else 10), (where, "option count", n)
+    p = [number(v, 0, 1, (where, "probability", k)) for k, v in probabilities.items()]
+    for field in ("confidence", "certainty", "x_p_max"):
+        number(answer[field], 0, 1, (where, field))
+    zero_mass = sum(p) == 0
+    assert (kind == "score" and zero_mass) or abs(sum(p) - 1) <= n * ROUNDING_HALF_UNIT + 1e-12, (where, "probability mass")
+    intervals = [(max(0, v - ROUNDING_HALF_UNIT), min(1, v + ROUNDING_HALF_UNIT)) for v in p]
+    if zero_mass:
+        # At most ten rounded probabilities cannot hide a normalized unit mass.
+        # The pinned zero-fit path emits zero probabilities, certainty 1 and
+        # uses a uniform fallback solely for its confidence calculation.
+        intervals = [(0, 0)] * n
+    maximum_low = max(lo for lo, _ in intervals)
+    maximum_high = max(hi for _, hi in intervals)
+    within(answer["x_p_max"], maximum_low, maximum_high, ROUNDING_HALF_UNIT, (where, "x_p_max"))
+    entropy = lambda x: -x * math.log(x) if x > 0 else 0
+    minimum_entropy = sum(min(entropy(lo), entropy(hi)) for lo, hi in intervals)
+    maximum_entropy = sum(max(entropy(lo), entropy(hi), 1 / math.e if lo <= 1 / math.e <= hi else 0)
+                          for lo, hi in intervals)
+    within(answer["certainty"], max(0, 1 - maximum_entropy / math.log(n)),
+           max(0, 1 - minimum_entropy / math.log(n)), ROUNDING_HALF_UNIT, (where, "certainty"))
+    if kind == "choice":
+        assert isinstance(answer["choice"], str) and answer["choice"] in probabilities, (where, "choice identity")
+        selected = list(probabilities).index(answer["choice"])
+        assert intervals[selected][1] >= maximum_low, (where, "choice is not a possible mode")
+        within(answer["confidence"], max(0, (n * maximum_low - 1) / (n - 1)),
+               min(1, max(0, (n * maximum_high - 1) / (n - 1))), ROUNDING_HALF_UNIT, (where, "confidence"))
+        return
+    keys = [str(i) for i in range(n)]
+    assert list(probabilities) == keys, (where, "score probability keys/order")
+    for field in ("legend", "level_fit"):
+        assert isinstance(answer[field], dict) and list(answer[field]) == keys, (where, field, "keys/order")
+    assert all(isinstance(v, str) for v in answer["legend"].values()), (where, "legend must be text")
+    fits = [number(v, 0, 1, (where, "level_fit", k)) for k, v in answer["level_fit"].items()]
+    mass = number(answer["fit_mass"], 0, n, (where, "fit_mass"))
+    within(mass, sum(fits), sum(fits), (n + 1) * ROUNDING_HALF_UNIT, (where, "fit_mass"))
+    if zero_mass:
+        assert all(v == 0 for v in fits) and mass == 0, (where, "zero-fit output")
+        within(answer["confidence"], 0, 0, ROUNDING_HALF_UNIT, (where, "confidence"))
+    else:
+        fit_low = [max(0, v - ROUNDING_HALF_UNIT) for v in fits]
+        fit_high = [min(1, v + ROUNDING_HALF_UNIT) for v in fits]
+        for i, (lo, hi) in enumerate(intervals):
+            normalized_low = fit_low[i] / sum(fit_high)
+            normalized_high = min(1, fit_high[i] / sum(fit_low)) if sum(fit_low) else 1
+            assert hi + 1e-12 >= normalized_low and lo <= normalized_high + 1e-12, (where, "normalized level_fit", i)
+        uniform_spread = sum(abs(i - (n - 1) / 2) for i in range(n)) / n
+        feasible = []
+        for modal in range(n):
+            if intervals[modal][1] >= maximum_low:
+                spread_low = sum(lo * abs(i - modal) for i, (lo, _) in enumerate(intervals))
+                spread_high = sum(hi * abs(i - modal) for i, (_, hi) in enumerate(intervals))
+                feasible.append((max(0, 1 - spread_high / uniform_spread), max(0, 1 - spread_low / uniform_spread)))
+        assert any(lo - ROUNDING_HALF_UNIT - 1e-12 <= answer["confidence"] <= hi + ROUNDING_HALF_UNIT + 1e-12
+                   for lo, hi in feasible), (where, "confidence formula mismatch", feasible)
+    score = number(answer["score"], 0, n - 1, (where, "score"), digits=2)
+    within(score, sum(i * lo for i, (lo, _) in enumerate(intervals)),
+           sum(i * hi for i, (_, hi) in enumerate(intervals)), 0.005, (where, "score"))
+
+
+def validate_response(response, label):
+    assert isinstance(response, dict) and set(response) == {"model", "usage", "answers"}, (label, "response keys")
+    assert response["model"] == "decider-2b-v11", (label, "model")
+    usage = response["usage"]
+    assert isinstance(usage, dict) and set(usage) == {"input_tokens", "output_tokens"}, (label, "usage keys")
+    assert all(type(v) is int and v >= 0 for v in usage.values()) and usage["output_tokens"] == 0, (label, "usage values")
+    assert isinstance(response["answers"], dict) and all(isinstance(k, str) for k in response["answers"]), (label, "answer identities")
+    for key, answer in response["answers"].items():
+        validate_answer(answer, (label, key))
+
+
 def compare(reference, native):
-    assert native["model"] == "decider-2b-v11"
+    validate_response(reference, "reference")
+    validate_response(native, "native")
     assert native["usage"] == reference["usage"]
     assert list(native["answers"]) == list(reference["answers"])
     worst_p, worst_score = 0.0, 0.0
@@ -84,6 +197,9 @@ def compare(reference, native):
                 assert got["legend"] == ref["legend"]
                 worst_score = max(worst_score, abs(got["score"] - ref["score"]))
                 drift = max(drift, max(abs(got["level_fit"][k] - v) for k, v in ref["level_fit"].items()))
+                n = len(ref["level_fit"])
+                mass_bound = n * GATES["max_probability_drift"] + 2 * (n + 1) * ROUNDING_HALF_UNIT
+                assert abs(got["fit_mass"] - ref["fit_mass"]) <= mass_bound + 1e-12, ("fit_mass", key, mass_bound)
         worst_p = max(worst_p, drift)
     assert worst_p <= GATES["max_probability_drift"], ("probability", worst_p)
     assert worst_score <= GATES["max_score_drift"], ("score", worst_score)
@@ -104,7 +220,7 @@ def main():
     sources = verify_sources(args.reference / "decider", REFERENCE_FILES)
     cases = workloads() if args.cases is None else [(case["name"],case["request"]) for case in json.loads(args.cases.read_text())]
     assert cases and len({name for name,_ in cases}) == len(cases)
-    manifest = {"reference_revision": REFERENCE_REVISION, "reference_source_sha256": sources, "gates": GATES, "runs": 1, "cases": [{"name": name, "request": request} for name, request in cases]}
+    manifest = {"reference_revision": REFERENCE_REVISION, "reference_source_sha256": sources, "gates": GATES, "validation_protocol": VALIDATION_PROTOCOL, "runs": 1, "cases": [{"name": name, "request": request} for name, request in cases]}
     # Freeze the manifest before executing either implementation.
     (args.output / "protocol.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     inputs = "".join(json.dumps(request, ensure_ascii=False) + "\n" for _, request in cases)
@@ -167,7 +283,7 @@ def main():
     del model
     gc.collect()
     torch.cuda.empty_cache()
-    summary = {"passed": len(results), "cases": results, "gates": GATES,
+    summary = {"passed": len(results), "cases": results, "gates": GATES, "validation_protocol": VALIDATION_PROTOCOL,
                "torch": torch.__version__, "transformers": __import__("transformers").__version__,
                "gpu": torch.cuda.get_device_name(), "native_sha256": hashlib.sha256(args.binary.read_bytes()).hexdigest(),
                "library_sha256": hashlib.sha256(args.library.read_bytes()).hexdigest()}

@@ -9,7 +9,7 @@ import statistics
 import subprocess
 import time
 
-from verify_reference import GATES, compare
+from verify_reference import GATES, VALIDATION_PROTOCOL, compare
 
 
 def digest(path):
@@ -32,7 +32,7 @@ def main():
     selected = [i for i, case in enumerate(cases) if case["name"] in plan["timed_cases"]]
     assert len(selected) == len(plan["timed_cases"])
     args.output.mkdir(parents=True, exist_ok=False)
-    frozen = {**plan, "gates": GATES, "baseline_protocol": protocol,
+    frozen = {**plan, "gates": GATES, "validation_protocol": VALIDATION_PROTOCOL, "baseline_protocol": protocol,
               "input_hashes": {name: digest(parity / name) for name in ("protocol.json", "reference.jsonl", "native.jsonl")},
               "runner_sha256": digest(__file__), "comparison_sha256": digest(Path(__file__).with_name("verify_reference.py")), "library_sha256": digest(plan["library"]),
               "binary_hashes": {mode["name"]: digest(mode["binary"]) for mode in plan["modes"]},
