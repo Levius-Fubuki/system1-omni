@@ -4,8 +4,8 @@ The `omni-cua-s1-vision` screenshot worker can capture the complete vision
 encoder, including all 24 blocks, unmerged FP32 LoRA branches and the merger.
 Set `CUA_S1_VISION_GRAPH=1` before loading the worker to enable it. Leave it
 unset or set it to `0` for eager execution. This switch is independent of
-`CUA_S1_GRAPH`, which controls language execution; this change does not enable
-multimodal language Graph replay.
+`CUA_S1_GRAPH`, which controls language execution. Enabling vision Graph alone
+does not enable language Graph replay.
 
 Both modes use the shared Qwen vision executor and retain at most four exact
 [T,H,W] scratch/Graph pairs in FIFO order. Equal patch counts with different
