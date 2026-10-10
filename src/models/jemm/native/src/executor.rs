@@ -159,9 +159,7 @@ impl Loaded {
     fn execute(&mut self, inputs: &[Input]) -> Result<Vec<Vec<f32>>> {
         let mut embeddings = Vec::new();
         if let Some(first) = inputs.first() {
-            for image in first.images.iter() {
-                embeddings.extend(self.vision.forward(image)?);
-            }
+            embeddings = self.vision.forward_images(&first.images)?;
         }
         let mut rows = Vec::with_capacity(inputs.len());
         for input in inputs {
