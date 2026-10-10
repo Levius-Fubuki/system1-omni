@@ -163,7 +163,10 @@ fn vision_graph_equal_patch_count_geometry_and_retirement() {
         assert_eq!(model.scratch.len(), 4);
         if index == 4 {
             assert!(
-                model.scratch.iter().all(|s| s.grid != inputs[0].image_grid_thw),
+                model
+                    .scratch
+                    .iter()
+                    .all(|s| s.grid != inputs[0].image_grid_thw),
                 "the fifth distinct grid must evict the oldest FIFO entry"
             );
         }
