@@ -19,6 +19,7 @@ use serde_json::Value as Json;
 
 use crate::cuda::{self, DeviceBuffer, Stream, check};
 use crate::inputs::{MultimodalInput, rotary_tables};
+use crate::lora::{self, Group};
 
 const ALIGN: usize = 256;
 const BF16: usize = 2;
@@ -439,10 +440,11 @@ struct Scratch {
     sin: usize,
     custom_cos: usize,
     custom_sin: usize,
+    lora: Option<lora::Work>,
 }
 
 impl Scratch {
-    fn new(cfg: &Config, cap: usize, stream: Stream) -> Result<Self> {
+    fn new(cfg: &Config, cap: usize, stream: Stream, lora: Option<&lora::Lora>) -> Result<Self> {
         let (h, kd, vd, hv) = (cfg.hidden, cfg.key_dim(), cfg.value_dim(), cfg.lin_v_heads);
         let (hq, hk, hd) = (cfg.heads, cfg.kv_heads, cfg.head_dim);
         let w = Widths::of(cfg);
@@ -546,6 +548,9 @@ impl Scratch {
             sin,
             custom_cos,
             custom_sin,
+            lora: lora
+                .map(|adapter| adapter.work(cap.min(cfg.max_positions)))
+                .transpose()?,
         })
     }
 
@@ -594,6 +599,7 @@ pub struct Model {
     embed: Tensor,
     final_norm: Tensor,
     layers: Vec<Layer>,
+    lora: Option<lora::Lora>,
     stream: Stream,
     gemm: *mut c_void,
     /// Buffers for the largest packed token count so far; grows as needed.
@@ -601,15 +607,32 @@ pub struct Model {
     /// Opt-in replay with at most 64 captures keyed by ordered sequence lengths.
     graph_enabled: bool,
     graphs: VecDeque<(Vec<usize>, cuda::Graph)>,
+    // The opt-in adapter path owns its stream; it retires after every device allocation.
+    _lora_stream: Option<LoraStream>,
 }
 
 // SAFETY: the raw pointers are device addresses and a cuBLASLt handle owned by the
 // model; the engine runs one forward pass at a time behind a mutex.
 unsafe impl Send for Model {}
 
+struct LoraStream(Stream);
+impl Drop for LoraStream {
+    fn drop(&mut self) {
+        // SAFETY: the adapter Model owns this stream, and has retired all allocations.
+        unsafe { (cuda::api().cs1_stream_destroy)(self.0) };
+    }
+}
+
 impl Drop for Model {
     fn drop(&mut self) {
+        if self.lora.is_some() {
+            let _ = cuda::set_device(0);
+            let _ = cuda::synchronize(self.stream);
+        }
         self.graphs.clear();
+        if self.lora.is_some() {
+            self.scratch = None;
+        }
         // SAFETY: created by cs1_gemm_create and not destroyed before.
         unsafe { (cuda::api().cs1_gemm_destroy)(self.gemm) };
     }
@@ -619,10 +642,37 @@ impl Model {
     /// Load the CUDA library and the weights.
     pub fn load(dir: &Path, library: &Path) -> Result<Self> {
         let cfg = Config::load(dir)?;
+        Self::load_checkpoint(dir, library, cfg, None)
+    }
+
+    /// Load an immutable FP32 PEFT language adapter without merging it into BF16 weights.
+    /// `adapter_path` names one safetensors file; partial paired targets and ranks 1..=128
+    /// are supported. Validate the pinned full inventory separately when required.
+    pub fn load_with_lora(
+        dir: &Path,
+        library: &Path,
+        adapter_path: &Path,
+        scale: f32,
+    ) -> Result<Self> {
+        let cfg = Config::load(dir)?;
+        let adapter = lora::Checkpoint::load(&cfg, adapter_path, scale)?;
+        Self::load_checkpoint(dir, library, cfg, Some(adapter))
+    }
+
+    fn load_checkpoint(
+        dir: &Path,
+        library: &Path,
+        cfg: Config,
+        adapter: Option<lora::Checkpoint>,
+    ) -> Result<Self> {
         cuda::load(library)?;
         cuda::set_device(0)?;
         let stream = cuda::new_stream()?;
+        let stream_owner = adapter.as_ref().map(|_| LoraStream(stream));
         let weights = Weights::load(dir, stream)?;
+        let lora = adapter
+            .map(|source| source.upload(cfg.full_attention.len(), stream))
+            .transpose()?;
         let (h, kd, vd) = (cfg.hidden, cfg.key_dim(), cfg.value_dim());
         let embed = weights
             .tensors
@@ -687,11 +737,13 @@ impl Model {
             embed,
             final_norm,
             layers,
+            lora,
             stream,
             gemm,
             scratch: None,
             graph_enabled: std::env::var("CUA_S1_GRAPH").as_deref() == Ok("1"),
             graphs: VecDeque::new(),
+            _lora_stream: stream_owner,
         };
         Ok(model)
     }
@@ -715,6 +767,36 @@ impl Model {
             },
             "gemm",
         )
+    }
+
+    #[allow(clippy::too_many_arguments)] // Layer projection coordinates in shared scratch.
+    fn apply_lora(
+        &self,
+        layer: usize,
+        group: Group,
+        s: &Scratch,
+        input: usize,
+        output: usize,
+        lengths: &[usize],
+    ) -> Result<()> {
+        let Some(adapter) = &self.lora else {
+            return Ok(());
+        };
+        let work = s.lora.as_ref().context("missing language LoRA work")?;
+        // SAFETY: caller passes the validated projection's input/output ranges in scratch;
+        // per-sequence row counts are bounded by config, and work/weights belong to this Model.
+        unsafe {
+            adapter.apply(
+                layer,
+                group,
+                s.at(input),
+                s.at(output),
+                lengths,
+                work,
+                self.gemm,
+                self.stream,
+            )
+        }
     }
 
     /// Preserve each prompt's output/down GEMM shape and split-K reduction order.
@@ -744,12 +826,16 @@ impl Model {
     fn prepare_scratch(&mut self, t: usize) -> Result<()> {
         cuda::set_device(0)?;
         if self.scratch.as_ref().is_none_or(|s| t > s.cap) {
+            if self.lora.is_some() {
+                cuda::synchronize(self.stream)?;
+            }
             self.graphs.clear();
             self.scratch = None;
             self.scratch = Some(Scratch::new(
                 &self.cfg,
                 t.next_multiple_of(1024),
                 self.stream,
+                self.lora.as_ref(),
             )?);
         }
         Ok(())
@@ -1112,6 +1198,7 @@ impl Model {
             match &layer.mixer {
                 Mixer::Linear(la) => {
                     self.gemm(s, s.x, &la.in_proj, s.gdn_in, t)?;
+                    self.apply_lora(i, Group::LinearInput, s, s.x, s.gdn_in, lengths)?;
                     let ld = w.gdn_in as i32;
                     let z = s.gdn_in + w.conv * BF16;
                     let b = z + vd * BF16;
@@ -1185,9 +1272,11 @@ impl Model {
                         )?;
                     }
                     self.gemm_sequences(s, s.ln, &la.out, s.delta, lengths)?;
+                    self.apply_lora(i, Group::LinearOutput, s, s.ln, s.delta, lengths)?;
                 }
                 Mixer::Full(fa) => {
                     self.gemm(s, s.x, &fa.qkv, s.attn_in, t)?;
+                    self.apply_lora(i, Group::AttentionInput, s, s.x, s.attn_in, lengths)?;
                     let ld = w.attn_in as i32;
                     let k = s.attn_in + w.attn_q * BF16;
                     let v = k + cfg.kv_heads * cfg.head_dim * BF16;
@@ -1235,6 +1324,7 @@ impl Model {
                         }
                     }
                     self.gemm_sequences(s, s.ao, &fa.o, s.delta, lengths)?;
+                    self.apply_lora(i, Group::AttentionOutput, s, s.ao, s.delta, lengths)?;
                 }
             }
             unsafe {
@@ -1253,6 +1343,7 @@ impl Model {
                 )?;
             }
             self.gemm(s, s.x, &layer.gate_up, s.gate_up, t)?;
+            self.apply_lora(i, Group::GateUp, s, s.x, s.gate_up, lengths)?;
             unsafe {
                 check(
                     (cuda::api().cs1_silu_mul)(
@@ -1267,6 +1358,7 @@ impl Model {
                 )?;
             }
             self.gemm_sequences(s, s.act, &layer.down, s.delta, lengths)?;
+            self.apply_lora(i, Group::Down, s, s.act, s.delta, lengths)?;
             let next = self
                 .layers
                 .get(i + 1)
@@ -1360,6 +1452,14 @@ impl Model {
             match &layer.mixer {
                 Mixer::Linear(la) => {
                     self.gemm(s, s.x + qb * hb, &la.in_proj, s.gdn_in + qb * ldbb, rows)?;
+                    self.apply_lora(
+                        i,
+                        Group::LinearInput,
+                        s,
+                        s.x + qb * hb,
+                        s.gdn_in + qb * ldbb,
+                        &[rows],
+                    )?;
                     let ld = ldb as i32;
                     let z = s.gdn_in + w.conv * BF16;
                     let b = z + vd * BF16;
@@ -1460,10 +1560,26 @@ impl Model {
                         )?;
                     }
                     self.gemm(s, s.ln + qb * vb, &la.out, s.delta + qb * hb, rows)?;
+                    self.apply_lora(
+                        i,
+                        Group::LinearOutput,
+                        s,
+                        s.ln + qb * vb,
+                        s.delta + qb * hb,
+                        &[rows],
+                    )?;
                     la_i += 1;
                 }
                 Mixer::Full(fa) => {
                     self.gemm(s, s.x + qb * hb, &fa.qkv, s.attn_in + qb * ab, rows)?;
+                    self.apply_lora(
+                        i,
+                        Group::AttentionInput,
+                        s,
+                        s.x + qb * hb,
+                        s.attn_in + qb * ab,
+                        &[rows],
+                    )?;
                     let k = s.attn_in + w.attn_q * BF16;
                     let v = k + kvb;
                     let (q_base, t_flash) = (qb as i32, tend as i32);
@@ -1522,6 +1638,14 @@ impl Model {
                         )?;
                     }
                     self.gemm(s, s.ao + qb * ob, &fa.o, s.delta + qb * hb, rows)?;
+                    self.apply_lora(
+                        i,
+                        Group::AttentionOutput,
+                        s,
+                        s.ao + qb * ob,
+                        s.delta + qb * hb,
+                        &[rows],
+                    )?;
                     fa_i += 1;
                 }
             }
@@ -1547,6 +1671,14 @@ impl Model {
                 s.gate_up + qb * 2 * cfg.intermediate * BF16,
                 rows,
             )?;
+            self.apply_lora(
+                i,
+                Group::GateUp,
+                s,
+                s.x + qb * hb,
+                s.gate_up + qb * 2 * cfg.intermediate * BF16,
+                &[rows],
+            )?;
             unsafe {
                 check(
                     (cuda::api().cs1_silu_mul)(
@@ -1566,6 +1698,14 @@ impl Model {
                 &layer.down,
                 s.delta + qb * hb,
                 rows,
+            )?;
+            self.apply_lora(
+                i,
+                Group::Down,
+                s,
+                s.act + qb * cfg.intermediate * BF16,
+                s.delta + qb * hb,
+                &[rows],
             )?;
             let next = self
                 .layers
