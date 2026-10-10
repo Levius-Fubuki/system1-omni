@@ -541,11 +541,17 @@ struct CacheLimits {
 }
 impl CacheLimits {
     fn from_env() -> Self {
-        let value = |name: &str, default| {
-            std::env::var(name)
-                .ok()
-                .and_then(|v| v.parse::<usize>().ok())
-                .unwrap_or(default)
+        let value = |name: &str, default| match std::env::var_os(name) {
+            None => default,
+            Some(raw) => match raw.to_str().and_then(|v| v.parse::<usize>().ok()) {
+                Some(value) => value,
+                None => {
+                    eprintln!(
+                        "Invalid {name}={raw:?}; expected an unsigned integer, using default {default}"
+                    );
+                    default
+                }
+            },
         };
         Self {
             entries: value("CUA_S1_VISION_CACHE_ENTRIES", 1).min(16),

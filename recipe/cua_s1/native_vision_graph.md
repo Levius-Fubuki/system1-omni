@@ -25,6 +25,12 @@ The four tested grids contain 2304 patches in total and retain 147677184 bytes
 and allocator/runtime overhead. Trace messages report retained entries/bytes;
 measure actual device memory separately.
 
+Both limits are read once when the model loads. Unset values use their defaults;
+an explicitly invalid unsigned integer (including trailing whitespace or a
+negative value) logs a warning to stderr and uses that limit's default. The
+warning names the setting, supplied value and effective fallback, independently
+of `CUA_S1_GRAPH_TRACE`. Zero for either limit disables retention.
+
 A valid geometry larger than the byte budget, or any geometry with retention
 disabled, executes eagerly using transient scratch. It preserves existing
 cache entries, synchronizes on success or error and releases the transient
