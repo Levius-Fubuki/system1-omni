@@ -11,7 +11,8 @@
     "attention.cu",
     "gdn_prefill.cu",
     "gemm.cu",
-    "runtime.cu"
+    "runtime.cu",
+    "vision.cu"
   ],
   "models": [
     "src/models/cua_s1/native/",
