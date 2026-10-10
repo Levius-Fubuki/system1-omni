@@ -169,6 +169,7 @@ Python screenshot worker, and CLM has a stub-encoder contract recipe:
 | JEMM (Qwen3.8-27B) | [Native Rust/CUDA worker](recipe/jemm/README.md); text/single-image parity on A800; [known multi-image limitation](src/models/jemm/README.md#validation-and-known-multi-image-limitation) |
 | Open-Jev-27B-v1.1 | [Native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [H200 validation](recipe/open_jev/validation.md) |
 | Open-Jev-9B | The same [native Rust/CUDA worker](recipe/open_jev/native.md); eager independent text candidates; [reference comparison on sm_89](recipe/open_jev/validation-9b.md) |
+| autotrust/JEV-27B-VL | [Experimental Rust/CUDA worker](recipe/jev_vl/README.md); single-question text and offline-preencoded image inputs; [bounded H800 validation and limits](recipe/jev_vl/validation.md) |
 | CLM-v0.1-8B | [External worker with a CPU stub encoder](recipe/clm/README.md); contract checks only, real Qwen3-8B decisions unverified by this recipe |
 
 [Supported models and hardware](docs/supported-models.md) lists the devices

@@ -8,6 +8,29 @@ fn prompt_preserves_order_and_compact_state() {
         "State:\n{\"z\":1,\"a\":true}\n\nQuestion: choose one\n\nCandidates:\nA) last option\nB) first\n\nAnswer with exactly one candidate label."
     );
 }
+
+#[test]
+fn structured_state_preserves_python_float_shortest_ties() {
+    let questions =
+        compile(br#"{"state":{"x":1000000000000000.2},"questions":{"q":{"type":"noul"}}}"#)
+            .unwrap();
+    assert_eq!(
+        questions[0].prompt,
+        "State:\n{\"x\":1000000000000000.2}\n\nQuestion: \n\nCandidates:\nA) yes\nB) no\n\nAnswer with exactly one candidate label."
+    );
+}
+
+#[test]
+fn numeric_instructions_and_descriptions_preserve_python_float_text() {
+    let questions = compile(
+        br#"{"questions":{"q":{"instructions":[1000000000000000.2,-0.0],"criteria":{"a":{"description":-250786113075992.62},"b":"fallback"}}}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        questions[0].prompt,
+        "State:\n\n\nQuestion: [1000000000000000.2, -0.0]\n\nCandidates:\nA) -250786113075992.62\nB) fallback\n\nAnswer with exactly one candidate label."
+    );
+}
 #[test]
 fn noul_uses_yes_first_and_score_expected_value() {
     let qs = compile(

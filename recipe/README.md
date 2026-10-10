@@ -19,6 +19,8 @@ For a first real decision, follow the [complete CPU walkthrough](../docs/getting
   compares the 9B worker with the reference.
 - [JEMM native worker](jemm/README.md): pinned text/image decisions and export;
   known multi-image numerical limitation is documented in the model contract.
+- [JEV-27B-VL experimental worker](jev_vl/README.md): native text and preencoded
+  image decisions; bounded H800 validation with explicit deployment limits.
 - [CLM behind the frontend](clm/README.md): run CLM's own server behind the frontend on
   CPU with a stub encoder, and what the response comparison has to allow for.
 
