@@ -193,6 +193,7 @@ fn cpu_batch_uses_aggregate_gemms_and_image_local_attention() {
         scratch: VecDeque::new(),
         batch_scratch: VecDeque::new(),
         graph_enabled: false,
+        reference: None,
         base,
         lora: BTreeMap::new(),
         gemm: Gemm(unsafe { (api().cs1_gemm_create)(32 << 20) }),

@@ -44,6 +44,7 @@ pub struct VisionModel {
     base: BTreeMap<String, DeviceBuffer>,
     lora: BTreeMap<String, DeviceBuffer>,
     gemm: Gemm,
+    reference: Option<&'static cuda::Reference>,
     stream: OwnedStream,
 }
 impl VisionModel {
@@ -137,6 +138,7 @@ impl VisionModel {
             lora: BTreeMap::new(),
             stream,
             gemm,
+            reference: None,
         };
         for (name, tensor) in base {
             model.base.insert(
@@ -158,6 +160,32 @@ impl VisionModel {
         );
         Ok(model)
     }
+    /// Select the JEMM 27B reference path before allocating shape buffers or graphs.
+    pub fn enable_reference_numerics(&mut self) -> Result<()> {
+        ensure!(
+            self.config.hidden_size == 1152 && self.lora.is_empty(),
+            "reference vision requires unadapted 27B vision"
+        );
+        ensure!(
+            self.scratch.is_empty() && self.batch_scratch.is_empty(),
+            "select reference vision before the first forward"
+        );
+        if self.reference.is_some() {
+            return Ok(());
+        }
+        cuda::set_device(0)?;
+        let reference = api().reference()?;
+        self.synchronize()?;
+        // SAFETY: allocation occurs before capture, and the old handle has no queued work.
+        let gemm = Gemm(unsafe { (reference.gemm_create)(32 << 20) });
+        ensure!(
+            !gemm.0.is_null(),
+            "cannot create reference vision GEMM handle"
+        );
+        self.gemm = gemm;
+        self.reference = Some(reference);
+        Ok(())
+    }
     fn upload(&self, bytes: &[u8]) -> Result<DeviceBuffer> {
         let buffer = DeviceBuffer::new(bytes.len())?;
         unsafe {
@@ -171,7 +199,9 @@ impl VisionModel {
     fn norm(&self, name: &str, x: &DeviceBuffer, y: &DeviceBuffer, rows: usize) -> Result<()> {
         unsafe {
             check(
-                (api().cs1_vision_norm)(
+                (self
+                    .reference
+                    .map_or(api().cs1_vision_norm, |r| r.vision_norm))(
                     x.at(0),
                     self.weight(&format!("{name}.weight")),
                     self.weight(&format!("{name}.bias")),
@@ -352,7 +382,10 @@ impl VisionModel {
         let index = if let Some(index) = self.batch_scratch.iter().position(|s| s.grids == grids) {
             index
         } else {
-            let geometry = BatchGeometry::new(&grids, &self.config)?.geometry;
+            let mut geometry = BatchGeometry::new(&grids, &self.config)?.geometry;
+            if self.reference.is_some() {
+                geometry.use_reference_angles(&grids, &self.config);
+            }
             self.synchronize()?;
             if self.batch_scratch.len() == 4 {
                 self.batch_scratch.pop_front();
@@ -421,7 +454,13 @@ impl VisionModel {
             .iter()
             .position(|s| s.grid == image.image_grid_thw);
         let geometry = if cached.is_none() {
-            Some(VisionGeometry::new(image.image_grid_thw, &self.config)?)
+            Some({
+                let mut geometry = VisionGeometry::new(image.image_grid_thw, &self.config)?;
+                if self.reference.is_some() {
+                    geometry.use_reference_angles(&[image.image_grid_thw], &self.config);
+                }
+                geometry
+            })
         } else {
             None
         };
@@ -523,7 +562,33 @@ impl VisionModel {
             out,
             ..
         } = buffers;
-        self.linear("patch_embed.proj", pixels, x, n, h, 1536, w)?;
+        if let Some(plan) = &buffers.patch {
+            let reference = self.reference.expect("reference patch plan");
+            // SAFETY: the plan and buffers have the same validated aggregate row count.
+            unsafe {
+                check(
+                    (reference.patch)(
+                        plan.0,
+                        pixels.at(0),
+                        self.weight("patch_embed.proj.weight"),
+                        x.at(0),
+                    ),
+                    "reference patch convolution",
+                )?;
+                check(
+                    (api().cs1_vision_bias)(
+                        x.at(0),
+                        self.weight("patch_embed.proj.bias"),
+                        n * h,
+                        h as i32,
+                        self.stream.0,
+                    ),
+                    "patch bias",
+                )?;
+            }
+        } else {
+            self.linear("patch_embed.proj", pixels, x, n, h, 1536, w)?;
+        }
         self.trace(callback, "patch_embed", x, n * h)?;
         unsafe {
             if h == 1024 {
@@ -586,7 +651,7 @@ impl VisionModel {
                 } else {
                     let v2 = api().vision_v2()?;
                     check(
-                        (v2.rope)(
+                        (self.reference.map_or(v2.rope, |r| r.vision_rope))(
                             qkv.at(0),
                             co.at(0).cast(),
                             si.at(0).cast(),
@@ -602,7 +667,7 @@ impl VisionModel {
                     let mut row = 0;
                     for &rows in lengths {
                         check(
-                            (v2.attention)(
+                            (self.reference.map_or(v2.attention, |r| r.vision_attention))(
                                 q.at(row * h * 2),
                                 k.at(row * h * 2),
                                 qkv.at((row * h * 3 + h * 2) * 2),
@@ -701,7 +766,22 @@ struct BatchScratch {
     lengths: Vec<usize>,
     buffers: Buffers,
 }
+struct PatchPlan(*mut c_void);
+// SAFETY: the enclosing model serializes access and keeps the owning stream alive.
+unsafe impl Send for PatchPlan {}
+impl Drop for PatchPlan {
+    fn drop(&mut self) {
+        // SAFETY: the enclosing model synchronizes before retiring buffers.
+        unsafe {
+            (api()
+                .reference()
+                .expect("loaded reference API")
+                .patch_destroy)(self.0)
+        };
+    }
+}
 struct Buffers {
+    patch: Option<PatchPlan>,
     pixels: DeviceBuffer,
     indices: DeviceBuffer,
     weights: DeviceBuffer,
@@ -742,7 +822,36 @@ impl Buffers {
             .intermediate_size
             .max(h * 4)
             .max(model.config.out_hidden_size);
+        let patch = if let Some(reference) = model.reference {
+            // SAFETY: descriptors/workspace are allocated outside capture for validated rows.
+            let plan = PatchPlan(unsafe { (reference.patch_create)(n as i32, model.stream.0) });
+            ensure!(
+                !plan.0.is_null(),
+                "cannot prepare cuDNN reference patch convolution"
+            );
+            Some(plan)
+        } else {
+            None
+        };
+        let attention_bytes = if let Some(reference) = model.reference {
+            let floats = unsafe {
+                (reference.vision_attention_workspace_floats)(
+                    attention_rows as i32,
+                    model.config.num_heads as i32,
+                )
+            };
+            ensure!(
+                floats > 0,
+                "cannot size reference vision attention workspace"
+            );
+            attention_rows * model.config.num_heads * 80 * 4 * 2 + floats * 4
+        } else if h == 1024 {
+            0
+        } else {
+            attention_rows * model.config.num_heads * 80 * 4 * 2
+        };
         Ok(Self {
+            patch,
             pixels: DeviceBuffer::new(n * 1536 * 2)?,
             indices: model.upload(
                 &geo.indices
@@ -769,11 +878,7 @@ impl Buffers {
                     .collect::<Vec<_>>(),
             )?,
             w: Work::new(if model.lora.is_empty() { 0 } else { n }, width)?,
-            attention_workspace: DeviceBuffer::new(if h == 1024 {
-                0
-            } else {
-                attention_rows * model.config.num_heads * 80 * 4 * 2
-            })?,
+            attention_workspace: DeviceBuffer::new(attention_bytes)?,
             x: DeviceBuffer::new(n * h * 2)?,
             norm: DeviceBuffer::new(n * h * 2)?,
             qkv: DeviceBuffer::new(n * h * 3 * 2)?,

@@ -3,7 +3,7 @@
 The Rust/CUDA worker serves ordered `choice`, `score` and `noul` questions over
 text and up to four PNG/JPEG/WebP images. See the [recipe](../../../recipe/jemm/README.md)
 for download, export, launch and validation. CPU inference and native Metal are
-unsupported. Multi-image reference parity has a known limitation below.
+unsupported. Numerical validation is scoped to the frozen corpus below.
 
 ## Pinned artifacts
 
@@ -82,27 +82,28 @@ covers the entire request. Both streams synchronize before resource release;
 caught execution errors/panics clear atomic readiness and retire loaded state.
 There is no cross-request batching or prefix cache.
 
-## Validation and known multi-image limitation
+## Validation
 
-The unmerged FP32-adapter v2 path requires a fresh device/reference campaign;
-CPU export and contract checks alone do not establish its numerical parity.
+The unmerged FP32-adapter v2 path passes the frozen **16 requests / 25 questions**
+covering text and 1–4 images on A800. Maximum probability drift is
+**0.0166172279642417**, under the unchanged 0.02 gate. Score tolerance remains
+0.1 and winner agreement is required at reference margins of at least 0.05;
+low-margin cases remain in the corpus. See the
+[requests, reference outputs and evidence](../../../docs/benchmarks/jemm-reference-20261011/README.md).
+These results do not establish parity for every possible prompt, GPU or framework version.
 
-The historical premerged v1 A800 BF16 corpus (13 requests / 16 questions, text and single-image
-inputs) passed exact tokens/positions/grids/pixels and predeclared probability
-0.02 / Score 0.1 / winner-margin 0.05 gates. Max probability drift was 0.0015338802.
-These results are scoped to the source revisions and corpus in
-[the evidence release](https://github.com/Levius-Fubuki/system1-omni/releases/tag/jemm-a800-20261008).
+JEMM opts into separate reference CUDA functions. They preserve the active
+framework's BF16 boundaries, TF32 matrix-product order, normalization reductions,
+FlashAttention split combination and cuDNN patch convolution. FP32 adapters stay
+unmerged, component projections keep their original GEMM shapes, and multi-image
+vision projections use aggregate rows while attention remains image-local.
+Existing Cua/Open-Jev/JEV-VL CUDA entry points retain their previous behavior.
 
-**Two- and four-image reference parity is not established.** The supplemental
-2/3/4-PNG-image feasibility corpus exceeded the unchanged 0.02 probability gate
-for two and four images, with max drift **0.042138323189940485**; three images
-passed. All nine question records had exact official tokens, positions, grids,
-candidate counts and FP32 pixels. #118 and #122 produced identical answers and
-usage for these requests. This narrows investigation to execution/merge numerics,
-but does not identify the cause. Candidate repeated rounds stopped after the
-failed feasibility gate; failures were retained. The worker accepts these input
-classes, but applications requiring verified multi-image fidelity must validate
-their own workloads or use the pinned reference. No tolerance was relaxed.
+The historical premerged v1 corpus passed text/single-image checks but failed the
+supplemental two-/four-image gate (maximum drift 0.042138323189940485).
+That failed evidence remains in the
+[original release](https://github.com/Levius-Fubuki/system1-omni/releases/tag/jemm-a800-20261008);
+it is not evidence for the new v2 path.
 
 Root `tests/jemm/` covers prompt order/coercion, candidate limits, the 64-question
 resource boundary, response math, image decoding/positions, tokenizer and token

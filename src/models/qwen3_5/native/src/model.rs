@@ -444,7 +444,13 @@ struct Scratch {
 }
 
 impl Scratch {
-    fn new(cfg: &Config, cap: usize, stream: Stream, lora: Option<&lora::Lora>) -> Result<Self> {
+    fn new(
+        cfg: &Config,
+        cap: usize,
+        stream: Stream,
+        lora: Option<&lora::Lora>,
+        reference: Option<&cuda::Reference>,
+    ) -> Result<Self> {
         let (h, kd, vd, hv) = (cfg.hidden, cfg.key_dim(), cfg.value_dim(), cfg.lin_v_heads);
         let (hq, hk, hd) = (cfg.heads, cfg.kv_heads, cfg.head_dim);
         let w = Widths::of(cfg);
@@ -455,7 +461,18 @@ impl Scratch {
             off
         };
         // SAFETY: pure function of its arguments.
-        let ws_floats = unsafe { (cuda::api().cs1_gdn_workspace_floats)(cap as i32, hv as i32) };
+        let ws_floats = if let Some(reference) = reference {
+            // SAFETY: capacity and heads derive from validated architecture/request limits.
+            unsafe {
+                let gdn = (reference.gdn_workspace_floats)(cap as i32, hv as i32);
+                let attention =
+                    (reference.language_attention_workspace_floats)(cap as i32, hq as i32);
+                ensure!(attention > 0, "cannot size reference attention workspace");
+                gdn.max(attention)
+            }
+        } else {
+            unsafe { (cuda::api().cs1_gdn_workspace_floats)(cap as i32, hv as i32) }
+        };
         let offsets = [
             take(cap * 4),
             take(cap * h * BF16),
@@ -602,6 +619,7 @@ pub struct Model {
     lora: Option<lora::Lora>,
     stream: Stream,
     gemm: *mut c_void,
+    reference: Option<&'static cuda::Reference>,
     /// Buffers for the largest packed token count so far; grows as needed.
     scratch: Option<Scratch>,
     /// Opt-in replay with at most 64 captures keyed by ordered sequence lengths.
@@ -740,12 +758,40 @@ impl Model {
             lora,
             stream,
             gemm,
+            reference: None,
             scratch: None,
             graph_enabled: std::env::var("CUA_S1_GRAPH").as_deref() == Ok("1"),
             graphs: VecDeque::new(),
             _lora_stream: stream_owner,
         };
         Ok(model)
+    }
+
+    /// Select JEMM's pinned framework arithmetic before the first forward.
+    /// Prefix caching is outside this execution contract.
+    pub fn enable_reference_numerics(&mut self) -> Result<()> {
+        ensure!(
+            self.cfg.hidden == 5120 && self.cfg.head_dim == 256 && self.lora.is_some(),
+            "reference numerics require the unmerged JEMM 27B model"
+        );
+        ensure!(
+            self.scratch.is_none() && self.graphs.is_empty(),
+            "select reference numerics before the first forward"
+        );
+        if self.reference.is_some() {
+            return Ok(());
+        }
+        cuda::set_device(0)?;
+        let reference = cuda::api().reference()?;
+        cuda::synchronize(self.stream)?;
+        // SAFETY: the model owns both handles, with no queued work or captured graphs.
+        let gemm = unsafe { (reference.gemm_create)(GEMM_WORKSPACE) };
+        ensure!(!gemm.is_null(), "reference cuBLASLt setup failed");
+        unsafe { (cuda::api().cs1_gemm_destroy)(self.gemm) };
+        self.gemm = gemm;
+        self.reference = Some(reference);
+        self.prefix_owner = Arc::new(());
+        Ok(())
     }
 
     fn gemm(&self, s: &Scratch, x: usize, w: &Tensor, y: usize, m: usize) -> Result<()> {
@@ -873,6 +919,7 @@ impl Model {
                 t.next_multiple_of(1024),
                 self.stream,
                 self.lora.as_ref(),
+                self.reference,
             )?);
         }
         Ok(())
@@ -1028,6 +1075,10 @@ impl Model {
     /// Allocate an uninitialized prefix of `len` tokens (a multiple of 64).
     /// Capture must finish successfully on this model before continuation.
     pub fn alloc_prefix(&self, len: usize) -> Result<PrefixState> {
+        ensure!(
+            self.reference.is_none(),
+            "JEMM reference numerics do not support prefix caching"
+        );
         ensure!(
             len >= 64 && len.is_multiple_of(64),
             "cached prefix length must be a positive multiple of 64"
@@ -1219,7 +1270,9 @@ impl Model {
         // scratch buffers laid out for at least t tokens with the widths used here.
         unsafe {
             check(
-                (cuda::api().cs1_rms_norm)(
+                (self
+                    .reference
+                    .map_or(cuda::api().cs1_rms_norm, |r| r.rms_norm))(
                     p(s.res),
                     self.layers[0].input_norm.ptr,
                     p(s.x),
@@ -1283,7 +1336,9 @@ impl Model {
                         )?;
                         for &(offset, length) in &sequences {
                             check(
-                                (cuda::api().cs1_gdn_prefill)(
+                                (self
+                                    .reference
+                                    .map_or(cuda::api().cs1_gdn_prefill, |r| r.gdn_prefill))(
                                     p(s.lq + offset * kd * BF16),
                                     p(s.lk + offset * kd * BF16),
                                     p(s.lv + offset * vd * BF16),
@@ -1336,7 +1391,9 @@ impl Model {
                     unsafe {
                         for &(offset, length) in &sequences {
                             check(
-                                (cuda::api().cs1_attn_prep)(
+                                (self
+                                    .reference
+                                    .map_or(cuda::api().cs1_attn_prep, |r| r.attn_prep))(
                                     p(s.attn_in + offset * w.attn_in * BF16),
                                     p(k + offset * w.attn_in * BF16),
                                     ld,
@@ -1358,20 +1415,37 @@ impl Model {
                                 "attention prep",
                             )?;
                             check(
-                                (cuda::api().cs1_attention_gated)(
-                                    p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
-                                    p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
-                                    p(v + offset * w.attn_in * BF16),
-                                    ld,
-                                    p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
-                                    p(s.ao + offset * cfg.heads * cfg.head_dim * BF16),
-                                    length,
-                                    hq,
-                                    hk,
-                                    hd,
-                                    (cfg.head_dim as f32).powf(-0.5),
-                                    st,
-                                ),
+                                if let Some(reference) = self.reference {
+                                    (reference.attention)(
+                                        p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
+                                        p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
+                                        p(v + offset * w.attn_in * BF16),
+                                        ld,
+                                        p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
+                                        p(s.ao + offset * cfg.heads * cfg.head_dim * BF16),
+                                        length,
+                                        hq,
+                                        hk,
+                                        (cfg.head_dim as f32).powf(-0.5),
+                                        p(s.workspace),
+                                        st,
+                                    )
+                                } else {
+                                    (cuda::api().cs1_attention_gated)(
+                                        p(s.aq + offset * cfg.heads * cfg.head_dim * BF16),
+                                        p(s.ak + offset * cfg.kv_heads * cfg.head_dim * BF16),
+                                        p(v + offset * w.attn_in * BF16),
+                                        ld,
+                                        p(s.agate + offset * cfg.heads * cfg.head_dim * BF16),
+                                        p(s.ao + offset * cfg.heads * cfg.head_dim * BF16),
+                                        length,
+                                        hq,
+                                        hk,
+                                        hd,
+                                        (cfg.head_dim as f32).powf(-0.5),
+                                        st,
+                                    )
+                                },
                                 "gated attention",
                             )?;
                         }
@@ -1382,7 +1456,9 @@ impl Model {
             }
             unsafe {
                 check(
-                    (cuda::api().cs1_add_rms_norm)(
+                    (self
+                        .reference
+                        .map_or(cuda::api().cs1_add_rms_norm, |r| r.add_rms_norm))(
                         p(s.res),
                         p(s.delta),
                         layer.post_norm.ptr,
@@ -1418,7 +1494,9 @@ impl Model {
                 .map_or(&self.final_norm, |l| &l.input_norm);
             unsafe {
                 check(
-                    (cuda::api().cs1_add_rms_norm)(
+                    (self
+                        .reference
+                        .map_or(cuda::api().cs1_add_rms_norm, |r| r.add_rms_norm))(
                         p(s.res),
                         p(s.delta),
                         next.ptr,
@@ -1489,7 +1567,9 @@ impl Model {
         // buffers hold exactly the shapes allocated by alloc_prefix(qb).
         unsafe {
             check(
-                (cuda::api().cs1_rms_norm)(
+                (self
+                    .reference
+                    .map_or(cuda::api().cs1_rms_norm, |r| r.rms_norm))(
                     p(s.res + qb * hb),
                     self.layers[0].input_norm.ptr,
                     p(s.x + qb * hb),
@@ -1661,7 +1741,9 @@ impl Model {
                             cuda::copy_dd(p(s.ak), pre.attn_kv[fa_i].0.at(0), qb * kvb, st)?;
                         }
                         check(
-                            (cuda::api().cs1_attn_prep)(
+                            (self
+                                .reference
+                                .map_or(cuda::api().cs1_attn_prep, |r| r.attn_prep))(
                                 p(s.attn_in + qb * ab),
                                 p(k + qb * ab),
                                 w.attn_in as i32,
@@ -1720,7 +1802,9 @@ impl Model {
             }
             unsafe {
                 check(
-                    (cuda::api().cs1_add_rms_norm)(
+                    (self
+                        .reference
+                        .map_or(cuda::api().cs1_add_rms_norm, |r| r.add_rms_norm))(
                         p(s.res + qb * hb),
                         p(s.delta + qb * hb),
                         layer.post_norm.ptr,
@@ -1784,7 +1868,9 @@ impl Model {
                 .map_or(&self.final_norm, |l| &l.input_norm);
             unsafe {
                 check(
-                    (cuda::api().cs1_add_rms_norm)(
+                    (self
+                        .reference
+                        .map_or(cuda::api().cs1_add_rms_norm, |r| r.add_rms_norm))(
                         p(s.res + qb * hb),
                         p(s.delta + qb * hb),
                         next.ptr,

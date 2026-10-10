@@ -27,6 +27,26 @@ impl VisionGeometry {
         );
         Ok(n)
     }
+    pub(crate) fn use_reference_angles(&mut self, grids: &[[usize; 3]], config: &VisionConfig) {
+        self.cos.clear();
+        let quarter = config.head_dim() / 4;
+        for &[_, h, w] in grids {
+            for br in 0..h / 2 {
+                for bc in 0..w / 2 {
+                    for ir in 0..2 {
+                        for ic in 0..2 {
+                            for pos in [br * 2 + ir, bc * 2 + ic] {
+                                for i in 0..quarter {
+                                    let inv = 1.0f32 / 10000f32.powf(i as f32 / quarter as f32);
+                                    self.cos.push(pos as f32 * inv);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     pub fn new([t, h, w]: [usize; 3], config: &VisionConfig) -> Result<Self> {
         let n = Self::patch_count([t, h, w], config)?;
         let mut g = Self {
