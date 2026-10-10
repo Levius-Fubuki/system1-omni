@@ -769,6 +769,43 @@ impl Model {
         )
     }
 
+    #[allow(clippy::too_many_arguments)] // Base projection coordinates and sequence shape.
+    fn gemm_group(
+        &self,
+        s: &Scratch,
+        x: usize,
+        w: &Tensor,
+        y: usize,
+        m: usize,
+        lengths: &[usize],
+        group: Group,
+    ) -> Result<()> {
+        if self.lora.is_none() {
+            return self.gemm(s, x, w, y, m);
+        }
+        let components = lora::component_rows(&self.cfg, group)?;
+        ensure!(
+            components.iter().sum::<usize>() == w.shape[0],
+            "base component weight shape"
+        );
+        let work = s.lora.as_ref().context("missing base component work")?;
+        // SAFETY: stacked() validated contiguous component weights; scratch holds the
+        // complete packed input/output rows, and work belongs to this serialized Model.
+        unsafe {
+            lora::project_components(
+                s.at(x),
+                w.ptr,
+                s.at(y),
+                lengths,
+                w.shape[1],
+                &components,
+                work,
+                self.gemm,
+                self.stream,
+            )
+        }
+    }
+
     #[allow(clippy::too_many_arguments)] // Layer projection coordinates in shared scratch.
     fn apply_lora(
         &self,
@@ -1197,7 +1234,15 @@ impl Model {
         for (i, layer) in self.layers.iter().enumerate() {
             match &layer.mixer {
                 Mixer::Linear(la) => {
-                    self.gemm(s, s.x, &la.in_proj, s.gdn_in, t)?;
+                    self.gemm_group(
+                        s,
+                        s.x,
+                        &la.in_proj,
+                        s.gdn_in,
+                        t,
+                        lengths,
+                        Group::LinearInput,
+                    )?;
                     self.apply_lora(i, Group::LinearInput, s, s.x, s.gdn_in, lengths)?;
                     let ld = w.gdn_in as i32;
                     let z = s.gdn_in + w.conv * BF16;
@@ -1275,7 +1320,15 @@ impl Model {
                     self.apply_lora(i, Group::LinearOutput, s, s.ln, s.delta, lengths)?;
                 }
                 Mixer::Full(fa) => {
-                    self.gemm(s, s.x, &fa.qkv, s.attn_in, t)?;
+                    self.gemm_group(
+                        s,
+                        s.x,
+                        &fa.qkv,
+                        s.attn_in,
+                        t,
+                        lengths,
+                        Group::AttentionInput,
+                    )?;
                     self.apply_lora(i, Group::AttentionInput, s, s.x, s.attn_in, lengths)?;
                     let ld = w.attn_in as i32;
                     let k = s.attn_in + w.attn_q * BF16;
@@ -1342,7 +1395,7 @@ impl Model {
                     "post-attention norm",
                 )?;
             }
-            self.gemm(s, s.x, &layer.gate_up, s.gate_up, t)?;
+            self.gemm_group(s, s.x, &layer.gate_up, s.gate_up, t, lengths, Group::GateUp)?;
             self.apply_lora(i, Group::GateUp, s, s.x, s.gate_up, lengths)?;
             unsafe {
                 check(
@@ -1451,7 +1504,15 @@ impl Model {
         for (i, layer) in self.layers.iter().enumerate() {
             match &layer.mixer {
                 Mixer::Linear(la) => {
-                    self.gemm(s, s.x + qb * hb, &la.in_proj, s.gdn_in + qb * ldbb, rows)?;
+                    self.gemm_group(
+                        s,
+                        s.x + qb * hb,
+                        &la.in_proj,
+                        s.gdn_in + qb * ldbb,
+                        rows,
+                        &[rows],
+                        Group::LinearInput,
+                    )?;
                     self.apply_lora(
                         i,
                         Group::LinearInput,
@@ -1571,7 +1632,15 @@ impl Model {
                     la_i += 1;
                 }
                 Mixer::Full(fa) => {
-                    self.gemm(s, s.x + qb * hb, &fa.qkv, s.attn_in + qb * ab, rows)?;
+                    self.gemm_group(
+                        s,
+                        s.x + qb * hb,
+                        &fa.qkv,
+                        s.attn_in + qb * ab,
+                        rows,
+                        &[rows],
+                        Group::AttentionInput,
+                    )?;
                     self.apply_lora(
                         i,
                         Group::AttentionInput,
@@ -1664,12 +1733,14 @@ impl Model {
                     "post-attention norm",
                 )?;
             }
-            self.gemm(
+            self.gemm_group(
                 s,
                 s.x + qb * hb,
                 &layer.gate_up,
                 s.gate_up + qb * 2 * cfg.intermediate * BF16,
                 rows,
+                &[rows],
+                Group::GateUp,
             )?;
             self.apply_lora(
                 i,

@@ -44,6 +44,7 @@ type Components = [Option<(Range<usize>, usize)>; 2];
 
 struct Parsed {
     pairs: Vec<Pair>,
+    base_width: usize,
 }
 
 fn targets(cfg: &Config) -> Result<Vec<Target>> {
@@ -263,7 +264,10 @@ fn parse(cfg: &Config, bytes: &[u8], scale: f32) -> Result<Parsed> {
             })
         })
         .collect::<Result<_>>()?;
-    Ok(Parsed { pairs })
+    Ok(Parsed {
+        pairs,
+        base_width: allowed.values().map(|t| t.rows).max().unwrap(),
+    })
 }
 
 pub(crate) struct Checkpoint {
@@ -296,12 +300,20 @@ impl Checkpoint {
         Ok(Self { map, parsed, scale })
     }
     pub(crate) fn upload(self, layers: usize, stream: Stream) -> Result<Lora> {
+        let mut layout = WorkLayout::for_pairs(1, &self.parsed.pairs)?.unwrap();
+        // Reuse the BF16 gather for contiguous base projection outputs. All configured
+        // components must fit even when only a small subset has an adapter.
+        layout.gather = self
+            .parsed
+            .base_width
+            .checked_mul(2)
+            .context("base projection work overflow")?;
         let mut result = Lora {
             layers: (0..layers)
                 .map(|_| std::array::from_fn(|_| Vec::new()))
                 .collect(),
             scale: self.scale,
-            layout: WorkLayout::for_pairs(1, &self.parsed.pairs)?.unwrap(),
+            layout,
         };
         for pair in self.parsed.pairs {
             let a = DeviceBuffer::new(pair.a.len())?;
@@ -376,6 +388,7 @@ pub(crate) struct Work {
     delta: DeviceBuffer,
     gather: DeviceBuffer,
     rows: usize,
+    gather_width: usize,
 }
 impl Lora {
     pub(crate) fn work(&self, rows: usize) -> Result<Work> {
@@ -386,6 +399,7 @@ impl Lora {
             delta: DeviceBuffer::new(layout.delta)?,
             gather: DeviceBuffer::new(layout.gather)?,
             rows,
+            gather_width: self.layout.gather / 2,
         })
     }
     #[allow(clippy::too_many_arguments)] // Validated projection layout plus exclusively owned device work.
@@ -495,6 +509,112 @@ impl Lora {
         }
         Ok(())
     }
+}
+
+pub(crate) fn component_rows(cfg: &Config, group: Group) -> Result<[usize; 4]> {
+    let mul = |a: usize, b: usize| {
+        a.checked_mul(b)
+            .context("base component dimension overflow")
+    };
+    Ok(match group {
+        Group::LinearInput => {
+            let kd = mul(cfg.lin_k_heads, cfg.lin_k_dim)?;
+            let vd = mul(cfg.lin_v_heads, cfg.lin_v_dim)?;
+            [
+                mul(2, kd)?
+                    .checked_add(vd)
+                    .context("base component dimension overflow")?,
+                vd,
+                cfg.lin_v_heads,
+                cfg.lin_v_heads,
+            ]
+        }
+        Group::AttentionInput => [
+            mul(mul(cfg.heads, cfg.head_dim)?, 2)?,
+            mul(cfg.kv_heads, cfg.head_dim)?,
+            mul(cfg.kv_heads, cfg.head_dim)?,
+            0,
+        ],
+        Group::GateUp => [cfg.intermediate, cfg.intermediate, 0, 0],
+        _ => anyhow::bail!("base component group is not fused"),
+    })
+}
+/// Original component GEMMs write contiguous BF16 rows before copying into fused scratch.
+///
+/// # Safety
+/// Input is packed row-major [sum(lengths),cols]; weights are contiguous row-stacked
+/// component matrices; output holds sum(lengths) rows of sum(components). Work and
+/// GEMM belong to the serialized Model on this stream.
+#[allow(clippy::too_many_arguments)] // Exact device boundary and validated component layout.
+pub(crate) unsafe fn project_components(
+    input: *const c_void,
+    weights: *const c_void,
+    output: *mut c_void,
+    lengths: &[usize],
+    cols: usize,
+    components: &[usize],
+    work: &Work,
+    gemm: *mut c_void,
+    stream: Stream,
+) -> Result<()> {
+    let stride = components
+        .iter()
+        .try_fold(0usize, |sum, &n| sum.checked_add(n))
+        .context("base component stride overflow")?;
+    ensure!(
+        stride > 0 && stride <= i32::MAX as usize && cols > 0 && cols <= i32::MAX as usize,
+        "base component dimensions"
+    );
+    ensure!(
+        components.iter().all(|&n| n <= work.gather_width),
+        "base component exceeds work width"
+    );
+    let mut row = 0;
+    for &rows in lengths {
+        ensure!(
+            rows > 0 && rows <= work.rows,
+            "base component work row bound"
+        );
+        let mut first = 0;
+        for &n in components {
+            if n == 0 {
+                continue;
+            }
+            // Match the original projection's M/N/K and contiguous input/weight/output
+            // strides. A strided GEMM output itself can choose a different cuBLAS plan.
+            unsafe {
+                check(
+                    (cuda::api().cs1_gemm)(
+                        gemm,
+                        input.wrapping_byte_add(row * cols * 2),
+                        weights.wrapping_byte_add(first * cols * 2),
+                        work.gather.at(0),
+                        rows as i32,
+                        n as i32,
+                        cols as i32,
+                        n as i32,
+                        stream,
+                    ),
+                    "base component GEMM",
+                )?;
+                cuda::copy2d(
+                    output.wrapping_byte_add((row * stride + first) * 2),
+                    stride * 2,
+                    work.gather.at(0),
+                    n * 2,
+                    n * 2,
+                    rows,
+                    stream,
+                )?;
+            }
+            first += n;
+        }
+        row = row
+            .checked_add(rows)
+            .context("base component row overflow")?;
+        ensure!(row <= i32::MAX as usize, "base component packed row bound");
+    }
+    Ok(())
 }
 
 #[cfg(test)]

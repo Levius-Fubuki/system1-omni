@@ -101,6 +101,10 @@ fn partial_pairs_keep_fp32_bytes_and_match_native_component_layouts() {
     ] {
         let bytes = pair(target, rows, cols, 16);
         let parsed = parse(&cfg, &bytes, 2.0).unwrap();
+        assert_eq!(
+            parsed.base_width, 17408,
+            "partial adapters must retain all base projection widths"
+        );
         assert_eq!(parsed.pairs.len(), 1);
         let p = &parsed.pairs[0];
         assert_eq!((p.rank, p.target.rows, p.target.cols), (16, rows, cols));
@@ -189,6 +193,44 @@ fn optional_work_is_absent_without_adapters_and_checked_for_overflow() {
     assert!(WorkLayout::for_pairs(usize::MAX, &parsed.pairs).is_err());
 }
 
+#[test]
+fn base_components_match_original_27b_and_4b_projection_shapes() {
+    for (hidden, intermediate, heads, values, linear, attention) in [
+        (
+            5120,
+            17408,
+            24,
+            48,
+            [10240, 6144, 48, 48],
+            [12288, 1024, 1024, 0],
+        ),
+        (
+            2560,
+            9216,
+            16,
+            32,
+            [8192, 4096, 32, 32],
+            [8192, 1024, 1024, 0],
+        ),
+    ] {
+        let mut cfg = config();
+        cfg.hidden = hidden;
+        cfg.intermediate = intermediate;
+        cfg.heads = heads;
+        cfg.lin_v_heads = values;
+        assert_eq!(component_rows(&cfg, Group::LinearInput).unwrap(), linear);
+        assert_eq!(
+            component_rows(&cfg, Group::AttentionInput).unwrap(),
+            attention
+        );
+        assert_eq!(
+            component_rows(&cfg, Group::GateUp).unwrap(),
+            [intermediate, intermediate, 0, 0]
+        );
+        assert!(component_rows(&cfg, Group::Down).is_err());
+    }
+}
+
 struct Temporary(std::path::PathBuf);
 impl Temporary {
     fn new() -> Self {
@@ -251,6 +293,7 @@ fn cpu_cuda_boundary_checks_fp32_sums_fused_offsets_sequences_and_retirement() {
         "cs1_copy2d",
         "cs1_vision_to_float",
         "cs1_gemm_f32",
+        "cs1_gemm",
         "cs1_vision_lora_add",
     ];
     // Required but unused functions return an error, so an unexpected dispatch fails.
@@ -426,5 +469,120 @@ fn cpu_cuda_boundary_checks_fp32_sums_fused_offsets_sequences_and_retirement() {
             0,
             "adapter/work/input/output allocations must retire"
         );
+    }
+    let base_calls = unsafe {
+        *metrics
+            .get::<unsafe extern "C" fn() -> i32>(b"lora_fake_base_calls\0")
+            .unwrap()
+    };
+    let base_arg = unsafe {
+        *metrics
+            .get::<unsafe extern "C" fn(i32, i32) -> i32>(b"lora_fake_base_arg\0")
+            .unwrap()
+    };
+    for (group, components) in [
+        (Group::LinearInput, [384, 128, 1, 1]),
+        (Group::AttentionInput, [512, 256, 256, 0]),
+        (Group::GateUp, [8, 8, 0, 0]),
+    ] {
+        assert_eq!(component_rows(&cfg, group).unwrap(), components);
+        let cols = cfg.hidden;
+        let stride: usize = components.iter().sum();
+        let input: Vec<_> = (1..=5)
+            .flat_map(|value| {
+                half::bf16::from_f32(value as f32)
+                    .to_le_bytes()
+                    .repeat(cols)
+            })
+            .collect();
+        let weights: Vec<_> = (1..=stride)
+            .flat_map(|value| {
+                half::bf16::from_f32(value as f32)
+                    .to_le_bytes()
+                    .repeat(cols)
+            })
+            .collect();
+        let original = half::bf16::ONE.to_le_bytes().repeat(5 * stride);
+        unsafe {
+            reset();
+        }
+        {
+            let path = temporary.0.join("base-partial.safetensors");
+            std::fs::write(&path, pair("layers.0.linear_attn.in_proj_b", 1, 8, 1)).unwrap();
+            let adapter = Checkpoint::load(&cfg, &path, 2.)
+                .unwrap()
+                .upload(2, stream)
+                .unwrap();
+            let work = adapter.work(2).unwrap();
+            let x = DeviceBuffer::new(input.len()).unwrap();
+            let w = DeviceBuffer::new(weights.len()).unwrap();
+            let y = DeviceBuffer::new(original.len()).unwrap();
+            unsafe {
+                cuda::upload(x.at(0), &input, stream).unwrap();
+                cuda::upload(w.at(0), &weights, stream).unwrap();
+                cuda::upload(y.at(0), &original, stream).unwrap();
+                project_components(
+                    x.at(cols * 2),
+                    w.at(0),
+                    y.at(stride * 2),
+                    &[1, 2],
+                    cols,
+                    &components,
+                    &work,
+                    std::ptr::null_mut(),
+                    stream,
+                )
+                .unwrap();
+            }
+            let mut actual = vec![0; original.len()];
+            unsafe {
+                cuda::download(&mut actual, y.at(0), stream).unwrap();
+            }
+            for row in 0..5 {
+                for col in 0..stride {
+                    let offset = (row * stride + col) * 2;
+                    let value =
+                        half::bf16::from_le_bytes(actual[offset..offset + 2].try_into().unwrap());
+                    let expected = if (1..4).contains(&row) {
+                        half::bf16::from_f32(
+                            (row + 1) as f32
+                                * half::bf16::from_f32((col + 1) as f32).to_f32()
+                                * cols as f32,
+                        )
+                    } else {
+                        half::bf16::ONE
+                    };
+                    assert_eq!(value, expected, "{group:?}, row{row}, output{col}");
+                }
+            }
+            let parts: Vec<_> = components.iter().copied().filter(|&n| n > 0).collect();
+            assert_eq!(unsafe { base_calls() }, parts.len() as i32 * 2);
+            let mut call = 0;
+            for m in [1, 2] {
+                let mut row = 0;
+                for &n in &parts {
+                    assert_eq!(
+                        (0..4)
+                            .map(|arg| unsafe { base_arg(call, arg) })
+                            .collect::<Vec<_>>(),
+                        [m, n as i32, cols as i32, n as i32]
+                    );
+                    assert_eq!(
+                        unsafe { base_arg(call, 4) },
+                        half::bf16::from_f32((row + 1) as f32).to_bits() as i32,
+                        "component weight offset"
+                    );
+                    row += n;
+                    call += 1;
+                }
+            }
+            assert_eq!(unsafe { copies() }, parts.len() as i32 * 2);
+            assert_eq!(
+                unsafe { gemms() },
+                0,
+                "base split must not call FP32 adapter GEMM"
+            );
+        }
+        assert_eq!(unsafe { live() }, 0);
     }
 }
