@@ -14,3 +14,7 @@ sha2 = "0.10"
 [[test]]
 name = "config"
 path = "../../../../tests/decider/config.rs"
+
+[[test]]
+name = "contract"
+path = "../../../../tests/decider/contract.rs"
