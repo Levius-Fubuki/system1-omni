@@ -137,6 +137,7 @@ fn vision_graph_equal_patch_count_geometry_and_retirement() {
         image([1, 16, 16], 7),
         image([1, 32, 8], 7),
         image([1, 16, 32], 8),
+        image([1, 32, 16], 9),
     ];
     let expected: Vec<_> = inputs
         .iter()
@@ -147,7 +148,7 @@ fn vision_graph_equal_patch_count_geometry_and_retirement() {
         "geometry must affect the feature oracle"
     );
     model.graph_enabled = true;
-    for index in [0, 0, 1, 1, 2, 2, 3, 3, 0, 0] {
+    for index in [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 0, 0] {
         assert_eq!(
             bits(&model.forward(&inputs[index]).unwrap()),
             expected[index]
@@ -159,6 +160,13 @@ fn vision_graph_equal_patch_count_geometry_and_retirement() {
             .unwrap();
         assert_eq!(scratch.grid, inputs[index].image_grid_thw);
         assert!(scratch.graph.is_some());
+        assert_eq!(model.scratch.len(), 4);
+        if index == 4 {
+            assert!(
+                model.scratch.iter().all(|s| s.grid != inputs[0].image_grid_thw),
+                "the fifth distinct grid must evict the oldest FIFO entry"
+            );
+        }
     }
     drop(model); // graph must retire before scratch/weights/GEMM/stream
     let mut fresh = load();
