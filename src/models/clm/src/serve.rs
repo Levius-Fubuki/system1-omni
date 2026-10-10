@@ -15,7 +15,7 @@ use anyhow::{Context, Result, bail, ensure};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// The fields of a request that get rendered, kept as the text they arrived as.
 ///
@@ -94,15 +94,61 @@ fn render_raw(raw: &str) -> Result<String> {
 /// can be called per key: a number is always spelled by the literal it was written with,
 /// whatever order the keys are read in.
 ///
-/// The pairing is checked. The two halves are collected independently — a flat scan of the
-/// text against a walk of the parsed value — which holds only while the value has one number
-/// for every number in the text. A repeated key is what breaks it, and this refuses to render
-/// rather than spell a number with another number's literal.
+/// Object keys must be unique before pairing: replacing a nonnumeric value with a
+/// number can reorder the numeric walk even when the two number counts agree.
 fn render_with(raw: &str, value: &Value) -> Result<String> {
+    ensure_unique_keys(raw)?;
     let mut numbers = NumberLiterals::of(raw);
     let text = render(value, 0, &mut numbers);
     numbers.ensure_paired()?;
     Ok(text)
+}
+
+/// Inspect object entries before serde's maps can collapse duplicate keys. Children
+/// stay as raw JSON so validating them never rounds an arbitrary-precision integer.
+fn ensure_unique_keys(raw: &str) -> Result<()> {
+    struct ObjectFields(Vec<Box<RawValue>>);
+
+    impl<'de> Deserialize<'de> for ObjectFields {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct FieldsVisitor;
+            impl<'de> serde::de::Visitor<'de> for FieldsVisitor {
+                type Value = ObjectFields;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    formatter.write_str("a JSON object with unique keys")
+                }
+
+                fn visit_map<M: serde::de::MapAccess<'de>>(
+                    self,
+                    mut map: M,
+                ) -> Result<Self::Value, M::Error> {
+                    let mut keys = HashSet::new();
+                    let mut fields = Vec::new();
+                    while let Some(key) = map.next_key::<String>()? {
+                        if !keys.insert(key.clone()) {
+                            return Err(serde::de::Error::custom(format!(
+                                "a JSON object repeats a key: {key:?}"
+                            )));
+                        }
+                        fields.push(map.next_value::<Box<RawValue>>()?);
+                    }
+                    Ok(ObjectFields(fields))
+                }
+            }
+            deserializer.deserialize_map(FieldsVisitor)
+        }
+    }
+
+    let children = match raw.trim_start().as_bytes().first() {
+        Some(b'{') => serde_json::from_str::<ObjectFields>(raw)?.0,
+        Some(b'[') => serde_json::from_str::<Vec<Box<RawValue>>>(raw)?,
+        _ => return Ok(()),
+    };
+    for child in children {
+        ensure_unique_keys(child.get())?;
+    }
+    Ok(())
 }
 
 use crate::embedding::Encoder;
@@ -248,7 +294,11 @@ impl Request {
                 None => q.instructions.clone(),
             };
             let mut numbers = match criteria_raw {
-                Some(text) => NumberLiterals::of(text),
+                Some(text) => {
+                    ensure_unique_keys(text)
+                        .with_context(|| format!("question {id:?} has invalid criteria"))?;
+                    NumberLiterals::of(text)
+                }
                 None => NumberLiterals::default(),
             };
             let (keys, candidate_texts) =
@@ -402,9 +452,9 @@ fn candidates_with(
 /// `1.8446744073709552e19` — where `json.loads` gives Python an arbitrary-precision `int`
 /// and `str` prints every digit. The literal is the only place those digits survive.
 ///
-/// A lexer is enough to collect them because a depth-first walk of the parsed value meets
-/// numbers in the same order, so the two can be paired up without a second parser. The
-/// walk below is that pairing; [`NumberLiterals::of`] documents what keeps them in step.
+/// After duplicate keys are rejected, a depth-first walk of the parsed value meets
+/// numbers in the same order as the lexer. The walk below pairs them;
+/// [`NumberLiterals::of`] documents how strings are skipped.
 #[derive(Debug, Clone, Default)]
 pub struct NumberLiterals {
     literals: Vec<String>,
@@ -451,15 +501,8 @@ impl NumberLiterals {
         literal
     }
 
-    /// Refuse the pairing when the walk left literals the lexer had found.
-    ///
-    /// The lexer scans the text and the walk follows the value it parsed to, so they agree
-    /// only while the value holds one number for every number in the text. A repeated key
-    /// breaks that: `serde_json` keeps the last value at the first key's position, so the
-    /// walk visits one number where the text held two and **every number after it takes the
-    /// wrong literal**. Python's `json.loads` collapses a repeated key the same way, so the
-    /// reference renders such a document happily and no oracle case can catch the
-    /// difference — it is silent on both sides unless it is refused here.
+    /// Check the cursor consumed the literals after structural duplicate-key
+    /// validation. Cardinality alone cannot prove the numbers occur in the same order.
     fn ensure_paired(&self) -> Result<()> {
         ensure!(
             self.at >= self.literals.len(),

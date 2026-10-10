@@ -470,10 +470,9 @@ fn the_literals_line_up_with_the_values() {
         );
     }
 
-    // A repeated key is the one case where they cannot agree: the map keeps the last value
-    // at the first key's position, so the walk visits one number where the text holds two,
-    // and every number after it is spelled with the wrong literal. Rendering refuses rather
-    // than pair them — see `a_repeated_key_is_refused_rather_than_paired_wrongly`.
+    // Numeric duplicates can change cardinality. Replacing a nonnumeric value can instead
+    // change traversal order while leaving the counts equal; request-path tests below pin
+    // that case too. Structural validation rejects both before pairing any literals.
     let raw = r#"{"a": 1, "b": 2, "a": 3}"#;
     let value: Value = serde_json::from_str(raw).unwrap();
     assert_eq!(NumberLiterals::of(raw).len(), 3);
@@ -500,9 +499,19 @@ fn a_repeated_key_is_refused_rather_than_paired_wrongly() {
         assert!(error.contains("repeats a key"), "{raw}: {error}");
     }
 
-    // With no number to mispair, the collapse is what Python does too — the map keeps the
-    // last value at the first key's position, so the rendering already agrees.
-    assert_eq!(to_text_json(r#"{"a": "x", "a": "y"}"#).unwrap(), "a: y");
+    // Structural validation rejects duplicates independently of numeric counts.
+    for raw in [
+        r#"{"a":"x","a":"y"}"#,
+        r#"{"a":"x","b":3,"a":2}"#,
+        r#"{"a":"x","b":3,"\u0061":2}"#,
+    ] {
+        assert!(
+            to_text_json(raw)
+                .unwrap_err()
+                .to_string()
+                .contains("repeats a key")
+        );
+    }
 }
 
 /// The same refusal on the path a whole request takes.
@@ -540,4 +549,59 @@ fn a_request_that_repeats_a_key_is_refused() {
             "{state} + {question}: {chain}"
         );
     }
+}
+
+/// Losing a nonnumeric value can reorder numbers without changing their count.
+#[test]
+fn request_rejects_duplicate_keys_even_when_number_counts_match() {
+    let choice = r#"{"type":"choice","instructions":"Pick","criteria":{"x":"X","y":"Y"}}"#;
+    for state in [
+        r#"{"a":"x","b":3,"a":2}"#,
+        r#"{"a":2,"b":3,"a":"x"}"#,
+        r#"{"a":"x","a":"y"}"#,
+        r#"{"a":"x","b":3,"\u0061":2}"#,
+        r#"{"outer":[{"a":"x","b":3,"a":2}],"after":4}"#,
+    ] {
+        let line = format!(r#"{{"state":{state},"questions":{{"q":{choice}}}}}"#);
+        let result = Request::parse_line(&line).and_then(|request| request.prepare());
+        let error = result.expect_err(&line);
+        assert!(
+            format!("{error:#}").contains("repeats a key"),
+            "{line}: {error:#}"
+        );
+    }
+}
+
+#[test]
+fn request_rejects_duplicate_keys_in_every_rendered_question_field() {
+    for question in [
+        r#"{"type":"choice","instructions":{"a":"x","b":3,"a":2},"criteria":{"x":"X","y":"Y"}}"#,
+        r#"{"type":"choice","instructions":[{"a":"x","a":"y"}],"criteria":{"x":"X","y":"Y"}}"#,
+        r#"{"type":"choice","instructions":"Pick","criteria":{"x":"X","y":"Y","x":"Z"}}"#,
+        r#"{"type":"choice","instructions":"Pick","criteria":{"x":{"a":"x","b":3,"a":2},"y":"Y"}}"#,
+        r#"{"type":"score","instructions":"Rate","criteria":[{"a":"x","b":3,"a":2},4]}"#,
+        r#"{"type":"score","instructions":"Rate","criteria":[{"a":"x","a":"y"},4]}"#,
+        r#"{"type":"noul","instructions":"True?","criteria":{"true":"yes","false":"no","true":"maybe"}}"#,
+        r#"{"type":"noul","instructions":"True?","criteria":{"true":{"a":"x","b":3,"a":2},"false":"no"}}"#,
+        r#"{"type":"noul","instructions":"True?","criteria":{"true":[{"a":"x","\u0061":"y"}],"false":"no"}}"#,
+    ] {
+        let line = format!(r#"{{"state":{{}},"questions":{{"q":{question}}}}}"#);
+        let result = Request::parse_line(&line).and_then(|request| request.prepare());
+        let error = result.expect_err(&line);
+        assert!(
+            format!("{error:#}").contains("repeats a key"),
+            "{line}: {error:#}"
+        );
+    }
+}
+
+#[test]
+fn unique_keys_keep_scopes_and_numeric_literals_in_request_text() {
+    let line = r#"{"state":{"a":2,"b":3,"nested":{"a":18446744073709551616}},"questions":{"q":{"type":"choice","instructions":{"a":340282366920938463463374607431768211456},"criteria":{"x":{"a":2,"b":3},"y":{"a":4}}}}}"#;
+    let prepared = Request::parse_line(line).unwrap().prepare().unwrap();
+    assert_eq!(
+        prepared[0].state_text,
+        "a: 2\n\nb: 3\n\nnested:\n  a: 18446744073709551616\n\na: 340282366920938463463374607431768211456"
+    );
+    assert_eq!(prepared[0].candidate_texts, ["a: 2\n\nb: 3", "a: 4"]);
 }

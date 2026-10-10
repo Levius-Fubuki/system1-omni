@@ -16,6 +16,11 @@ That split is the point of implementing it second. LAYA's engine owns one forwar
 | `embedding` | the `/v1/embeddings` client, and a hashing encoder for CPU-only checks |
 | `serve` | request parsing, the text the heads see, and the answer shape |
 
+Object keys in rendered state, instructions and criteria must be unique, including
+nested objects and keys with equivalent JSON escapes. Duplicate keys fail preparation
+before embedding; otherwise collapsing a key can bind a number to another field's
+original literal. Unique-key requests retain Python-compatible number formatting.
+
 `clm-run CHECKPOINT_DIR --emb-url URL` reads one request object per line and writes one response per line, which is how `recipe/clm/native/compare_with_reference.py` drives it.
 
 ## The checkpoint is converted first
