@@ -13,10 +13,14 @@ unsupported. Multi-image reference parity has a known limitation below.
 | MaestroYan/JEMM adapter | `76e3c209e8441fa658221c7ba2725bad2f811176` |
 | Qwen/Qwen3.8-27B base/tokenizer/processor | `1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0` |
 
-The exporter verifies pinned file SHA-256s and tensor inventory, merges language
-LoRA in FP32 into cloned BF16 weights and extracts 32 rows from the untied LM
-head. `jemm_export.json` records every exported file's SHA-256. Startup verifies
-complete file/shard coverage before CUDA initialization; keep files immutable
+The `jemm-native/2` exporter verifies pinned file SHA-256s and tensor inventory,
+retains the 17 original BF16 language shards byte for byte, and preserves the raw
+FP32 adapter separately (496 rank-16 pairs, scale 2). Its language-only index
+retains original `model.language_model.*` keys. Vision tensors and 32 selected
+rows from the untied LM head are extracted without merging adapter weights.
+`jemm_export.json` records every exported file's SHA-256 and the adapter contract.
+Startup verifies original shard and adapter pins before CUDA initialization;
+legacy premerged `jemm-native/1` exports are explicitly rejected. Keep files immutable
 while serving. This head requires the pinned temperatures 1.3480874159655591
 (text), 1.3954832341582943 (images) and threshold 0.9872681877423998. Follow-up
 #122 loads validated calibration from the checksum-covered decision config;
@@ -80,7 +84,10 @@ There is no cross-request batching or prefix cache.
 
 ## Validation and known multi-image limitation
 
-The historical A800 BF16 corpus (13 requests / 16 questions, text and single-image
+The unmerged FP32-adapter v2 path requires a fresh device/reference campaign;
+CPU export and contract checks alone do not establish its numerical parity.
+
+The historical premerged v1 A800 BF16 corpus (13 requests / 16 questions, text and single-image
 inputs) passed exact tokens/positions/grids/pixels and predeclared probability
 0.02 / Score 0.1 / winner-margin 0.05 gates. Max probability drift was 0.0015338802.
 These results are scoped to the source revisions and corpus in

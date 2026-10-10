@@ -2,7 +2,9 @@
 
 Run from the repository root on Linux with a CUDA GPU (compute capability 8.0+),
 nvcc/cuBLASLt and Rust. Historical validation used one A800 80 GB. The raw base
-and adapter need about 55.6 GB disk and the export about 52 GB more. Export is an
+and adapter need about 55.6 GB disk. V2 exports hardlink unchanged files on the
+same filesystem; cross-filesystem exports copy the 17 language shards and raw
+FP32 adapter, requiring additional disk for those files. Export is an
 offline CPU operation using torch, safetensors and Transformers; the running
 Rust worker needs no Python serving process. Keep inputs/exports immutable.
 
@@ -36,6 +38,10 @@ python recipe/jemm/export.py --base "$JEMM_DATA/base" \
 The checked-in pinned inventory verifies every required input file and tensor.
 Interrupted exports may resume only with matching inputs, producer and recorded
 runtime. Do not substitute similarly named checkpoints or newer revisions.
+The `jemm-native/2` format keeps the original BF16 language weights and FP32
+adapter separate, with rank 16, 496 pairs and scale 2. Use a new directory for v2;
+legacy premerged v1 directories are rejected rather than reused. Hardlinked
+inputs and outputs share file contents and must remain immutable.
 
 ## Build, launch and request
 
@@ -71,6 +77,8 @@ claim that those inputs now pass. Native CPU/Metal execution is unsupported.
 ## Checks and reference
 
 ```sh
+# CPU exporter tests, in the environment containing torch and safetensors:
+python -m unittest discover -s tests/jemm -p 'test_export.py' -v
 cargo fmt --all --check
 cargo clippy --workspace --locked --all-targets -- -D warnings
 cargo test --workspace --locked
@@ -81,7 +89,8 @@ JEMM_CUDA_LIB="$PWD/target/release/libqwen3_5_cuda.so" \
   --ignored --test-threads=1
 ```
 
-CPU checks compile the worker and exercise host contracts. They cannot prove the
+CPU checks compile the worker and exercise host/export contracts. The new
+unmerged FP32-adapter path has no fresh GPU parity claim in these host checks. They cannot prove the
 real image warmup, multi-image parity or device failure recovery. Hardware tests
 require a separately reserved device; normal CI compiles and ignores the CUDA case.
 

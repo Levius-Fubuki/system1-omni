@@ -192,6 +192,8 @@ pub struct Executor {
 impl Executor {
     pub async fn load(dir: &Path, library: &Path, manifest: &Value) -> Result<Self> {
         crate::artifacts::verify_export(dir, manifest)?;
+        let (adapter_file, scale) = crate::artifacts::lora_contract(manifest)?;
+        let adapter_path = dir.join(adapter_file);
         let cfg = Config::load(dir)?;
         ensure!(
             (
@@ -215,7 +217,7 @@ impl Executor {
         )?;
         let (dir, library) = (dir.to_path_buf(), library.to_path_buf());
         let state = tokio::task::spawn_blocking(move || -> Result<Loaded> {
-            let language = Model::load(&dir, &library)?;
+            let language = Model::load_with_lora(&dir, &library, &adapter_path, scale)?;
             let vision = VisionModel::load(&dir, &library)?;
             let head = LabelHead::load(&bytes, cfg.hidden)?;
             Ok(Loaded {
