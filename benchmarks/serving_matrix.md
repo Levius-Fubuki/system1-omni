@@ -109,7 +109,8 @@ interior completion window: sort retained monotonic completion timestamps, exclu
 the first and last c completions, and measure from the c-th completion boundary
 to the last retained completion. Count only the n−2c interior requests/decisions.
 Short (n <= 2c), failed or zero-duration windows have `available: false` and a reason.
-The four-request/two-worker example deliberately has no interior-window estimate.
+In the four-request example, concurrency 2 has no interior-window estimate;
+concurrency 1 can report a two-request window, which is too short to establish stationarity.
 
 Prefer at least 16 requests per worker for measurements (for example 2048 requests
 at concurrency 64); short plans remain useful smoke checks. The interior estimator
