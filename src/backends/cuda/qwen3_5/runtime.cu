@@ -73,11 +73,4 @@ int cs1_graph_launch(void* exec, void* stream) {
 
 int cs1_graph_destroy(void* exec) { return cudaGraphExecDestroy(static_cast<cudaGraphExec_t>(exec)); }
 
-int cs1_copy_rows(void* dst, size_t dst_pitch, const void* src, size_t src_pitch, size_t row_bytes,
-                  int rows, void* stream) {
-    if (rows < 0) return cudaErrorInvalidValue;
-    if (rows == 0 || row_bytes == 0) return cudaSuccess;
-    return cudaMemcpy2DAsync(dst, dst_pitch, src, src_pitch, row_bytes, rows, cudaMemcpyDeviceToDevice,
-                             static_cast<cudaStream_t>(stream));
-}
 }  // extern "C"

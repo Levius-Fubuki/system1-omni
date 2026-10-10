@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 // Bumped whenever the required interface below changes.
-#define CS1_ABI_VERSION 8
+#define CS1_ABI_VERSION 7
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,44 +41,6 @@ int cs1_copy_dd(void* dst, const void* src, size_t bytes, void* stream);
 // Pitched copy both ways (default direction = device-to-device):
 // height rows of `width`, output pitch dpitch, input pitch spitch, in bytes.
 int cs1_copy2d(void* dst, size_t dpitch, const void* src, size_t spitch, size_t width, size_t height, void* stream);
-
-// Queue a device-to-device copy of `rows` rows of `row_bytes` bytes, with row
-// pitches in bytes; nothing waits for it.
-int cs1_copy_rows(void* dst, size_t dst_pitch, const void* src, size_t src_pitch, size_t row_bytes,
-                  int rows, void* stream);
-
-// The same conv continuing a sequence: history [3, key_dim*2 + value_dim] holds the conv
-// inputs of the three positions before qkv's first row, oldest first (null: zeros, as at
-// the start of a sequence). If history_out is not null, it receives the inputs of the
-// last three positions in the same layout, taken from history where T < 3. history_out
-// must not overlap history or qkv. Each output equals the unsplit conv's bit for bit.
-int cs1_gdn_conv_history(const void* qkv, int ld, const void* w, const void* history, void* history_out,
-                         void* q, void* k, void* v, int T, int key_dim, int value_dim, void* stream);
-
-// The same prefill continuing a sequence from initial_state (float [H, 128, 128], key by
-// value per head; null: zeros) and, if final_state is not null, writing the state after
-// the last token there in the same layout. Both are 8-byte aligned, and either the same
-// buffer or not overlapping. With T = 0, final_state receives initial_state. When every
-// split falls on a multiple of 64 tokens, the outputs match the unsplit prefill bit for
-// bit; elsewhere the chunks fall differently.
-int cs1_gdn_prefill_state(const void* q, const void* k, const void* v, const float* g, const void* beta,
-                          void* o, float* workspace, const float* initial_state, float* final_state, int T,
-                          int H, int HK, float scale, void* stream);
-
-// Gated attention for the last Tq of Tk positions: k [Tk, Hk, Dh] and v (Tk rows of ldv)
-// cover all positions, while q, gate and out [Tq, Hq, Dh] are the queries at positions
-// Tk - Tq onwards, each attending to the keys up to its own position. Keys are visited
-// in the same order as in cs1_attention_gated, so each output row matches the unsplit call.
-int cs1_attention_gated_cached(const void* q, const void* k, const void* v, int ldv, const void* gate,
-                               void* out, int Tq, int Tk, int Hq, int Hk, int Dh, float scale,
-                               void* stream);
-
-// A handle that keeps one algorithm per weight shape (N, K, ldy) for every M, chosen at
-// reference_m rows among algorithms without split-K, so that a row's result depends
-// neither on M nor on its row index (checked by tests/qwen3_5/kernels.rs on the GPU it
-// runs on). Null if reference_m <= 0 or setup fails. cs1_gemm with this handle returns a
-// cuBLAS status for an M the algorithm cannot serve, rather than switching algorithms.
-void* cs1_gemm_create_fixed(size_t workspace_bytes, int reference_m);
 
 // ---- operations ----
 
@@ -156,6 +118,12 @@ int cs1_silu_mul(const void* gate_up, int ld, void* out, int T, int I, void* str
 // y [M, N] (rows of ldy) = x [M, K] * w [N, K]^T through cuBLASLt, float32 accumulation,
 // with cuBLASLt's first heuristic choice for each shape (see gemm.cu).
 void* cs1_gemm_create(size_t workspace_bytes);
+// A handle that keeps one algorithm per weight shape (N, K, ldy) for every M, chosen at
+// reference_m rows among algorithms without split-K, so that a row's result depends
+// neither on M nor on its row index (checked by tests/qwen3_5/kernels.rs on the GPU it
+// runs on). Null if reference_m <= 0 or setup fails. cs1_gemm with this handle returns a
+// cuBLAS status for an M the algorithm cannot serve, rather than switching algorithms.
+void* cs1_gemm_create_fixed(size_t workspace_bytes, int reference_m);
 void cs1_gemm_destroy(void* gemm);
 int cs1_gemm(void* gemm, const void* x, const void* w, void* y, int M, int N, int K, int ldy,
              void* stream);

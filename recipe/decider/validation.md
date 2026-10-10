@@ -31,6 +31,24 @@ Before execution, the harness fixes these gates:
 - Exact prepared tokens, candidate IDs/order, readout positions, usage and answer
   identities. Complete responses retain all model-specific fields.
 
+The current helpers record validation protocol **version 2** before execution.
+The three fidelity gates above are unchanged. Both native and reference responses
+must have the complete typed schema, finite non-boolean numeric values, valid
+ranges and the pinned decimal rounding. Confidence, certainty and `x_p_max` are
+checked against their formulas using the intervals implied by four-decimal
+probability rounding (half a unit is 0.00005); Score confidence accounts for modal
+ties hidden by that rounding. Score expectation also receives its two-decimal
+formula check. These checks do not impose a common empirical tolerance on all
+auxiliary fields.
+
+For `n` Score levels, `fit_mass` must agree with the sum of reported level fits
+within `(n + 1) * 0.00005`, accounting for rounding each fit and the sum. Its
+reference drift bound is `n * 0.02 + 2 * (n + 1) * 0.00005`, derived from the
+unchanged per-level gate and both response rounding allowances. The protocol saves
+these methods explicitly. Historical inference records retain their original run
+protocol; applying the revised validator to archived records is a CPU recheck,
+not a new execution or evidence for the consolidated current head.
+
 ## Recorded eager baseline results
 
 The 18-request corpus has **41 independent inference rows**. It covers Choice with
@@ -193,16 +211,20 @@ like `fail_head.c` above, then pass `--binary`, `--model`, `--wrapper`,
 
 ## Shared-prefix controls
 
-The dependent prefix branch consumes the continuation, fixed-GEMM and executor
-commits from Qwen PRs #97/#98/#99 while preserving main's packed prefill and Graph.
-Rebuild all current-branch consumers with ABI8. The unchanged default GEMM handle serves the
+The dependent prefix branch consumes the canonical continuation, fixed-GEMM and
+executor implementation from Qwen PRs #98/#99 while preserving main's packed
+prefill and Decider Graph statistics. The duplicate private continuation path and
+its additional ABI8 entry points have been removed. Both workers use public
+`PrefixState` and the same `run_window` implementation. The consolidated head
+requires ABI7; current-head GPU/reference/HTTP/performance validation is unverified.
+Rebuild all current-branch consumers with ABI7. The unchanged default GEMM handle serves the
 normal/Graph path; fixed/shared modes use a separate no-split-K handle selected
 at reference M64. Model tests compare shared branches bit for bit with independent
 `forward_fixed` rows, including prefixes around 64-token boundaries, growth,
 repetition, reordering, invalid IDs and interleaved Graph calls. Kernel tests now
 include Decider's 2048 hidden width, 16 GDN heads and 8/2 attention heads alongside
 the existing 4B/9B/27B shapes. Run ignored tests serially with `CUA_S1_CUDA_LIB`,
-`QWEN3_5_MODEL`, `DECIDER_MODEL` and `DECIDER_CUDA_LIB` set to the ABI8 library
+`QWEN3_5_MODEL`, `DECIDER_MODEL` and `DECIDER_CUDA_LIB` set to the ABI7 library
 and pinned Decider checkpoint.
 
 For response controls, put fixed4 before shared4 in the frozen modes plan and set

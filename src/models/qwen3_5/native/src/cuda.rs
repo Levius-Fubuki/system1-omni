@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 use anyhow::{Context, Result, bail, ensure};
 
 /// `CS1_ABI_VERSION` in ops.h.
-const ABI_VERSION: u32 = 8;
+const ABI_VERSION: u32 = 7;
 pub const LIBRARY: &str = "libqwen3_5_cuda.so";
 
 /// A `cudaStream_t`.
@@ -75,24 +75,6 @@ api! {
     cs1_download(dst: *mut c_void, src: *const c_void, bytes: usize, stream: Stream) -> c_int;
     cs1_copy_dd(dst: *mut c_void, src: *const c_void, bytes: usize, stream: Stream) -> c_int;
     cs1_copy2d(dst: *mut c_void, dpitch: usize, src: *const c_void, spitch: usize, width: usize, height: usize, stream: Stream) -> c_int;
-    cs1_copy_rows(
-        dst: *mut c_void, dst_pitch: usize, src: *const c_void, src_pitch: usize, row_bytes: usize, rows: c_int,
-        stream: Stream,
-    ) -> c_int;
-    cs1_gdn_conv_history(
-        qkv: *const c_void, ld: c_int, w: *const c_void, history: *const c_void, history_out: *mut c_void,
-        q: *mut c_void, k: *mut c_void, v: *mut c_void, t: c_int, key_dim: c_int, value_dim: c_int, stream: Stream,
-    ) -> c_int;
-    cs1_gdn_prefill_state(
-        q: *const c_void, k: *const c_void, v: *const c_void, g: *const f32, beta: *const c_void, o: *mut c_void,
-        workspace: *mut f32, initial_state: *const f32, final_state: *mut f32, t: c_int, h: c_int, hk: c_int,
-        scale: f32, stream: Stream,
-    ) -> c_int;
-    cs1_attention_gated_cached(
-        q: *const c_void, k: *const c_void, v: *const c_void, ldv: c_int, gate: *const c_void,
-        out: *mut c_void, tq: c_int, tk: c_int, hq: c_int, hk: c_int, dh: c_int, scale: f32, stream: Stream,
-    ) -> c_int;
-    cs1_gemm_create_fixed(workspace_bytes: usize, reference_m: c_int) -> *mut c_void;
     cs1_embed(ids: *const i32, table: *const c_void, out: *mut c_void, t: c_int, d: c_int, stream: Stream) -> c_int;
     cs1_rms_norm(
         x: *const c_void, w: *const c_void, out: *mut c_void, rows: c_int, d: c_int, eps: f32, stream: Stream,
@@ -143,6 +125,7 @@ api! {
     cs1_sigmoid_gate(x: *mut c_void, gate: *const c_void, n: usize, stream: Stream) -> c_int;
     cs1_silu_mul(gate_up: *const c_void, ld: c_int, out: *mut c_void, t: c_int, i: c_int, stream: Stream) -> c_int;
     cs1_gemm_create(workspace_bytes: usize) -> *mut c_void;
+    cs1_gemm_create_fixed(workspace_bytes: usize, reference_m: c_int) -> *mut c_void;
     cs1_gemm_destroy(gemm: *mut c_void);
     cs1_gemm(
         gemm: *mut c_void, x: *const c_void, w: *const c_void, y: *mut c_void, m: c_int, n: c_int, k: c_int,

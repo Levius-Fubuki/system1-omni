@@ -337,8 +337,8 @@ constexpr int SS_LD = BVS + 8;      // bfloat16 row stride of the S copy and v_n
 constexpr int STAGE = C * WS_LD;    // elements of one staged w or kd
 constexpr size_t SMEM2_BYTES = (4 * STAGE + K * SS_LD + C * SS_LD) * 2;
 
-__global__ void __launch_bounds__(ST_THREADS) gdn_chunk_state(Work ws, int NC, const float* S_IN,
-                                                              float* S_OUT) {
+__global__ void __launch_bounds__(ST_THREADS) gdn_chunk_state(Work ws, int NC, const float* __restrict__ S_IN,
+                                                              float* __restrict__ S_OUT) {
     extern __shared__ __align__(128) unsigned char sm[];
     bf16* wbuf = reinterpret_cast<bf16*>(sm);  // [2][C][WS_LD]
     bf16* kbuf = wbuf + 2 * STAGE;              // [2][C][WS_LD]
@@ -612,18 +612,6 @@ int cs1_gdn_prefill_x(const void* q, const void* k, const void* v, const float* 
                       void* o, float* workspace, int T, int H, int HK, float scale,
                       const void* s_in, void* s_out, void* stream) {
     return gdn_prefill_run(q, k, v, g, beta, o, workspace, T, H, HK, scale, s_in, s_out, stream);
-}
-
-
-int cs1_gdn_prefill_state(const void* q, const void* k, const void* v, const float* g, const void* beta,
-                          void* o, float* workspace, const float* initial_state, float* final_state, int T,
-                          int H, int HK, float scale, void* stream) {
-    if (T < 0 || H < 0 || HK <= 0 || H % HK != 0) return cudaErrorInvalidValue;
-    if ((reinterpret_cast<uintptr_t>(initial_state) | reinterpret_cast<uintptr_t>(final_state)) & 7)
-        return cudaErrorInvalidValue;
-    if (T == 0 && (!final_state || final_state == initial_state)) return cudaSuccess;
-    return gdn_prefill_run(q, k, v, g, beta, o, workspace, T, H, HK, scale,
-                           initial_state, final_state, stream);
 }
 
 }  // extern "C"
