@@ -87,14 +87,22 @@ impl RawFields {
 /// and nothing depends on the order the fields appear in.
 fn render_raw(raw: &str) -> Result<String> {
     let value: Value = serde_json::from_str(raw).context("render a request field")?;
-    Ok(render_with(raw, &value))
+    render_with(raw, &value)
 }
 
 /// Render `value` from the text it arrived as. The literals are the value's own, so this
 /// can be called per key: a number is always spelled by the literal it was written with,
 /// whatever order the keys are read in.
-fn render_with(raw: &str, value: &Value) -> String {
-    render(value, 0, &mut NumberLiterals::of(raw))
+///
+/// The pairing is checked. The two halves are collected independently — a flat scan of the
+/// text against a walk of the parsed value — which holds only while the value has one number
+/// for every number in the text. A repeated key is what breaks it, and this refuses to render
+/// rather than spell a number with another number's literal.
+fn render_with(raw: &str, value: &Value) -> Result<String> {
+    let mut numbers = NumberLiterals::of(raw);
+    let text = render(value, 0, &mut numbers);
+    numbers.ensure_paired()?;
+    Ok(text)
 }
 
 use crate::embedding::Encoder;
@@ -230,10 +238,7 @@ impl Request {
     /// field gets its own literals, so neither the number of questions nor the order
     /// the fields were written in can shift which literal belongs to which number.
     fn prepare_from_text(&self, raw: &RawFields) -> Result<Vec<Prepared>> {
-        let mut state_numbers = NumberLiterals::of(&raw.state);
-        let state = render(&self.state, 0, &mut state_numbers)
-            .trim()
-            .to_string();
+        let state = render_with(&raw.state, &self.state)?.trim().to_string();
 
         let mut prepared = Vec::with_capacity(self.questions.len());
         for (id, q) in &self.questions {
@@ -325,7 +330,7 @@ fn candidates_with(
         .and_then(|values| values.get(key))
     {
         Some(raw) => render_with(raw.get(), v),
-        None => render(v, 0, numbers),
+        None => Ok(render(v, 0, numbers)),
     };
     match q.kind {
         Kind::Choice => {
@@ -342,13 +347,14 @@ fn candidates_with(
             // The option's own text when one is given, else the key. Nothing is prefixed.
             // "Given" is the reference's test — null or the empty string — so an empty
             // container is a description that renders to nothing, not a missing one.
-            let texts = keys
-                .iter()
-                .map(|k| match &crit[k] {
+            let mut texts = Vec::with_capacity(keys.len());
+            for k in &keys {
+                let v = &crit[k];
+                texts.push(match v {
                     v if v.is_null() || v.as_str() == Some("") => k.clone(),
-                    v => value_text(k, v, numbers),
-                })
-                .collect();
+                    v => value_text(k, v, numbers)?,
+                });
+            }
             Ok((keys, texts))
         }
         Kind::Score => {
@@ -359,7 +365,11 @@ fn candidates_with(
                 .context("score question needs 'criteria' as an ordered list of levels")?;
             ensure!(crit.len() >= 2, "score question needs at least two levels");
             let keys = (0..crit.len()).map(|i| i.to_string()).collect();
-            let texts = crit.iter().map(|c| render(c, 0, numbers)).collect();
+            let texts: Vec<String> = crit.iter().map(|c| render(c, 0, numbers)).collect();
+            // A `score`'s levels are a list, so they share one cursor over the list's own text
+            // rather than binding per key the way `choice` does. A level that is an object
+            // repeating a key can still leave the cursor short of it.
+            numbers.ensure_paired()?;
             Ok((keys, texts))
         }
         Kind::Noul => {
@@ -368,7 +378,7 @@ fn candidates_with(
             for k in NOUL_KEYS {
                 // The same "given or not" test as `choice`: `crit.get(k)` in `(None, "")`.
                 let body = match crit.and_then(|c| c.get(k)) {
-                    Some(v) if !v.is_null() && v.as_str() != Some("") => value_text(k, v, numbers),
+                    Some(v) if !v.is_null() && v.as_str() != Some("") => value_text(k, v, numbers)?,
                     _ if !instructions.is_empty() => {
                         if k == "true" {
                             format!("Yes. This is true: {instructions}")
@@ -441,6 +451,24 @@ impl NumberLiterals {
         literal
     }
 
+    /// Refuse the pairing when the walk left literals the lexer had found.
+    ///
+    /// The lexer scans the text and the walk follows the value it parsed to, so they agree
+    /// only while the value holds one number for every number in the text. A repeated key
+    /// breaks that: `serde_json` keeps the last value at the first key's position, so the
+    /// walk visits one number where the text held two and **every number after it takes the
+    /// wrong literal**. Python's `json.loads` collapses a repeated key the same way, so the
+    /// reference renders such a document happily and no oracle case can catch the
+    /// difference — it is silent on both sides unless it is refused here.
+    fn ensure_paired(&self) -> Result<()> {
+        ensure!(
+            self.at >= self.literals.len(),
+            "a JSON object repeats a key, so the numbers in this text cannot be paired with \
+             the value it parsed to"
+        );
+        Ok(())
+    }
+
     /// How many literals were collected, for the test that keeps this in step with a walk.
     pub fn len(&self) -> usize {
         self.literals.len()
@@ -463,7 +491,7 @@ pub fn to_text(x: &Value) -> String {
 /// digit. See [`NumberLiterals`] for why the text has to come along.
 pub fn to_text_json(raw: &str) -> Result<String> {
     let value: Value = serde_json::from_str(raw).context("render a JSON document")?;
-    Ok(render(&value, 0, &mut NumberLiterals::of(raw)))
+    render_with(raw, &value)
 }
 
 fn render(x: &Value, indent: usize, numbers: &mut NumberLiterals) -> String {

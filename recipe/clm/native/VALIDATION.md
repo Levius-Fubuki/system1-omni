@@ -115,7 +115,7 @@ python recipe/clm/native/compare_with_reference.py \
   labelled set and say nothing about how often CLM is right.
 - **vLLM.** The encoder here is Transformers. A deployment's pooling server is a different
   implementation and sits on the other side of the ~1e-2 above; nothing here measures it.
-- **Latency or throughput.** Nothing was timed. The engine's candidate-vector cache is
-  exercised but not measured.
+- **Latency or throughput.** Nothing was timed, and there is no candidate-vector cache to
+  exercise: `Engine::decide` embeds every text on every call.
 - **Other hardware.** One RTX 4090, compute capability 8.9. The engine is Rust and has no
   device-specific code; the CUDA part of this path is `transformers_encoder.py`.

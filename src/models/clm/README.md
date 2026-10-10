@@ -2,7 +2,7 @@
 
 CLM is the second model the project tracks ([#9](https://github.com/ThinkFlowLab/system1-omni/issues/9)), after LAYA. It decides differently in a way LAYA does not cover: **the engine does not compute embeddings.** A frozen `Qwen/Qwen3-8B` encoder runs as its own process behind an OpenAI-compatible `/v1/embeddings` endpoint, and the engine owns everything after it — two projection heads, the cosine score, and the typed answer.
 
-That split is the point of implementing it second. LAYA's engine owns one forward pass; this one owns a client to someone else's server, plus a candidate-vector cache that persists across requests.
+That split is the point of implementing it second. LAYA's engine owns one forward pass; this one owns a client to someone else's server, and embeds every text on every call — no candidate-vector cache is kept across requests. Upstream's `clm-serve` does keep one, which is why `input_tokens` moves with its cache state there and not here.
 
 ## What is here
 

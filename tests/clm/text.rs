@@ -469,4 +469,75 @@ fn the_literals_line_up_with_the_values() {
             "counting {raw}"
         );
     }
+
+    // A repeated key is the one case where they cannot agree: the map keeps the last value
+    // at the first key's position, so the walk visits one number where the text holds two,
+    // and every number after it is spelled with the wrong literal. Rendering refuses rather
+    // than pair them — see `a_repeated_key_is_refused_rather_than_paired_wrongly`.
+    let raw = r#"{"a": 1, "b": 2, "a": 3}"#;
+    let value: Value = serde_json::from_str(raw).unwrap();
+    assert_eq!(NumberLiterals::of(raw).len(), 3);
+    assert_eq!(numbers(&value), 2);
+}
+
+/// A document that repeats an object key is refused, because its numbers cannot be paired
+/// with the text they came from.
+///
+/// `{"a": 1, "b": 2, "a": 3}` parses to a map of two numbers while the text holds three, so
+/// the walk meets `b`'s number one literal late and would spell `a` as `1`. Python's
+/// `json.loads` collapses the key the same way, so the reference renders such a document
+/// without complaining and no oracle case can catch the difference.
+#[test]
+fn a_repeated_key_is_refused_rather_than_paired_wrongly() {
+    for raw in [
+        r#"{"a": 1, "b": 2, "a": 3}"#,
+        // Nested, so the mispaired literal is not the document's first number.
+        r#"{"outer": {"x": 1, "y": 2, "x": 3}, "after": 4}"#,
+        // Inside an array, where the wrong pairing reaches past the object.
+        r#"[9, {"x": 1, "y": 2, "x": 3}, 4]"#,
+    ] {
+        let error = to_text_json(raw).unwrap_err().to_string();
+        assert!(error.contains("repeats a key"), "{raw}: {error}");
+    }
+
+    // With no number to mispair, the collapse is what Python does too — the map keeps the
+    // last value at the first key's position, so the rendering already agrees.
+    assert_eq!(to_text_json(r#"{"a": "x", "a": "y"}"#).unwrap(), "a: y");
+}
+
+/// The same refusal on the path a whole request takes.
+///
+/// The state, a `choice`'s values and a `score`'s levels reach the cursor by different
+/// routes — the state and each `choice` value render from their own text, a `score`'s levels
+/// share one cursor over the list's text — so each route is checked rather than one of them.
+#[test]
+fn a_request_that_repeats_a_key_is_refused() {
+    let line = |state: &str, question: &str| {
+        format!(r#"{{"model":"clm-latest","state":{state},"questions":{{"q":{question}}}}}"#)
+    };
+    let choice = r#"{"type":"choice","instructions":"Pick","criteria":{"a":"A","b":"B"}}"#;
+    let score = r#"{"type":"score","instructions":"How much?","criteria":[{"x":1,"x":2},3]}"#;
+
+    for (state, question) in [
+        // In the state, which `state_text_with` renders from its own text. `b` follows the
+        // repeated `a`, so one wrong literal reaches past the duplicate: this rendered
+        // `a: 1\n\nb: 2` where the reference gives `a: 2\n\nb: 3`.
+        (r#"{"a":1,"a":2,"b":3}"#, choice),
+        // The same shape with the duplicate last, so nothing follows it.
+        (r#"{"x": 1, "y": 2, "x": 3}"#, choice),
+        // In a `score`'s levels, which share the cursor over the list's text.
+        (r#"{"ticket": "t"}"#, score),
+    ] {
+        let error = Request::parse_line(&line(state, question))
+            .unwrap()
+            .prepare()
+            .unwrap_err();
+        // `{:#}` rather than `{}`: a question's failure is wrapped in the context that names
+        // the question, so the reason is the second link of the chain.
+        let chain = format!("{error:#}");
+        assert!(
+            chain.contains("repeats a key"),
+            "{state} + {question}: {chain}"
+        );
+    }
 }
