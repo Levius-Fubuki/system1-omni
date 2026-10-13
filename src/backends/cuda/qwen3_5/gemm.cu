@@ -36,6 +36,7 @@ struct Gemm {
     void* workspace = nullptr;
     size_t workspace_bytes = 0;
     int reference_m = 0;  // > 0: one algorithm per weight shape, chosen at this M
+    bool reference = false;
     std::map<Key, Plan> plans;
     std::map<std::tuple<int, int, int, bool, bool>, cublasLtMatmulAlgo_t> fixed;  // N, K, ldy, FP32, bias
 };
@@ -135,8 +136,10 @@ int plan_for(Gemm& g, int M, int N, int K, int ldy, Plan*& out, bool fp32 = fals
     } else if (rc == 0) {
         // Vision's FP32 and biased GEMMs exclude all split-K to avoid BF16 intermediate
         // reductions; the language GEMMs exclude only in-place reductions.
-        rc = first_choice(g, p, fp32 || bias ? CUBLASLT_REDUCTION_SCHEME_NONE
-                                             : CUBLASLT_REDUCTION_SCHEME_MASK & ~CUBLASLT_REDUCTION_SCHEME_INPLACE);
+        const uint32_t schemes = g.reference ? CUBLASLT_REDUCTION_SCHEME_MASK
+            : fp32 || bias ? CUBLASLT_REDUCTION_SCHEME_NONE
+                           : CUBLASLT_REDUCTION_SCHEME_MASK & ~CUBLASLT_REDUCTION_SCHEME_INPLACE;
+        rc = first_choice(g, p, schemes);
     }
     if (rc != 0) {
         destroy(p);
@@ -215,4 +218,11 @@ extern "C" int cs1_gemm_f32(void* gemm, const float* x, const float* w, float* y
     const float alpha = 1.f, beta = 0.f;
     return status(cublasLtMatmul(g->handle, p->op, &alpha, w, p->a, x, p->b, &beta, y, p->c, y, p->c, &p->algo,
                                  g->workspace, g->workspace_bytes, static_cast<cudaStream_t>(stream)));
+}
+
+// JEMM matches the pinned framework heuristic, including all reduction schemes.
+extern "C" void* cs1_reference_gemm_create(size_t workspace_bytes) {
+    auto* g=static_cast<Gemm*>(cs1_gemm_create(workspace_bytes));
+    if(g) g->reference=true;
+    return g;
 }

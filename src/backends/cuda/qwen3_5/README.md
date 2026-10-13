@@ -62,3 +62,26 @@ The Rust loader checks ABI version before resolving required symbols, so older
 libraries report the rebuild requirement. Decider Graph statistics and synchronized
 stream disposal are preserved; device validation of this consolidated head remains
 unverified. Historical results retain their original implementation provenance.
+## Optional JEMM reference arithmetic
+
+JEMM enables the additive `cs1_reference_*` API group after model load and before
+any forward. It requires cuDNN 9; build with `CUDNN_INCLUDE_DIR` and
+`CUDNN_LIB_DIR`. Builds without those variables retain all mandatory ABI-8 functions;
+JEMM reports a missing-capability error rather than silently selecting older numerics.
+
+The reference path uses a per-handle GEMM reduction policy, separate normalization,
+attention and GDN functions, and shape-owned cuDNN Conv3D plans. Attention and
+convolution workspaces allocate before capture and retire with their model/shape.
+The rotary entry point consumes FP32 angles and computes trigonometry on device;
+legacy rotary functions still consume cos/sin tables. Prefix caching is unsupported
+on this opt-in path. The shared workers' default arithmetic remains unchanged.
+
+The [JEMM numerical record](../../../../docs/benchmarks/jemm-reference-20261011/README.md)
+contains a frozen 1–4-image corpus and reproducible operator/HTTP checks.
+
+The Cua wrapper explicitly selects bounded single-image LRU scratch. Generic
+vision consumers retain their original four-grid FIFO and separate four-entry
+batch FIFO; JEMM reference plans/workspaces are unaffected by Cua cache settings.
+Explicit bounded-cache construction rejects batch/reference opt-in, whose cuDNN
+workspace is outside that policy. Resident transient output is model-owned until
+its consuming streams complete; the Cua worker then releases it after synchronization.
