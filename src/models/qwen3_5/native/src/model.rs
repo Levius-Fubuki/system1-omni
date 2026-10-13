@@ -456,6 +456,7 @@ impl Scratch {
         stream: Stream,
         lora: Option<&lora::Lora>,
         reference: Option<&cuda::Reference>,
+        fp32_gdn: Option<&cuda::Fp32Gdn>,
     ) -> Result<Self> {
         let (h, kd, vd, hv) = (cfg.hidden, cfg.key_dim(), cfg.value_dim(), cfg.lin_v_heads);
         let (hq, hk, hd) = (cfg.heads, cfg.kv_heads, cfg.head_dim);
@@ -478,6 +479,11 @@ impl Scratch {
             }
         } else {
             unsafe { (cuda::api().cs1_gdn_workspace_floats)(cap as i32, hv as i32) }
+        };
+        let ws_floats = if let Some(gdn) = fp32_gdn {
+            ws_floats.max(gdn.workspace_floats(cap, hv)?)
+        } else {
+            ws_floats
         };
         let offsets = [
             take(cap * 4),
@@ -698,6 +704,7 @@ pub struct Model {
     /// One GEMM algorithm per weight shape for `forward_shared`; created on first use.
     fixed_gemm: *mut c_void,
     reference: Option<&'static cuda::Reference>,
+    fp32_gdn: Option<cuda::Fp32Gdn>,
     /// Buffers for the largest packed token count so far; grows as needed.
     scratch: Option<Scratch>,
     /// The request and group prefix states of `forward_shared`; grow as needed.
@@ -731,6 +738,8 @@ impl Drop for Model {
         self.mm_graphs.clear();
         self.scratch = None;
         self.shared = [None, None];
+        // Retire the FP32 cuBLAS context while its last stream is still valid.
+        self.fp32_gdn = None;
         // SAFETY: model-owned GEMM handles have no queued work or captures.
         unsafe {
             (cuda::api().cs1_gemm_destroy)(self.gemm);
@@ -865,6 +874,7 @@ impl Model {
             gemm,
             fixed_gemm: std::ptr::null_mut(),
             reference: None,
+            fp32_gdn: None,
             scratch: None,
             shared: [None, None],
             graph_enabled: graph,
@@ -887,9 +897,37 @@ impl Model {
         }
     }
 
+    /// Cua-S1's unmerged text path: framework norm/GEMM/attention plus FP32 GDN.
+    pub fn enable_reference_text_numerics(&mut self) -> Result<()> {
+        ensure!(
+            self.cfg.hidden == 2560 && self.lora.is_some(),
+            "reference text numerics require an unmerged 4B language model"
+        );
+        ensure!(
+            self.scratch.is_none() && self.reference.is_none() && self.fp32_gdn.is_none(),
+            "select reference text numerics before the first forward"
+        );
+        cuda::set_device(0)?;
+        let gdn = cuda::api().fp32_gdn()?;
+        let reference = cuda::api().language_reference()?;
+        cuda::synchronize(self.stream)?;
+        // SAFETY: both handles are model-owned; no queued work or captures exist.
+        let gemm = unsafe { (reference.gemm_create)(GEMM_WORKSPACE) };
+        ensure!(!gemm.is_null(), "reference text cuBLASLt setup failed");
+        unsafe { (cuda::api().cs1_gemm_destroy)(self.gemm) };
+        self.gemm = gemm;
+        self.reference = Some(reference);
+        self.fp32_gdn = Some(gdn);
+        Ok(())
+    }
+
     /// Select JEMM's pinned framework arithmetic before the first forward.
     /// Prefix caching is outside this execution contract.
     pub fn enable_reference_numerics(&mut self) -> Result<()> {
+        ensure!(
+            self.fp32_gdn.is_none(),
+            "cannot combine JEMM reference numerics with FP32 GDN"
+        );
         ensure!(
             self.cfg.hidden == 5120 && self.cfg.head_dim == 256 && self.lora.is_some(),
             "reference numerics require the unmerged JEMM 27B model"
@@ -1084,6 +1122,7 @@ impl Model {
                 self.stream,
                 self.lora.as_ref(),
                 self.reference,
+                self.fp32_gdn.as_ref(),
             )?);
         }
         Ok(())
@@ -1347,6 +1386,10 @@ impl Model {
     /// Allocate an uninitialized prefix of `len` tokens (a multiple of 64).
     /// Capture must finish successfully on this model before continuation.
     pub fn alloc_prefix(&self, len: usize) -> Result<PrefixState> {
+        ensure!(
+            self.fp32_gdn.is_none(),
+            "FP32 GDN does not support prefix caching"
+        );
         ensure!(
             self.reference.is_none(),
             "JEMM reference numerics do not support prefix caching"
@@ -1773,22 +1816,39 @@ impl Model {
                         )?;
                         for &(offset, length) in &sequences {
                             check(
-                                (self
-                                    .reference
-                                    .map_or(cuda::api().cs1_gdn_prefill, |r| r.gdn_prefill))(
-                                    p(s.lq + offset * kd * BF16),
-                                    p(s.lk + offset * kd * BF16),
-                                    p(s.lv + offset * vd * BF16),
-                                    p(s.g + offset * hv * F32).cast(),
-                                    p(s.beta + offset * hv * BF16),
-                                    p(s.lo + offset * vd * BF16),
-                                    p(s.workspace).cast(),
-                                    length,
-                                    hv as i32,
-                                    cfg.lin_k_heads as i32,
-                                    (cfg.lin_k_dim as f32).powf(-0.5),
-                                    st,
-                                ),
+                                if let Some(gdn) = &self.fp32_gdn {
+                                    gdn.run(
+                                        p(s.lq + offset * kd * BF16),
+                                        p(s.lk + offset * kd * BF16),
+                                        p(s.lv + offset * vd * BF16),
+                                        p(s.g + offset * hv * F32).cast(),
+                                        p(s.beta + offset * hv * BF16),
+                                        p(s.lo + offset * vd * BF16),
+                                        p(s.workspace).cast(),
+                                        length,
+                                        hv as i32,
+                                        cfg.lin_k_heads as i32,
+                                        (cfg.lin_k_dim as f32).powf(-0.5),
+                                        st,
+                                    )
+                                } else {
+                                    (self
+                                        .reference
+                                        .map_or(cuda::api().cs1_gdn_prefill, |r| r.gdn_prefill))(
+                                        p(s.lq + offset * kd * BF16),
+                                        p(s.lk + offset * kd * BF16),
+                                        p(s.lv + offset * vd * BF16),
+                                        p(s.g + offset * hv * F32).cast(),
+                                        p(s.beta + offset * hv * BF16),
+                                        p(s.lo + offset * vd * BF16),
+                                        p(s.workspace).cast(),
+                                        length,
+                                        hv as i32,
+                                        cfg.lin_k_heads as i32,
+                                        (cfg.lin_k_dim as f32).powf(-0.5),
+                                        st,
+                                    )
+                                },
                                 "gdn prefill",
                             )?;
                         }
@@ -1976,6 +2036,10 @@ impl Model {
         prefix: Option<&PrefixState>,
         gemm: *mut c_void,
     ) -> Result<()> {
+        ensure!(
+            self.fp32_gdn.is_none(),
+            "FP32 GDN does not support prefix continuation"
+        );
         ensure!(
             qb < tend
                 && prefix.map_or(qb == 0, |pre| pre.len == qb)
