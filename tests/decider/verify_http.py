@@ -36,6 +36,15 @@ def wait_ready(base, child, log):
     raise TimeoutError("readiness timeout")
 
 
+def concurrency_request(cases):
+    if not cases:
+        raise ValueError("empty HTTP corpus")
+    for case in cases:
+        if case["name"] == "mixed" and case["request"]["questions"]:
+            return case["request"]
+    return next((case["request"] for case in cases if case["request"]["questions"]), cases[0]["request"])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker", type=Path, required=True)
@@ -44,6 +53,8 @@ def main():
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--parity-output", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--execution", default="eager")
+    parser.add_argument("--native-records", type=Path, help="verify_modes records.jsonl for the selected mode")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     worker_base, frontend_base = "http://127.0.0.1:18110", "http://127.0.0.1:18111"
@@ -57,7 +68,7 @@ def main():
         processes.append(worker)
         metadata = wait_ready(worker_base, worker, path)
         assert metadata["checkpoint_revision"] == "533964dae8be954c5b5e19fa4948e48408094c1e"
-        assert metadata["execution"] == "eager" and metadata["dtype"] == "bfloat16"
+        assert metadata["execution"] == args.execution and metadata["dtype"] == "bfloat16"
         environment.update(OMNI_JEV_BIND="127.0.0.1:18111", OMNI_JEV_BACKEND_URL=worker_base)
         path = args.output / "frontend.log"
         logs.append(path.open("w"))
@@ -66,6 +77,10 @@ def main():
         wait_ready(frontend_base, frontend, path)
         protocol = json.loads((args.parity_output / "protocol.json").read_text())
         native_records = [json.loads(line) for line in (args.parity_output / "native.jsonl").read_text().splitlines()]
+        if args.native_records:
+            native_records = [item["record"] for line in args.native_records.read_text().splitlines()
+                              for item in [json.loads(line)] if item["phase"] == "parity"]
+        assert len(native_records) == len(protocol["cases"])
         for case, native in zip(protocol["cases"], native_records):
             body = json.dumps(case["request"], ensure_ascii=False).encode()
             direct, proxy = request(worker_base, "/v1/systemone", body), request(frontend_base, "/v1/systemone", body)
@@ -90,7 +105,7 @@ def main():
         oversized = request(worker_base, "/v1/systemone", b" " * (8 * 1024 * 1024 + 1))
         assert oversized[0] == 413
         checks.append({"name": "body_limit", "status": 413})
-        raw = json.dumps(protocol["cases"][13]["request"]).encode()
+        raw = json.dumps(concurrency_request(protocol["cases"])).encode()
         baseline = request(worker_base, "/v1/systemone", raw)
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
             concurrent_results = list(pool.map(lambda i: request(frontend_base if i % 2 else worker_base, "/v1/systemone", raw), range(12)))
