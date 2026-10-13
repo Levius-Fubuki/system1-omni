@@ -246,6 +246,7 @@ impl VisionEngine {
         let language_sync = self.language.synchronize();
         vision_sync?;
         language_sync?;
+        self.vision.release_transient()?;
         result
     }
 
