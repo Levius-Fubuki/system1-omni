@@ -186,3 +186,8 @@ The same optional `score_decimals` argument is accepted by `read_answers`,
 `request_one` and `replay`; run configuration records it for reproducibility.
 Decider's isolated all-zero Score distribution requires complete consistent
 zero-fit metadata; other non-normalized distributions remain invalid.
+## Frozen serving matrix
+
+See [the matrix client guide](serving_matrix.md) and [example plan](serving_matrix.example.json)
+for exact response oracles, workload variants, concurrency rounds, pinned runtime
+metadata and environment-based bearer authentication.
